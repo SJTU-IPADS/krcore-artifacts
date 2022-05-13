@@ -73,7 +73,7 @@ If **Check if the configuration is correct** in **Run Experiments** of [exp.md](
 
 There are three key results of the evaluations of the paper:
 
-1. KRCore can significantly improve the performance of RDMA control path (compared with verbs)
+1. KRCore can significantly improve the performance of RDMA control path (compared with verbs), e.g., 1000X+ higher throughput. 
 
    Corresponding paper figures: Figure 8a 
 
