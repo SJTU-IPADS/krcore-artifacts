@@ -51,6 +51,10 @@ def analyse(file_path):
         data = np.transpose(data)
         # df = pd.DataFrame(data, columns=['epoch', 'thpt'])
         # df.to_excel('race-hasing.xlsx')
+        for i in range(5):
+            maxindex = np.argmax(thpts)
+            thpts = np.delete(thpts, maxindex)
+            epochs = np.delete(epochs, maxindex)
 
         return epochs, thpts, trigger_line
 
