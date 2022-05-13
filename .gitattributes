@@ -1,0 +1,4 @@
+mlnx-ofed-4.9-driver/libmlx4_41mlnx1.orig.tar.gz filter=lfs diff=lfs merge=lfs -text
+mlnx-ofed-4.9-driver/mlnx-ofed-kernel_4.9-OFED.4.9.3.1.5.1.debian.tar.xz filter=lfs diff=lfs merge=lfs -text
+mlnx-ofed-4.9-driver/mlnx-ofed-kernel_4.9.orig.tar.gz filter=lfs diff=lfs merge=lfs -text
+mlnx-ofed-4.9-driver/MLNX_OFED_LINUX-4.9-3.1.5.0-ubuntu16.04-x86_64.tgz filter=lfs diff=lfs merge=lfs -text
