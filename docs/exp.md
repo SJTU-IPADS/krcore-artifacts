@@ -131,7 +131,7 @@ Please run the experiments as follows:
 
 After running these experiemnts, you can use `make fig9a`  to plot the results, which will generate the outcome in `out/fig9a.png` (The first one corresponds to the one in the paper). 
 
-The log files can also be found in the `out` directory. 
+The log files can also be found in the `out/krcore-connect`,`out/krcore-connect-rpc` directory.
 
 ![fig9a](./screenshoots/fig9a.png)
 
@@ -151,7 +151,7 @@ The log files can also be found in the `out` directory.
 make fig10a
 ```
 
-The log files can also be found in the `out` directory. 
+The log files can also be found in the `out/one-sided-verbs-sync-read.verbs`,`out/one-sided-krcore-sync-read.rc`, `out/one-sided-krcore-sync-read.dc` directory. 
 
 
 
@@ -173,7 +173,7 @@ The log files can also be found in the `out` directory.
 make fig10b
 ```
 
-The log files can also be found in the `out` directory. 
+The log files can also be found in the `out/one-sided-verbs-async-read.verbs`,`out/one-sided-krcore-sync-read.rc`,`out/one-sided-krcore-sync-read.dc` directory. 
 
 ![fig10b](./screenshoots/fig10b.png)
 
@@ -195,7 +195,7 @@ make fig10c
 
 ![fig10c](./screenshoots/fig10c.png)
 
-The log files can also be found in the `out` directory. 
+The log files can also be found in the `out/one-sided-verbs-sync-write.verbs`,`out/one-sided-krcore-sync-write.rc`,`out/one-sided-krcore-sync-write.dc` directory. 
 
 ---
 
@@ -217,7 +217,7 @@ make fig10d
 
 ![fig10d](./screenshoots/fig10d.png)
 
-The log files can also be found in the `out` directory. 
+The log files can also be found in the `out/one-sided-verbs-async-write.verbs`, `out/one-sided-krcore-async-write.rc`, `out/one-sided-krcore-async-write.dc` directory. 
 
 ---
 
@@ -235,11 +235,11 @@ The log files can also be found in the `out` directory.
 make fig11a
 ```
 
-![fig11a](/Users/wxd/Documents/lab/temp/rust-kernel-rdma-syscall/docs/screenshoots/fig11a.png)
+![fig11a](screenshoots/fig11a.png)
 
 Note that some points maybe slow due to viberation, can re-evaluate several times to get a steady performance. 
 
-The log files can also be found in the `out` directory. 
+The log files can also be found in the `out/two-sided-verbs-sync.verbs`,`out/two-sided-rc-sync.rc`,`out/two-sided-dc-sync.dc` directory. 
 
 ---
 
@@ -257,9 +257,9 @@ The log files can also be found in the `out` directory.
 make fig11b
 ```
 
-![fig11b](/Users/wxd/Documents/lab/temp/rust-kernel-rdma-syscall/docs/screenshoots/fig11b.png)
+![fig11b](screenshoots/fig11b.png)
 
-The log files can also be found in the `out` directory. 
+The log files can also be found in the `out/two-sided-verbs-async.verbs`,`out/two-sided-rc-async.rc`,`out/two-sided-dc-async.dc` directory. 
 
 ---
 
@@ -279,7 +279,7 @@ make fig14
 
 ![fig14](./screenshoots/fig14.png)
 
-The log files can also be found in the `out` directory. 
+The log files can also be found in the `out/race-hashing-verbs`,`out/race-hashing-krcore`,`out/race-hashing-krcore-async` directory. 
 
 ---
 
