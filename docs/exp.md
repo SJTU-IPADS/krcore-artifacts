@@ -117,6 +117,16 @@ After running these experiemnts, you can use `make fig8a`  to plot the results, 
 
 The sample results using two machines (one for the server and one for the client) is shown below. The detailed logs can be found in `out/verbs-connect`, `out/krcore-connect` and `out/lite-connect`.  For example, when running `out/verbs-connect/run-1.toml` , the corresponding log is in `out/verbs-connect/run-1.toml.txt`. 
 
+Note that all the points will output at the terminal like the following for each make statement: 
+
+```
+> make verbs-connect 
+... 
+plot out/verbs-connect {1: {'thpt': 20.247225, 'lat': 49411.55}, 18: {'thpt': 99.487725, 'lat': 182267.25}, 16: {'thpt': 95.974625, 'lat': 166710.75}, 4: {'thpt': 51.993475000000004, 'lat': 76932.75}, 2: {'thpt': 33.995575, 'lat': 58831.175}, 12: {'thpt': 83.990225, 'lat': 142873.75}, 20: {'thpt': 99.9763, 'lat': 200047.0}, 8: {'thpt': 71.99147500000001, 'lat': 111124.5}, 14: {'thpt': 91.489725, 'lat': 153809.5}}
+```
+
+
+
 ![fig8a](./screenshoots/fig8a.png)
 
 ---
