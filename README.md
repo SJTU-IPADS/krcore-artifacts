@@ -14,9 +14,10 @@ Since KRCore is a kernel-space solution with RDMA, we should first build KRCore 
 
 To get started, please first select a controller machine (e.g., your laptop or a PC in the lab). 
 
-**At the controller**. Extract the zip file (rust-kernel-rdma-syscall.zip) to some directory (`/path/to/krcore`)  and do the following: 
+**At the controller**. clone the repo to some directory (`/path/to/krcore`)  and export it:
 
 ```sh
+git clone https://github.com/SJTU-IPADS/krcore-artifacts.git
 export PROJECT_PATH=/path/to/krcore
 ```
 
