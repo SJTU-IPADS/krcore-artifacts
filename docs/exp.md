@@ -115,7 +115,7 @@ Please run the experiments as follows:
 
 After running these experiemnts, you can use `make fig8a`  to plot the results, which will generate the outcome in `out/fig8a.png` (The first one corresponds to the one in the paper). 
 
-The sample results using two machines (one for the server and one for the client) is shown below. The detailed logs can be found in `out/verbs-connect`, `out/krcore-connect` and `out/lite-connect`. 
+The sample results using two machines (one for the server and one for the client) is shown below. The detailed logs can be found in `out/verbs-connect`, `out/krcore-connect` and `out/lite-connect`.  For example, when running `out/verbs-connect/run-1.toml` , the corresponding log is in `out/verbs-connect/run-1.toml.txt`. 
 
 ![fig8a](./screenshoots/fig8a.png)
 
