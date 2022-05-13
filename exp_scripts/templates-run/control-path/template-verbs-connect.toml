@@ -1,0 +1,20 @@
+[global]
+
+[template]
+
+[[template.pass]]
+role = "server"
+path = "exp"
+cmd = "./rc_connect_server -port=${port} -run_sec=${run_sec_s}"
+
+
+[[template.pass]]
+role = "client"
+path = "exp"
+cmd = "./rc_connect_client -addr=${server_host}:${port} -threads=${threads} -run_sec=${run_sec_c}"
+
+[template.placeholder]
+threads = [1, 2, 4, 8, 12, 14, 16, 18, 20]
+run_sec_s = 15
+run_sec_c = 10
+

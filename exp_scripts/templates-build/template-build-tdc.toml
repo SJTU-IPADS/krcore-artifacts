@@ -1,0 +1,13 @@
+[global]
+[template]
+
+
+[[template.pass]]
+role = 'builder'
+path = 'KRdmaKit-syscall/two-sided-dc/KRdmaKit-syscall'
+cmd = 'source $HOME/.cargo/env; make -j; make uninstall ; make install'
+
+[template.placeholder]
+name = ["build"]
+
+

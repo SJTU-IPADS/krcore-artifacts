@@ -1,0 +1,24 @@
+[package]
+name = "no-std-net"
+description = "Rust's std::net... without the 'std'."
+version = "0.4.0"
+authors = [ "M@ Dunlap <mattdunlap@gmail.com>" ]
+categories = [ "embedded", "network-programming", "no-std" ]
+repository = "https://github.com/dunmatt/no-std-net"
+license = "MIT"
+
+[badges]
+maintenance = { status = "actively-developed" }
+travis-ci = { repository = "dunmatt/no-std-net" }
+
+[dependencies]
+serde = { version = "^1", default-features = false, optional = true }
+
+[dev-dependencies]
+serde_test = "^1"
+
+[features]
+default = [ ]
+
+# Deprecated. Does nothing.
+i128 = [ ]

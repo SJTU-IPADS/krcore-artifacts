@@ -1,0 +1,23 @@
+[global]
+
+[template]
+[[template.pass]]
+role = 'server'
+path = "exp"
+cmd = "./kernel_twosided_rc_server -host_len=${host_len} -or_sz=2048 -threads=${threads} -run_sec=${run_sec_s} -port=1 "
+
+
+[[template.pass]]
+role = 'client'
+path = "exp"
+cmd = './kernel_twosided_rc_client -vid=${@incr} -or_sz=${or_sz} -threads=${threads} -run_sec=${run_sec_c} -port=1 -gid=${server_gid}'
+
+[template.placeholder]
+threads = [1, 2, 4, 8, 12, 16, 18, 20, 24]
+host_len = 12
+run_sec_s = 20
+run_sec_c = 10
+@incr = 0
+or_sz = 2
+payload_sz = 64
+

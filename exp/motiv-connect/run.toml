@@ -1,0 +1,9 @@
+[[pass]]
+host = "val13"
+path = ''
+cmd  = 'cd projects/krdmakit/exp; ./rc_connect_server'
+
+[[pass]]
+host = "val14"
+path = ''
+cmd  = 'cd projects/krdmakit/exp; ./rc_connect_client -threads=1 -addr=val13:8888'

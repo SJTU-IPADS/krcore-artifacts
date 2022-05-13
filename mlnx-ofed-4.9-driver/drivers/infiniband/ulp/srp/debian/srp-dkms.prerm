@@ -1,0 +1,21 @@
+#!/bin/sh
+set -e
+
+# Get the package version
+package=srp
+version=`dpkg-query -W -f='${Version}' "$package-dkms" \
+    | sed -e 's/[+-].*//'`
+
+dkms remove -m "$package" -v "$version" --all || true
+
+# update openib.conf
+init_conf_file=/etc/infiniband/openib.conf
+if [ -e $init_conf_file ] &&
+		grep -q 'SRP_LOAD=' $init_conf_file; then
+	sed -i '/\<SRP module\>/d' $init_conf_file
+	sed -i '/\<SRP_LOAD\>/d' $init_conf_file
+fi
+
+#DEBHELPER#
+
+exit 0

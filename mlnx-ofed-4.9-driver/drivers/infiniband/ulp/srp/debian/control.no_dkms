@@ -1,0 +1,14 @@
+Source: srp
+Section: kernel
+Priority: optional
+Maintainer: Mellanox Technologies <support@mellanox.com>
+Build-Depends: debhelper (>= 8.0.0), autotools-dev, bzip2, make
+Standards-Version: 1.0
+Homepage: http://www.mellanox.com
+
+Package: srp-modules
+Section: kernel
+Architecture: any
+Depends: mlnx-ofed-kernel-modules, ${misc:Depends}
+Description: srp kernel modules
+ This package provides the binary code for the srp kernel modules.

@@ -1,0 +1,13 @@
+[global]
+[template]
+
+[[template.pass]]
+role = 'builder'
+path = 'KRdmaKit-syscall'
+cmd  = 'source $HOME/.cargo/env; cp ${kbuild} Kbuild ; make -j; make uninstall ; make install'
+
+[template.placeholder]
+name = ["build"]
+kbuild = "Kbuild-lite"
+
+

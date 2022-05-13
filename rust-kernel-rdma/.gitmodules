@@ -1,0 +1,7 @@
+[submodule "deps/no-std-net"]
+	path = deps/no-std-net
+	url = https://gitlab-runner-ci:3gFbZWxNq7FnTAhrJRbC@ipads.se.sjtu.edu.cn:1312/distributed-rdma-serverless/kernel-rdma/no-std-net.git
+[submodule "deps/rust-kernel-module"]
+	path = deps/rust-kernel-module
+	url = https://gitlab-runner-ci:f-CnbRzz74CiG5e8k7nS@ipads.se.sjtu.edu.cn:1312/distributed-rdma-serverless/kernel-rdma/rust-kernel-module.git
+

@@ -1,0 +1,11 @@
+nvme-core.ko external
+nvme.ko external
+nvme-fabrics.ko external
+nvme-rdma.ko external
+nvme-fc.ko external
+nvmet.ko external
+nvme-loop.ko external
+nvmet-rdma.ko external
+nvmet-fc.ko external
+nvme-fcloop.ko external
+lpfc.ko external

@@ -1,0 +1,24 @@
+[global]
+global_configs = "-undefok=or_sz"
+
+[template]
+[[template.pass]]
+role = 'server'
+path = "exp"
+cmd = "./user_twosided_rc_server -run_sec=${run_sec_s} -host_len=${host_len} -port=${port} -or_sz=${or_sz} -payload_sz=${payload_sz} -threads=${threads} "
+
+
+[[template.pass]]
+role = 'client'
+path = "exp"
+cmd = './user_twosided_rc_client -run_sec=${run_sec_c} -host=${@incr} -addr=${server_host} -port=${port} -id=${@incr} -or_sz=${or_sz} -payload_sz=${payload_sz} -threads=${threads}'
+
+[template.placeholder]
+threads = [1, 2, 4, 8, 12, 16, 18, 20, 24]
+host_len = 12
+run_sec_s = 20
+run_sec_c = 10
+@incr = 0
+or_sz = 2
+payload_sz = 64
+

@@ -1,0 +1,23 @@
+[package]
+name = "KRdmaKit"
+version = "0.1.0"
+authors = ["xmm <wxdwfc@gmail.com>"]
+edition = "2018"
+
+
+[dependencies]
+rust-kernel-rdma-base = { path = "../rust-kernel-rdma-base" }
+no-std-net = { path = "../deps/no-std-net" }
+
+## spinlock
+spin = "0.9.2"           ## spin lock
+hashbrown = "0.9"
+
+[features]
+#default = ["profile"]
+dct = ["rust-kernel-rdma-base/dct"]
+profile = []
+## lazy static
+[dependencies.lazy_static]
+version = "1.0"
+features = ["spin_no_std"]

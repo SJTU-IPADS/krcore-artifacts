@@ -1,0 +1,22 @@
+[global]
+
+[template]
+[[template.pass]]
+role = 'server'
+path = "exp"
+cmd = "./urc_server_sync -port=${port} -run_sec=${run_sec_s}"
+
+
+[[template.pass]]
+role = 'client'
+path = "exp"
+cmd = "./urc_client_sync -threads=${threads} -addr=${server_host}:${port} -run_sec=${run_sec_c} -rdma_op=${rdma_op} -or_sz=${or_sz} -payload_sz=${payload_sz} "
+
+[template.placeholder]
+threads = [1, 2, 4, 8, 12, 16, 18, 20, 24]
+run_sec_s = 20
+run_sec_c = 10
+rdma_op = 1 # 0 means read, 1 means write
+or_sz = 12
+payload_sz = 8
+

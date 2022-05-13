@@ -1,0 +1,29 @@
+[package]
+name = "KRdmaKit"
+version = "0.1.0"
+authors = ["xmm <wxdwfc@gmail.com>"]
+edition = "2018"
+
+
+[dependencies]
+rust-kernel-rdma-base = { path = "../rust-kernel-rdma-base" }
+no-std-net = { path = "../deps/no-std-net" }
+nostd_async = "0.3.1"
+futures-micro = "0.4"
+## spinlock
+spin = "0.9.2"           ## spin lock
+hashbrown = "0.9"
+
+[features]
+#default = ["profile"]
+dct = ["rust-kernel-rdma-base/dct"]
+profile = []
+
+## IF enable `rpc_server`, the `poll_all` will busy polling the UD result. IF disabled, the application should
+## explicitly call `poll_all` to fetch all of the results.
+rpc_server = []
+
+## lazy static
+[dependencies.lazy_static]
+version = "1.0"
+features = ["spin_no_std"]

@@ -1,0 +1,58 @@
+#! /bin/bash
+
+moddir=$1; shift
+KBUILD=$1; shift
+
+SOURCES_DIR=
+case "$KBUILD" in
+    *linux-obj*)
+    SOURCES_DIR=$(readlink -f $KBUILD 2>/dev/null | sed -e 's/-obj.*//g')
+    ;;
+    */usr/src/linux-*-obj/*)
+    SOURCES_DIR=$(readlink -f $KBUILD 2>/dev/null | sed -e 's/-obj.*//g')
+    ;;
+    *)
+    SOURCES_DIR=$(readlink -f ${KBUILD/build/source})
+    ;;
+esac
+if [ ! -e "$SOURCES_DIR" ]; then
+    SOURCES_DIR=$KBUILD
+fi
+
+SIGN_FILE=
+if [ -e "${KBUILD}/scripts/sign-file" ]; then
+    SIGN_FILE="${KBUILD}/scripts/sign-file"
+elif [ -e "${SOURCES_DIR}/scripts/sign-file" ]; then
+    SIGN_FILE="${SOURCES_DIR}/scripts/sign-file"
+else
+    echo "Error: Sign tool does not exist at '$KBUILD' or '$SOURCES_DIR' !" >&2
+    exit 1
+fi
+echo "Found Sign tool at: '${SIGN_FILE}'"
+
+if [ ! -e "${MODULE_SIGN_PRIV_KEY}" ]; then
+    echo "Error: MODULE_SIGN_PRIV_KEY is not set to valid path!" >&2
+    exit 1
+fi
+if [ ! -e "${MODULE_SIGN_PUB_KEY}" ]; then
+    echo "Error: MODULE_SIGN_PUB_KEY is not set to valid path!" >&2
+    exit 1
+fi
+
+modules=`find $moddir -name '*.ko' -o -name '*.ko.gz'`
+for mod in $modules
+do
+    dir=`dirname $mod`
+    file=`basename $mod`
+
+    ${SIGN_FILE} sha256 ${MODULE_SIGN_PRIV_KEY} ${MODULE_SIGN_PUB_KEY} ${dir}/${file}
+    rm -f ${dir}/${file}.{sig,dig}
+done
+
+RANDOMMOD=$(find $moddir -type f -name '*.ko' -o -name '*.ko.gz' | sort -R | tail -n 1)
+if [ "~Module signature appended~" != "$(tail -c 28 $RANDOMMOD)" ]; then
+    echo "*** Modules are unsigned! ***"
+    exit 1
+fi
+
+exit 0

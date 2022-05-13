@@ -1,0 +1,12 @@
+[global]
+
+[template]
+[[template.pass]]
+role = "client"
+path = "exp"
+cmd = "./rc_connect_client_kernel -threads=${threads} -gid=${server_gid}"
+
+[template.placeholder]
+threads = [1, 2, 4, 8, 12, 14, 16, 18, 20, 22]
+
+

@@ -1,0 +1,27 @@
+[package]
+name = "rust-kernel-linux-util"
+version = "0.1.0"
+authors = ["CaribouW <1071956678@qq.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+linux-kernel-module = { path = "../deps/rust-kernel-module" }
+no-std-net = {path = "../deps/no-std-net"}
+cfg-if = "1.0"
+
+[build-dependencies]
+bindgen = "0.54"
+cc = "1.0"
+shlex = "0.1"
+
+[features]
+max_level_off   = []
+max_level_error = []
+max_level_warn  = []
+max_level_info  = []
+max_level_debug = []
+max_level_trace = []
+
+static_log_check = [] ## avoid dynamically reading the global max_level for better performance 

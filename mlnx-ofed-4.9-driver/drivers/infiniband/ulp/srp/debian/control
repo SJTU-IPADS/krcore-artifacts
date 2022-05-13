@@ -1,0 +1,17 @@
+Source: srp
+Section: kernel
+Priority: optional
+Maintainer: Mellanox Technologies <support@mellanox.com>
+Build-Depends: debhelper (>= 8.0.0), autotools-dev, bzip2, dkms
+Standards-Version: 1.0
+Homepage: http://www.mellanox.com
+
+Package: srp-dkms
+Section: kernel
+Architecture: all
+Depends: dkms, make, mlnx-ofed-kernel-dkms, ${misc:Depends}
+Recommends: linux-headers-arm64 | linux-headers-powerpc | linux-headers-ppc64 | linux-headers-ppc64le | linux-headers-amd64 | linux-headers | linux-headers-generic
+Description: DKMS support fo srp kernel modules
+ This package provides integration with the DKMS infrastructure for automatically building out of tree kernel modules.
+ .
+ This package contains the source to be built with dkms.

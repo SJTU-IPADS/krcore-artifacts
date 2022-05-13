@@ -1,0 +1,28 @@
+[global]
+global_configs= "-or_sz=2 -payload_sz=96 -write_imm=0 -undefok=write_imm,or_sz "
+
+[template]
+[[template.pass]]
+role = 'server'
+path = 'exp'
+cmd = './racing_hash_analyser -host_len=10 -threads=1 -run_sec=60 -tick_interval_us=1000 -port=${port}'
+
+[[template.pass]]
+role = 'client'
+path = 'exp'
+cmd = './racing_hash_kernel_elastic_worker -host=${@incr} -analyser_addr=${server_host}:${port} -tick_interval_us=100 -threads=24 -run_sec=50 -server_gid=${server_gid}'
+
+
+[[template.pass]]
+role = 'trigger'
+path = "exp"
+cmd = "./racing_hash_trigger -worker_addrs='${client_hosts}' -threads=1"
+
+
+[template.placeholder]
+name = ["krcore-race-hashing-async"]
+run_sec_c = 20
+rdma_op = 0 # 0 means read, 1 means write
+or_sz = 12
+payload_sz = 8
+

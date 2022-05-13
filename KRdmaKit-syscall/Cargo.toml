@@ -1,0 +1,70 @@
+[package]
+name = "KRdmaKitSyscall"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["staticlib"]
+test = false
+
+[features]
+default = ["KRdmaKit", "virtual_queue"]                     # default RC
+#default = ["KRdmaKit", "virtual_queue", "dct_qp"]                     # default DC
+#default = ["KRdmaKit", "virtual_queue", "dct_qp"] # KRCore RPC connect
+#default = ["KRdmaKit", "virtual_queue", "dct_qp", "meta_kv"] # KRCore meta kv client
+#default = ["KRdmaKit", "virtual_queue", "rpc_server", "dct_qp", "meta_kv"] #  KRCore meta kv server
+
+# virtual queue cache
+virtual_queue = []
+
+# dct
+dct_qp = []
+#dct_qp = ["meta_cache"]
+#dct_qp = ["meta_kv"]        # for meta KV test
+#dct_qp = ["meta_kv", "meta_cache"]
+#dct_qp = ["migrate_qp"]
+#dct_qp = ["meta_kv", "migrate_qp"]
+
+
+################################################
+## MigrateQP from DCQP => RCQP
+## Enable it when need to use hybrid qp
+migrate_qp = []
+
+## Using Meta kv for DC connection
+## Must be enabled when
+# 1) boosting meta server and
+# 2) nodes that need meta server to connect
+meta_kv = []
+
+## DCT meta cache in local
+meta_cache = []
+
+## IF busy polling UD as one RPC Server
+rpc_server = ["KRdmaKit/rpc_server"]
+
+[dependencies]
+KRdmaKit = { path = "../rust-kernel-rdma/KRdmaKit", optional = true, features = ["dct"] }
+#KRdmaKit = { path = "../rust-kernel-rdma/KRdmaKit", optional = true, features = ["dct", "rpc_server"] }
+#KRdmaKit = { path = "../rust-kernel-rdma/KRdmaKit", optional = true, features = ["dct", "profile"] }
+no-std-net = { path = "../rust-kernel-rdma/deps/no-std-net" }
+krdmakit-macros = {path = "../krdmakit-macros"}
+hashbrown = "0.9"
+#nostd_async = "0.3.1"
+nostd_async = "0.6.0" # TODO: Check if work ?
+futures-micro = "0.4"
+
+[build-dependencies]
+bindgen = "0.54"
+cc = "1.0"
+shlex = "0.1"
+
+## lazy static
+[dependencies.lazy_static]
+version = "1.0"
+features = ["spin_no_std"]
+
+[profile.dev]
+opt-level = 2

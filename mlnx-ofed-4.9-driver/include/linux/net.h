@@ -1,0 +1,14 @@
+#ifndef _COMPAT_LINUX_NET_H
+#define _COMPAT_LINUX_NET_H 1
+
+#include_next <linux/net.h>
+
+#ifndef SOCK_ASYNC_NOSPACE
+#define SOCK_ASYNC_NOSPACE SOCKWQ_ASYNC_NOSPACE
+#endif
+
+#ifndef SOCK_ASYNC_WAITDATA
+#define SOCK_ASYNC_WAITDATA SOCKWQ_ASYNC_WAITDATA
+#endif
+
+#endif	/* _COMPAT_LINUX_NET_H */

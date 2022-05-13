@@ -1,0 +1,34 @@
+[global]
+global_configs= "-or_sz=2 -payload_sz=96 -write_imm=0 -undefok=write_imm,or_sz"
+
+[template]
+[[template.pass]]
+role = 'server'
+path = 'exp'
+cmd = './racing_hash_analyser -host_len=10 -threads=1 -run_sec=60 -tick_interval_us=1000 -port=8000'
+
+[[template.pass]]
+role = 'server'
+path = 'exp'
+cmd = './racing_hash_user_server -run_sec=60 -port=9000'
+
+
+[[template.pass]]
+role = 'client'
+path = 'exp'
+cmd = './racing_hash_user_elastic_worker -host=${@incr} -analyser_addr=${server_host}:8000 -threads=24 -tick_interval_us=100  -server_addr=${server_host}:9000 -run_sec=50'
+
+
+[[template.pass]]
+role = 'trigger'
+path = "exp"
+cmd = "./racing_hash_trigger -worker_addrs='${client_hosts}' -threads=1"
+
+
+[template.placeholder]
+name = ["verbs-race-hashing"]
+run_sec_c = 20
+rdma_op = 0 # 0 means read, 1 means write
+or_sz = 1
+payload_sz = 8
+

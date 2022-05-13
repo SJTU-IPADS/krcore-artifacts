@@ -1,0 +1,11 @@
+#!/bin/sh
+set -e
+
+
+# update openib.conf
+init_conf_file=/etc/infiniband/openib.conf
+if [ -e $init_conf_file ] &&
+		grep -q 'SRP_LOAD=' $init_conf_file; then
+	sed -i '/\<SRP module\>/d' $init_conf_file
+	sed -i '/\<SRP_LOAD\>/d' $init_conf_file
+fi

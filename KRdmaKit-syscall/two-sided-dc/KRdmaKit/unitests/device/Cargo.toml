@@ -1,0 +1,29 @@
+[workspace]
+
+[package]
+name = "device_tests"
+version = "0.1.0"
+authors = ["lfm <1071956678caribou@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+crate-type = ["staticlib"]
+test = false
+
+[features]
+default = ["KRdmaKit"]
+
+[dependencies]
+KRdmaKit = { path = "../..", optional = true , features = ["dct"]}
+
+## lazy static
+[dependencies.lazy_static]
+version = "1.0"
+features = ["spin_no_std"]
+
+[dev-dependencies]
+kernel-module-testlib = { path = "../../../testlib" }
+
+[profile.dev]
+opt-level = 2

@@ -1,0 +1,12 @@
+**/target
+**/*.rs.bk
+Cargo.lock
+.cache.mk
+.*o.cmd
+.tmp_versions/
+Module.symvers
+*.ko
+*.mod.c
+*.o
+modules.order
+dummy.c

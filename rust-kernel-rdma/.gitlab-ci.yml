@@ -1,0 +1,66 @@
+# fetch submodules
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
+stages:          # List of stages for jobs, and their order of execution
+  - deps
+  - test
+
+deps-job:
+  stage: deps
+  tags: 
+    - ssh
+    - krdma
+  script:
+    - chmod +x ci/install_deps.sh
+    - ./ci/install_deps.sh
+
+unittest-krdma-test-job:   # This job runs in the test stage.
+  stage: test    # It only starts when the job in the build stage completes successfully.
+  tags:
+    - ssh
+    - krdma
+  script:
+    - echo "Running unit tests on krdma-test"
+    - sudo dmesg -C
+    - python3 krdma-test/unitests/run_tests.py
+  after_script:
+    - bash ci/check_kernel.sh $TEST_MACHINE $REBOOT_USER $REBOOT_PWD
+
+unittest-KRdmaKit-job:   # This job also runs in the test stage.
+  stage: test    # It can run at the same time as unit-test-job (in parallel).
+  tags: 
+    - ssh
+    - krdma
+  script:
+    - echo "Running unit tests on KRdmaKit"
+    - sudo dmesg -C
+    - python3 KRdmaKit/unitests/run_tests.py
+  after_script:
+    - bash ci/check_kernel.sh $TEST_MACHINE $REBOOT_USER $REBOOT_PWD
+
+unittest-rust-kernel-linux-util-job:   
+  stage: test   
+  tags: 
+    - ssh
+    - krdma  
+  script:
+    - echo "Running unit tests on rust-kernel-linux-util"
+    - sudo dmesg -C
+    - python3 rust-kernel-linux-util/unitests/run_tests.py
+  after_script:
+    - bash ci/check_kernel.sh $TEST_MACHINE $REBOOT_USER $REBOOT_PWD
+
+unittest-rust-kernel-rdma-base-job:   
+  stage: test   
+  tags: 
+    - ssh
+    - krdma  
+  script:
+    - echo "Running unit tests on rust-kernel-rdma-base"
+    - sudo dmesg -C
+    - python3 rust-kernel-rdma-base/unitests/run_tests.py
+  after_script:
+    - bash ci/check_kernel.sh $TEST_MACHINE $REBOOT_USER $REBOOT_PWD
+
+

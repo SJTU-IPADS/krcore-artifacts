@@ -1,0 +1,15 @@
+[global]
+
+[template]
+[[template.pass]]
+role = 'client'
+path = "exp"
+cmd = "./krc_client_sync -threads=${threads} -gid=${server_gid} -run_sec=${run_sec_c} -rdma_op=${rdma_op} -or_sz=${or_sz} -payload_sz=${payload_sz} "
+
+[template.placeholder]
+threads = [1, 2, 4, 8, 12, 16, 18, 20, 24]
+run_sec_c = 20
+rdma_op = 1 # 0 means read, 1 means write
+or_sz = 1
+payload_sz = 8
+

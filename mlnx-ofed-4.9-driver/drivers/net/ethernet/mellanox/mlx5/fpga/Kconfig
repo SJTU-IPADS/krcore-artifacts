@@ -1,0 +1,14 @@
+#
+# Mellanox accelerator tools driver configuration
+#
+
+config MLX5_FPGA_TOOLS
+	tristate "Mellanox Technologies Innova tools driver"
+	depends on MLX5_FPGA && MLX5_CORE
+	default n
+	---help---
+	  Provides a usermode interface of a char device which allows access to
+	  the FPGA chip on Mellanox Technologies Innova family of network cards.
+	  This driver is required for burning FPGA logic images using the mlx_fpga
+	  tool.
+

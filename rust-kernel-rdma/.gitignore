@@ -1,0 +1,7 @@
+.idea/
+.vscode/
+target/
+Cargo.lock
+scripts/
+**/target
+.DS_Store

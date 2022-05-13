@@ -1,0 +1,15 @@
+[global]
+
+[template]
+
+
+[[template.pass]]
+role = 'builder'
+path = 'KRdmaKit-syscall'
+cmd = 'source $HOME/.cargo/env; cp ${kbuild} Kbuild ; make -j; make uninstall ; make install META_GID=${meta_server_gid}'
+
+[template.placeholder]
+name = ["build"]
+kbuild = "Kbuild-hybrid"
+meta_server_gid= "fe80:0000:0000:0000:ec0d:9a03:0078:645e"
+

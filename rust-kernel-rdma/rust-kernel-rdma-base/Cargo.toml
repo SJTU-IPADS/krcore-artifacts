@@ -1,0 +1,21 @@
+[package]
+name = "rust-kernel-rdma-base"
+version = "0.1.0"
+authors = ["xmm <wxdwfc@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+linux-kernel-module = { path = "../deps/rust-kernel-module" }
+rust-kernel-linux-util = { path = "../rust-kernel-linux-util" }
+no-std-net = {path = "../deps/no-std-net"}
+paste = "1.0"
+
+[build-dependencies]
+bindgen = "0.54"
+cc = "1.0"
+shlex = "0.1"
+
+[features]
+dct = []

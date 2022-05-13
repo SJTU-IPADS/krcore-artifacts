@@ -1,0 +1,31 @@
+matrix:
+    include:
+        - dist: bionic
+
+language: rust
+rust:
+    - nightly-2020-08-27
+
+branches:
+    only:
+        - master
+
+install:
+    - sudo apt-get install -y "linux-headers-$(uname -r)" coreutils
+    - sudo apt-get install clang-9
+    - rustup component add rust-src rustfmt clippy
+
+script:
+    - CLANG=clang-9 ./tests/run_tests.py
+    - |
+      for p in . hello-world tests/*; do
+        if [ -d "$p" ]; then
+          (cd "$p" && cargo fmt --all -- --check) || exit 1
+        fi
+      done
+
+after_failure:
+    - dmesg
+
+notifications:
+    email: false

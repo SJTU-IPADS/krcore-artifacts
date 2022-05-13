@@ -1,0 +1,11 @@
+[global]
+[template]
+[[template.pass]]
+role = "builder"
+path = 'KRdmaKit-syscall'
+cmd  = 'rm -rf target ; make uninstall'
+
+[template.placeholder]
+name = ["build"]
+
+

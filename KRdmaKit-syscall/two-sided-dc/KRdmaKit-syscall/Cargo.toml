@@ -1,0 +1,39 @@
+[package]
+name = "KRdmaKitSyscall"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["staticlib"]
+test = false
+
+[features]
+#default = ["KRdmaKit"]
+default = ["KRdmaKit", "virtual_queue"]
+#default = ["KRdmaKit", "virtual_queue", "dct_qp"]
+
+# virtual queue cache
+virtual_queue = []
+
+# dct
+dct_qp = []
+
+[dependencies]
+KRdmaKit = { path = "../KRdmaKit", optional = true, features = ["dct"] }
+hashbrown = "0.9"
+no-std-net = { path = "../deps/no-std-net" }
+
+[build-dependencies]
+bindgen = "0.54"
+cc = "1.0"
+shlex = "0.1"
+
+## lazy static
+[dependencies.lazy_static]
+version = "1.0"
+features = ["spin_no_std"]
+
+[profile.dev]
+opt-level = 2
