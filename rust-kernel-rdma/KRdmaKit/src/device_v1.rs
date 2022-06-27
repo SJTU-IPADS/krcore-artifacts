@@ -22,17 +22,22 @@ impl Device {
 }
 
 impl Device {
+    /// Wrap myself as a mutable reference
+    /// This function should only be used for internal usage  
+    unsafe fn get_mut_self(&self) -> &mut ib_device {
+        // note that here we change the mutablity
+        // it is safe to do so here, because the ib_driver will
+        // use lock to protect the mutual accesses
+        unsafe { &mut *self.0.as_ptr() }
+    }
+
     /// get device attr
     pub fn get_device_attr(&self) -> KernelResult<ib_device_attr> {
         let mut data: ib_udata = Default::default();
         let mut dev_attr: ib_device_attr = Default::default();
 
-        // note that here we change the mutablity 
-        // it is safe to do so here, because the ib_driver will
-        // use lock to protect the mutual accesses
-        let hca: &mut ib_device = unsafe { &mut *self.0.as_ptr() };
         let err = unsafe {
-            hca.query_device(
+            self.get_mut_self().query_device(
                 self.0.as_ptr(),
                 &mut dev_attr as *mut ib_device_attr,
                 &mut data as *mut ib_udata,
@@ -59,5 +64,21 @@ impl Device {
     /// check whether a given port is activate or not
     pub fn port_status(&self, port_id: usize) -> KernelResult<ib_port_state::Type> {
         Ok(self.get_port_attr(port_id)?.state)
+    }
+
+    pub fn query_gid(&self, port_id: usize) -> KernelResult<ib_gid> {
+        let mut gid: ib_gid = Default::default();
+        let err = unsafe {
+            self.get_mut_self().query_gid(
+                self.0.get_ptr(),
+                port_id as u8,
+                0,
+                &mut gid as *mut ib_gid,
+            )
+        };
+        if err != 0 {
+            return Err(Error::from_kernel_errno(err));
+        }
+        Ok(gid)
     }
 }
