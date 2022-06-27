@@ -1,6 +1,8 @@
 # KRCore: fast RDMA connection support 
 
-This artifact is used for ATC'22.  Please refer to [install.md](docs/install.md) for the environment setup and [exp.md](docs/exp.md) for the evaluations. All documents can be found in the `doc` directory of the artifact.
+KRCore contains two-parts. The first is a kernel-space RDMA library written in Rust. 
+The second is a kernel-space component to provide fast user-space RDMA-capable connection setup. 
+Please refer to [install.md](docs/install.md) for the environment setup and [exp.md](docs/exp.md) for the evaluations. All documents can be found in the `doc` directory of the artifact.
 
 Since KRCore is a kernel-space solution with RDMA, we should first build KRCore from source at the machines involved in the evaluations. Afterward, we provide scripts so that all the evaluations can be done on a single controller machine. 
 
