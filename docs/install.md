@@ -55,6 +55,7 @@ First, install the original driver (note that the old driver---if exists---shoul
 
 ```sh
 cd ${PROJECT_PATH}/mlnx-ofed-4.9-driver
+wget https://www.mellanox.com/downloads/ofed/MLNX_OFED-4.9-3.1.5.0/MLNX_OFED_LINUX-4.9-3.1.5.0-ubuntu16.04-x86_64.tgz
 tar zxf MLNX_OFED_LINUX-4.9-3.1.5.0-ubuntu16.04-x86_64.tgz
 cd MLNX_OFED_LINUX-4.9-3.1.5.0-ubuntu16.04-x86_64 
 sudo ./mlnxofedinstall
