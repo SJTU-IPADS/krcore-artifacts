@@ -20,23 +20,30 @@ fn test_global_context() {
         .devices()
         .into_iter()
         .next()
-        .expect("no rdma device available")
-        .open()
-        .unwrap();
+        .expect("no rdma device available");
+        //.open()
+        //.unwrap();
+    log::info!("{:?} ", client_ctx.get_device_attr());
 
+    for i in 1..5 { 
+        log::info!("check port {} res: {:?}", i, client_ctx.get_port_attr(i));
+    }
+
+    /* 
     let server_ctx = driver
         .devices()
         .into_iter()
         .next()
         .expect("no rdma device available")
         .open()
-        .unwrap();
+        .unwrap(); */
 
+    /* 
     let server_service_id: u64 = 0;
     let _ctrl = RCtrl::create(server_service_id, &server_ctx);
 
     let path_res = client_ctx.explore_path(client_ctx.get_gid_as_string(), server_service_id);
-    log::info!("check created path res: {:?}", path_res.unwrap());
+    log::info!("check created path res: {:?}", path_res.unwrap()); */
 
     log::info!("pass all tests");
 }

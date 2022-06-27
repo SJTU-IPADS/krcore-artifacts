@@ -2,7 +2,7 @@
 
 use rust_kernel_rdma_base::*;
 
-// linux kernel module use explicitly
+// explicitly use the linux kernel module
 use rust_kernel_rdma_base::linux_kernel_module;
 
 use crate::net_util::gid_to_str;
@@ -11,8 +11,7 @@ use core::option::Option;
 use linux_kernel_module::{println, Error, KernelResult};
 use crate::debug;
 
-/// The type `RNIC` supplies the abstraction of `ib_device`, `ib_gid`, `ib_device_attr`
-/// information
+/// The RNIC instance that abstracts gid, hca and attributes 
 pub struct RNIC {
     hca: *mut ib_device,
     attr: ib_device_attr,

@@ -1,18 +1,21 @@
 #![no_std]
-#![feature(
-    get_mut_unchecked,
-    new_uninit,
-    allocator_api,
-)]
+#![feature(get_mut_unchecked, new_uninit, allocator_api)]
 #![cfg_attr(
     feature = "alloc_ref",
     feature(allocator_api, alloc_layout_extra, nonnull_slice_from_raw_parts)
 )]
 
+/// Communication manager that is used to bootstrap RDMA connections
 pub mod cm;
+
+/// Configuration operations
 pub mod consts;
 pub mod ctrl;
+
+/// Abstraction for the RDMA-capable devices (RNIC)
 pub mod device;
+pub mod device_v1; // the new device implementation that will overwrite the old one
+
 pub mod ib_path_explorer;
 pub mod mem;
 pub mod net_util;
@@ -41,7 +44,7 @@ use alloc::vec::Vec;
 
 pub struct KDriver {
     client: Box<ib_client>,
-    rnics: Vec<crate::device::RNIC>,
+    rnics: Vec<crate::device_v1::Device>,
 }
 
 use crate::log::debug;
@@ -49,7 +52,7 @@ use alloc::boxed::Box;
 pub use rust_kernel_rdma_base::rust_kernel_linux_util as log;
 
 impl KDriver {
-    pub fn devices(&self) -> &Vec<crate::device::RNIC> {
+    pub fn devices(&self) -> &Vec<crate::device_v1::Device> {
         &self.rnics
     }
 
@@ -73,11 +76,14 @@ impl KDriver {
 
         temp.rnics = get_temp_rnics()
             .into_iter()
-            .map(|dev| crate::device::RNIC::create(*dev, 1).unwrap())
+            .map(|dev| {
+                crate::device_v1::Device::new(*dev)
+                    .expect("Query ib_device pointers should never fail")
+            })
             .collect();
         _NICS.take();
 
-        log::info!("KRdmaKit driver initialization done. ");
+        log::debug!("KRdmaKit driver initialization done. ");
 
         Some(temp)
     }

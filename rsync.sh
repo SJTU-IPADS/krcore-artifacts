@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 
-user="lfm"
-target=("val12" "val14")
+user="wxd"
+#target=("val12" "val14")
+target=("val01")
+
 path="./krdmakit"
 
 for machine in ${target[*]}
@@ -13,7 +15,8 @@ do
         $PWD/rust-kernel-rdma \
         $PWD/testlib \
         $PWD/include \
-        $PWD/exp \
+        $PWD/exp  \
         $user@$machine:/home/${user}/${path} \
-
+        --exclude target \
+        --exclude Cargo.lock
 done
