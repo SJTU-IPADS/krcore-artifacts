@@ -21,6 +21,7 @@ const INCLUDED_KERNEL_ENUMS: &[&str] = &[
     "ib_event_type",
     "ib_wc_status",    
     "rdma_ah_attr_type",
+    "ib_cm_state",    
 ];
 
 // types from kernel
@@ -48,8 +49,7 @@ const INCLUDED_KERNEL_TYPES: &[&str] = &[
     "ib_wc",
     "ib_ah",
     "rdma_ah_attr",
-    // CM related
-    "ib_cm_state",
+    // CM related    
     "ib_cm_id",
     "sa_path_rec",
     "ib_sa_query",

@@ -16,6 +16,10 @@ pub mod ctrl;
 pub mod device;
 pub mod device_v1; // the new device implementation that will overwrite the old one
 
+/// Communication manager (CM) abstracts the CM implementation
+/// This module is used to bootstrap RDMA connection
+pub mod comm_manager;
+
 /// Analogy ib_context in the ibverbs.
 /// Provides a high-level context abstraction but further
 /// abstracts MR and PD in it.
