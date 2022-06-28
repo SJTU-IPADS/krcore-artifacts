@@ -16,10 +16,10 @@ pub mod ctrl;
 pub mod device;
 pub mod device_v1; // the new device implementation that will overwrite the old one
 
-/// Analogy ib_context in the ibverbs. 
-/// Provides a high-level context abstraction but further 
-/// abstracts MR and PD in it. 
-pub mod context; 
+/// Analogy ib_context in the ibverbs.
+/// Provides a high-level context abstraction but further
+/// abstracts MR and PD in it.
+pub mod context;
 
 pub mod ib_path_explorer;
 pub mod mem;
@@ -49,7 +49,7 @@ use alloc::vec::Vec;
 
 pub struct KDriver {
     client: ib_client,
-    rnics: Vec<crate::device_v1::Device>,
+    rnics: Vec<crate::device_v1::DeviceRef>,
 }
 
 pub type KDriverRef = Arc<KDriver>;
@@ -59,7 +59,7 @@ use alloc::sync::Arc;
 pub use rust_kernel_rdma_base::rust_kernel_linux_util as log;
 
 impl KDriver {
-    pub fn devices(&self) -> &Vec<crate::device_v1::Device> {
+    pub fn devices(&self) -> &Vec<crate::device_v1::DeviceRef> {
         &self.rnics
     }
 
@@ -95,7 +95,7 @@ impl KDriver {
                     .expect("Query ib_device pointers should never fail")
             })
             .collect();
-        
+
         // modify the temp again
         {
             let temp_inner = Arc::get_mut_unchecked(&mut temp);
@@ -214,3 +214,11 @@ impl Default for Profile {
 unsafe impl Sync for Profile {}
 
 unsafe impl Send for Profile {}
+
+impl core::fmt::Debug for KDriver {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("KDriver")
+            .field("num_device", &self.rnics.len())
+            .finish()
+    }
+}

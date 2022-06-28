@@ -3,12 +3,14 @@ use rust_kernel_rdma_base::*;
 
 use linux_kernel_module::Error;
 
+use alloc::sync::Arc;
 use core::option::Option;
 use core::ptr::NonNull;
 
 use crate::KDriverRef;
 
 #[allow(missing_copy_implementations)] // This type can not copy
+#[derive(Debug)]
 pub struct Device {
     inner: NonNull<ib_device>,
     // We need to keep a driver reference to prevent
@@ -16,18 +18,26 @@ pub struct Device {
     _driver: KDriverRef,
 }
 
-pub type DeviceRef = alloc::sync::Arc<Device>; 
+pub type DeviceRef = Arc<Device>;
+
+use crate::context::Context;
 
 impl Device {
-    pub(crate) fn new(dev: *mut ib_device, driver: &KDriverRef) -> Option<Self> {
-        Some(Self {
+    pub fn open_context(self: &DeviceRef) -> Result<Context, crate::ControlpathError> {
+        Context::new(self)
+    }
+}
+
+impl Device {
+    pub(crate) fn new(dev: *mut ib_device, driver: &KDriverRef) -> Option<DeviceRef> {
+        Some(Arc::new(Self {
             inner: NonNull::new(dev)?,
             _driver: driver.clone(),
-        })
+        }))
     }
 
     /// return the raw pointer of the device
-    unsafe fn raw_ptr(&self) -> *mut ib_device {
+    pub(crate) unsafe fn raw_ptr(&self) -> *mut ib_device {
         self.inner.as_ptr()
     }
 }

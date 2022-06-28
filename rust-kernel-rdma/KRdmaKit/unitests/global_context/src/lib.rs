@@ -16,18 +16,21 @@ use krdma_test::*;
 fn test_global_context() {
     use KRdmaKit::KDriver;
     let driver = unsafe { KDriver::create().unwrap() };
-    let client_ctx = driver
+    let client_dev = driver
         .devices()
         .into_iter()
         .next()
         .expect("no rdma device available");
         //.open()
         //.unwrap();
-    log::info!("{:?} ", client_ctx.get_device_attr());
+    log::info!("{:?} ", client_dev.get_device_attr());
 
     for i in 1..5 { 
-        log::info!("check port {} res: {:?}", i, client_ctx.get_port_attr(i));
+        log::info!("check port {} res: {:?}", i, client_dev.get_port_attr(i));
     }
+    
+    let client_ctx = client_dev.open_context();
+    log::info!("ctx open result: {:?}", client_ctx);
 
     /* 
     let server_ctx = driver
