@@ -47,6 +47,8 @@ pub struct KDriver {
     rnics: Vec<crate::device_v1::Device>,
 }
 
+pub type KDriverRef = Arc<KDriver>;
+
 use crate::log::debug;
 use alloc::sync::Arc;
 pub use rust_kernel_rdma_base::rust_kernel_linux_util as log;
