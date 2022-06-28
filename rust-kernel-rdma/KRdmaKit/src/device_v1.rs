@@ -3,21 +3,29 @@ use rust_kernel_rdma_base::*;
 
 use linux_kernel_module::Error;
 
+use alloc::sync::Arc;
 use core::option::Option;
 use core::ptr::NonNull;
 
 #[allow(missing_copy_implementations)] // This type can not copy
-#[repr(transparent)]
-pub struct Device(NonNull<ib_device>);
+pub struct Device {
+    inner: NonNull<ib_device>,
+    // We need to keep a driver reference to prevent
+    // the driver being freed while the Device still alive
+    _driver: Arc<crate::KDriver>,
+}
 
 impl Device {
-    pub fn new(dev: *mut ib_device) -> Option<Self> {
-        Some(Self(NonNull::new(dev)?))
+    pub(crate) fn new(dev: *mut ib_device, driver: &Arc<crate::KDriver>) -> Option<Self> {
+        Some(Self {
+            inner: NonNull::new(dev)?,
+            _driver: driver.clone(),
+        })
     }
 
     /// return the raw pointer of the device
     unsafe fn raw_ptr(&self) -> *mut ib_device {
-        self.0.as_ptr()
+        self.inner.as_ptr()
     }
 }
 
@@ -28,7 +36,7 @@ impl Device {
         // note that here we change the mutablity
         // it is safe to do so here, because the ib_driver will
         // use lock to protect the mutual accesses
-        &mut *self.0.as_ptr()
+        &mut *self.inner.as_ptr()
     }
 
     /// get device attr
@@ -38,7 +46,7 @@ impl Device {
 
         let err = unsafe {
             self.get_mut_self().query_device(
-                self.0.as_ptr(),
+                self.inner.as_ptr(),
                 &mut dev_attr as *mut ib_device_attr,
                 &mut data as *mut ib_udata,
             )
@@ -70,7 +78,7 @@ impl Device {
         let mut gid: ib_gid = Default::default();
         let err = unsafe {
             self.get_mut_self().query_gid(
-                self.0.as_ptr(),
+                self.inner.as_ptr(),
                 port_id as u8,
                 0,
                 &mut gid as *mut ib_gid,

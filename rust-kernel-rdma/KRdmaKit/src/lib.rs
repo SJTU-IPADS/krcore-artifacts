@@ -63,27 +63,38 @@ impl KDriver {
             rnics: Vec::new(),
         });
 
-        let temp_inner = Arc::get_mut_unchecked(&mut temp);
+        // First, we query all the ib_devices
+        {
+            let temp_inner = Arc::get_mut_unchecked(&mut temp);
 
-        _NICS = Some(Vec::new());
+            _NICS = Some(Vec::new());
 
-        temp_inner.client.name = b"kRdmaKit\0".as_ptr() as *mut c_types::c_char;
-        temp_inner.client.add = Some(KDriver_add_one);
-        temp_inner.client.remove = Some(_KRdiver_remove_one);
+            temp_inner.client.name = b"kRdmaKit\0".as_ptr() as *mut c_types::c_char;
+            temp_inner.client.add = Some(KDriver_add_one);
+            temp_inner.client.remove = Some(_KRdiver_remove_one);
 
-        let err = ib_register_client((&mut temp_inner.client) as _);
-        if err != 0 {
-            return None;
+            let err = ib_register_client((&mut temp_inner.client) as _);
+            if err != 0 {
+                return None;
+            }
         }
 
-        temp_inner.rnics = get_temp_rnics()
+        // next, weconstruct the nics
+        // we need to do this to avoid move out temp upon constructing the devices
+        let rnics = get_temp_rnics()
             .into_iter()
             .map(|dev| {
-                crate::device_v1::Device::new(*dev)
+                crate::device_v1::Device::new(*dev, &temp)
                     .expect("Query ib_device pointers should never fail")
             })
             .collect();
-        _NICS.take();
+        
+        // modify the temp again
+        {
+            let temp_inner = Arc::get_mut_unchecked(&mut temp);
+            temp_inner.rnics = rnics;
+            _NICS.take();
+        }
 
         log::debug!("KRdmaKit driver initialization done. ");
 
