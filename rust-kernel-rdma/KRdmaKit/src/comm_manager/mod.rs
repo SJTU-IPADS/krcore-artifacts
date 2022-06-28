@@ -1,12 +1,15 @@
+use linux_kernel_module::c_types;
 use rust_kernel_rdma_base::*;
 
 use alloc::sync::Arc;
-use core::{fmt::Write, ptr::NonNull};
+use core::ptr::NonNull;
 
 use crate::device_v1::DeviceRef;
 
-pub use client::{CMReplyer, CMSender};
+pub use client::CMSender;
 pub use server::CMServer;
+
+use client::CMReplyer;
 
 mod client;
 mod send;
@@ -66,6 +69,16 @@ where
     }
 }
 
-pub unsafe extern "C" fn cm_handler() {
+pub unsafe extern "C" fn cm_handler<T>(
+    cm_id: *mut ib_cm_id,
+    env: *const ib_cm_event,
+) -> c_types::c_int
+where
+    T: CMCallbacker,
+{
+    let event = *env;
+    let cm = CMReplyer::new(cm_id);
+    let ctx: Arc<T> = Arc::from_raw(cm.get_context());
+
     unimplemented!();
 }
