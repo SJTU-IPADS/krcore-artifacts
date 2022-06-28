@@ -5,6 +5,7 @@ use alloc::sync::Arc;
 use core::ptr::NonNull;
 
 use crate::device_v1::DeviceRef;
+use crate::log;
 
 pub use client::CMSender;
 pub use server::CMServer;
@@ -20,6 +21,9 @@ mod server;
 pub enum CMError {
     #[error("Timeout")]
     Timeout,
+
+    #[error("Failed to handle callback: {0}")]
+    CallbackError(u32),
 
     #[error("CM send error")]
     SendError(&'static str, linux_kernel_module::Error),
@@ -79,6 +83,17 @@ where
     let event = *env;
     let cm = CMReplyer::new(cm_id);
     let ctx: Arc<T> = Arc::from_raw(cm.get_context());
+
+    let res = match event.event { 
+     ib_cm_event_type::IB_CM_REQ_RECEIVED => { 
+        ctx.handle_req(cm, &event)
+     }
+     _ => Err(CMError::CallbackError(event.event))
+    };
+
+    if res.is_err() { 
+        log::info!("{:?}",res);
+    }
 
     unimplemented!();
 }
