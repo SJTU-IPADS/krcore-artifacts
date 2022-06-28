@@ -28,7 +28,7 @@ impl Device {
         // note that here we change the mutablity
         // it is safe to do so here, because the ib_driver will
         // use lock to protect the mutual accesses
-        unsafe { &mut *self.0.as_ptr() }
+        &mut *self.0.as_ptr()
     }
 
     /// get device attr
@@ -70,7 +70,7 @@ impl Device {
         let mut gid: ib_gid = Default::default();
         let err = unsafe {
             self.get_mut_self().query_gid(
-                self.0.get_ptr(),
+                self.0.as_ptr(),
                 port_id as u8,
                 0,
                 &mut gid as *mut ib_gid,

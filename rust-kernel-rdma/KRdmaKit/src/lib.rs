@@ -43,12 +43,12 @@ macro_rules! to_ptr {
 use alloc::vec::Vec;
 
 pub struct KDriver {
-    client: Box<ib_client>,
+    client: ib_client,
     rnics: Vec<crate::device_v1::Device>,
 }
 
 use crate::log::debug;
-use alloc::boxed::Box;
+use alloc::sync::Arc;
 pub use rust_kernel_rdma_base::rust_kernel_linux_util as log;
 
 impl KDriver {
@@ -57,24 +57,26 @@ impl KDriver {
     }
 
     /// ! warning: this function is **not** thread safe
-    pub unsafe fn create() -> Option<Box<Self>> {
-        let mut temp = Box::new(KDriver {
-            client: Box::new_zeroed().assume_init(),
+    pub unsafe fn create() -> Option<Arc<Self>> {
+        let mut temp = Arc::new(KDriver {
+            client: core::mem::MaybeUninit::zeroed().assume_init(),
             rnics: Vec::new(),
         });
 
+        let temp_inner = Arc::get_mut_unchecked(&mut temp);
+
         _NICS = Some(Vec::new());
 
-        temp.client.name = b"kRdmaKit\0".as_ptr() as *mut c_types::c_char;
-        temp.client.add = Some(KDriver_add_one);
-        temp.client.remove = Some(_KRdiver_remove_one);
+        temp_inner.client.name = b"kRdmaKit\0".as_ptr() as *mut c_types::c_char;
+        temp_inner.client.add = Some(KDriver_add_one);
+        temp_inner.client.remove = Some(_KRdiver_remove_one);
 
-        let err = ib_register_client((&mut *temp.client) as _);
+        let err = ib_register_client((&mut temp_inner.client) as _);
         if err != 0 {
             return None;
         }
 
-        temp.rnics = get_temp_rnics()
+        temp_inner.rnics = get_temp_rnics()
             .into_iter()
             .map(|dev| {
                 crate::device_v1::Device::new(*dev)
@@ -91,7 +93,7 @@ impl KDriver {
 
 impl Drop for KDriver {
     fn drop(&mut self) {
-        unsafe { ib_unregister_client(&mut *self.client) };
+        unsafe { ib_unregister_client(&mut self.client) };
     }
 }
 
