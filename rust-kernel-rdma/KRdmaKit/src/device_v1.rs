@@ -87,6 +87,7 @@ impl Device {
         Ok(self.get_port_attr(port_id)?.state)
     }
 
+    /// query the gid of a specific port
     pub fn query_gid(&self, port_id: usize) -> KernelResult<ib_gid> {
         let mut gid: ib_gid = Default::default();
         let err = unsafe {

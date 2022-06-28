@@ -22,6 +22,9 @@ pub enum CMError {
     #[error("Timeout")]
     Timeout,
 
+    #[error("Creation error with errorno: {0}")]
+    Creation(i32),
+
     #[error("Failed to handle callback: {0}")]
     CallbackError(u32),
 
@@ -35,6 +38,14 @@ pub enum CMError {
 pub trait CMCallbacker {
     fn handle_req(self: Arc<Self>, reply_cm: CMReplyer, event: &ib_cm_event)
         -> Result<(), CMError>;
+
+    fn handle_dreq(
+        self: Arc<Self>,
+        reply_cm: CMReplyer,
+        event: &ib_cm_event,
+    ) -> Result<(), CMError> {
+        Ok(())
+    }
 }
 
 /// A wrapper over ib_cm_id
@@ -73,6 +84,21 @@ where
     }
 }
 
+pub(super) unsafe fn create_raw_cm_id<T>(
+    dev: *mut ib_device,
+    context: &Arc<T>,
+) -> Result<*mut ib_cm_id, CMError>
+where
+    T: CMCallbacker,
+{
+    let cm = ib_create_cm_id(dev, Some(cm_handler::<T>), Arc::as_ptr(context) as _);
+    if cm.is_null() {
+        Ok(cm)
+    } else {
+        Err(CMError::Creation(0))
+    }
+}
+
 pub unsafe extern "C" fn cm_handler<T>(
     cm_id: *mut ib_cm_id,
     env: *const ib_cm_event,
@@ -84,15 +110,13 @@ where
     let cm = CMReplyer::new(cm_id);
     let ctx: Arc<T> = Arc::from_raw(cm.get_context());
 
-    let res = match event.event { 
-     ib_cm_event_type::IB_CM_REQ_RECEIVED => { 
-        ctx.handle_req(cm, &event)
-     }
-     _ => Err(CMError::CallbackError(event.event))
+    let res = match event.event {
+        ib_cm_event_type::IB_CM_REQ_RECEIVED => ctx.handle_req(cm, &event),
+        _ => Err(CMError::CallbackError(event.event)),
     };
 
-    if res.is_err() { 
-        log::info!("{:?}",res);
+    if res.is_err() {
+        log::info!("{:?}", res);
     }
 
     unimplemented!();
