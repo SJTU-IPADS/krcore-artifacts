@@ -16,6 +16,8 @@ pub struct Device {
     _driver: KDriverRef,
 }
 
+pub type DeviceRef = alloc::sync::Arc<Device>; 
+
 impl Device {
     pub(crate) fn new(dev: *mut ib_device, driver: &KDriverRef) -> Option<Self> {
         Some(Self {

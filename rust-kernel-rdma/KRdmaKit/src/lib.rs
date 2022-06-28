@@ -16,6 +16,11 @@ pub mod ctrl;
 pub mod device;
 pub mod device_v1; // the new device implementation that will overwrite the old one
 
+/// Analogy ib_context in the ibverbs. 
+/// Provides a high-level context abstraction but further 
+/// abstracts MR and PD in it. 
+pub mod context; 
+
 pub mod ib_path_explorer;
 pub mod mem;
 pub mod net_util;
@@ -131,6 +136,13 @@ gen_add_dev_func!(_KRdiver_add_one, KDriver_add_one);
 #[allow(non_snake_case)]
 unsafe extern "C" fn _KRdiver_remove_one(dev: *mut ib_device, _client_data: *mut c_types::c_void) {
     log::info!("remove one dev {:?}", dev);
+}
+
+/// The error type of control plane operations
+#[derive(thiserror_no_std::Error, Debug)]
+pub enum ControlpathError {
+    #[error("create context {0} error: {1}")]
+    ContextError(&'static str, linux_kernel_module::Error),
 }
 
 /// profile for statistics
