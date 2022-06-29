@@ -73,7 +73,7 @@ impl Device {
 
     /// get the default port attr
     #[inline]
-    pub fn get_port_attr(&self, port_id: usize) -> KernelResult<ib_port_attr> {
+    pub fn get_port_attr(&self, port_id: u8) -> KernelResult<ib_port_attr> {
         let mut port_attr: ib_port_attr = Default::default();
         let err = unsafe { ib_query_port(self.raw_ptr(), port_id as u8, &mut port_attr as *mut _) };
         if err != 0 {
@@ -83,12 +83,12 @@ impl Device {
     }
 
     /// check whether a given port is activate or not
-    pub fn port_status(&self, port_id: usize) -> KernelResult<ib_port_state::Type> {
+    pub fn port_status(&self, port_id: u8) -> KernelResult<ib_port_state::Type> {
         Ok(self.get_port_attr(port_id)?.state)
     }
 
     /// query the gid of a specific port
-    pub fn query_gid(&self, port_id: usize) -> KernelResult<ib_gid> {
+    pub fn query_gid(&self, port_id: u8) -> KernelResult<ib_gid> {
         let mut gid: ib_gid = Default::default();
         let err = unsafe {
             self.get_mut_self().query_gid(
@@ -102,5 +102,20 @@ impl Device {
             return Err(Error::from_kernel_errno(err));
         }
         Ok(gid)
+    }
+
+    /// find the first valid port given a range
+    pub fn first_valid_port(&self, range: core::ops::Range<u8>) -> core::option::Option<u8> {
+        for i in range {
+            if let Ok(status) = self.port_status(i as _) {
+                if status != ib_port_state::IB_PORT_ACTIVE {
+                    continue;
+                }
+                if let Ok(gid) = self.query_gid(i as _) {
+                    return Some(i);
+                }
+            }
+        }
+        None
     }
 }

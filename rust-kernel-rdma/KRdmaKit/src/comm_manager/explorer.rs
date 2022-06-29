@@ -2,9 +2,16 @@ use no_std_net::Guid;
 use rust_kernel_linux_util::bindings::completion;
 use rust_kernel_rdma_base::*;
 
-use core::option::Option;
+use alloc::boxed::Box;
+use core::{option::Option, ptr::NonNull};
 
-use super::{Arc, CMError, DeviceRef,String};
+use super::{Arc, CMError, DeviceRef, String, c_types};
+use crate::{alloc::string::ToString, log};
+
+pub type SubnetAdminPathRecord = sa_path_rec;
+
+/// Explore time out. set 5 seconds
+pub const EXPLORE_TIMEOUT_MS: linux_kernel_module::c_types::c_int = 5000; 
 
 /// # Assumption:
 /// The path explorer will rarely execute.
@@ -17,7 +24,7 @@ pub struct Explorer {
 
     // methods for waiting for the completion of the explore process
     done: completion,
-    result: Option<sa_path_rec>,
+    result: Option<SubnetAdminPathRecord>,
 }
 
 impl Explorer {
@@ -43,7 +50,95 @@ impl Explorer {
     }
 
     /// Core resolve implementation
-    pub fn resolve(self, service_id: u64, dst_gid: &String) -> Result<sa_path_rec, CMError> {        
-        unimplemented!();
+    pub unsafe fn resolve(
+        mut self,
+        service_id: u64,
+        source_port_id: u8,
+        dst_gid: &String,
+    ) -> Result<SubnetAdminPathRecord, CMError> {
+        let dst_gid = Self::string_to_gid(dst_gid)?;
+        self.resolve_inner(service_id, source_port_id, dst_gid)
     }
+
+    /// Core resolve implementation
+    pub unsafe fn resolve_inner(
+        mut self,
+        service_id: u64,
+        source_port_id: u8,
+        dst_gid: ib_gid,
+    ) -> Result<SubnetAdminPathRecord, CMError> {
+        self.done.init();
+
+        // init an Subnet Administrator (SA) client
+        let mut sa_client = SAClient::new();
+
+        let mut path_request = SubnetAdminPathRecord {
+            dgid: dst_gid,
+            sgid: self.inner_dev.query_gid(source_port_id).map_err(|_| {
+                CMError::InvalidArg("Source port number", source_port_id.to_string())
+            })?,
+            numb_path: 1, // FIXME
+            service_id: service_id,
+            ..Default::default()
+        };
+
+        let mut sa_query: *mut ib_sa_query = core::ptr::null_mut();
+        let ret = unsafe {
+            ib_sa_path_rec_get(
+                sa_client.raw_ptr(),
+                self.inner_dev.raw_ptr(),
+                source_port_id as _,
+                &mut path_request as *mut _,
+                path_rec_service_id() | path_rec_dgid() | path_rec_sgid() | path_rec_numb_path(),
+                EXPLORE_TIMEOUT_MS as _,
+                0,
+                linux_kernel_module::bindings::GFP_KERNEL,
+                Some(explore_complete_handler),
+                (&mut self as *mut Self).cast::<c_types::c_void>(),
+                &mut sa_query as *mut *mut ib_sa_query,
+            )
+        }; 
+
+        if ret < 0 {
+            return Err(CMError::Creation(ret));
+        }
+
+        self.done.wait(EXPLORE_TIMEOUT_MS);
+        self.result.ok_or(CMError::Timeout)
+    }
+}
+
+struct SAClient(Box<ib_sa_client>);
+
+impl SAClient {
+    unsafe fn new() -> Self {
+        let mut res = Box::<ib_sa_client>::new_zeroed().assume_init();
+        ib_sa_register_client(crate::to_ptr!(*res));
+        Self(res)
+    }
+
+    fn raw_ptr(&mut self) -> *mut ib_sa_client { 
+        crate::to_ptr!(*(self.0))
+    }
+}
+
+impl Drop for SAClient {
+    fn drop(&mut self) {
+        unsafe { ib_sa_unregister_client(self.raw_ptr()) };
+    }
+}
+
+pub unsafe extern "C" fn explore_complete_handler(
+    status: linux_kernel_module::c_types::c_int,
+    resp: *mut sa_path_rec,
+    context: *mut linux_kernel_module::c_types::c_void,
+) {
+    let e = &mut *(context as *mut Explorer);
+    e.result = if status != 0 {
+        log::error!("Failed to query the path with error {}", status);
+        None
+    } else {
+        Some(*resp)
+    };
+    e.done.done();
 }

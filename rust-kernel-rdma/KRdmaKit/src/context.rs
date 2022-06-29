@@ -26,10 +26,6 @@ impl Context {
         Self::new_from_flags(dev, mr_flags as i32)
     }
 
-    pub fn get_dev_ref(&self) -> &DeviceRef {
-        &self.inner_device
-    }
-
     pub fn new_from_flags(
         dev: &crate::device_v1::DeviceRef,
         mr_flags: i32,
@@ -48,6 +44,10 @@ impl Context {
             pd: pd,
         })
     }
+
+    pub fn get_dev_ref(&self) -> &DeviceRef {
+        &self.inner_device
+    }    
 }
 
 impl Drop for Context {
