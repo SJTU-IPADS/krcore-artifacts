@@ -23,7 +23,10 @@ where
 
         let err = unsafe { ib_send_cm_rep(self.raw_ptr(), &mut rep as *mut _) };
         if err != 0 {
-            return Err(CMError::SendError("Send reply", Error::EAGAIN));
+            return Err(CMError::SendError(
+                "Send reply",
+                Error::from_kernel_errno(err),
+            ));
         }
         Ok(())
     }
@@ -43,5 +46,26 @@ where
     /// The assumption: the ib_cm_req_param has been properly set    
     pub fn send_dreq<T: Sized>(&mut self, mut pri: T) -> Result<(), CMError> {
         unimplemented!();
+    }
+
+    /// This call will generate IB_CM_SIDR_REQ_RECEIVED at the remote end
+    /// SIDR means service ID resoluation
+    /// The assumption: the ib_cm_sidr_req_param has been properly set
+    pub fn send_sidr<T: Sized>(
+        &mut self,
+        mut req: ib_cm_sidr_req_param,
+        mut pri: T,
+    ) -> Result<(), CMError> {
+        req.private_data = ((&mut pri) as *mut T).cast::<linux_kernel_module::c_types::c_void>();
+        req.private_data_len = core::mem::size_of::<T>() as u8;
+
+        let err = unsafe { ib_send_cm_sidr_req(self.raw_ptr(), &mut req as *mut _) };
+        if err != 0 {
+            return Err(CMError::SendError(
+                "Send SIDR",
+                Error::from_kernel_errno(err),
+            ));
+        }
+        Ok(())
     }
 }

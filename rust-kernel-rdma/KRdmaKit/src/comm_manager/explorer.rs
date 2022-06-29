@@ -5,13 +5,13 @@ use rust_kernel_rdma_base::*;
 use alloc::boxed::Box;
 use core::{option::Option, ptr::NonNull};
 
-use super::{Arc, CMError, DeviceRef, String, c_types};
+use super::{c_types, Arc, CMError, DeviceRef, String};
 use crate::{alloc::string::ToString, log};
 
 pub type SubnetAdminPathRecord = sa_path_rec;
 
 /// Explore time out. set 5 seconds
-pub const EXPLORE_TIMEOUT_MS: linux_kernel_module::c_types::c_int = 5000; 
+pub const EXPLORE_TIMEOUT_MS: linux_kernel_module::c_types::c_int = 5000;
 
 /// # Assumption:
 /// The path explorer will rarely execute.
@@ -51,7 +51,7 @@ impl Explorer {
 
     /// Core resolve implementation
     pub unsafe fn resolve(
-        mut self,
+        self,
         service_id: u64,
         source_port_id: u8,
         dst_gid: &String,
@@ -83,27 +83,32 @@ impl Explorer {
         };
 
         let mut sa_query: *mut ib_sa_query = core::ptr::null_mut();
-        let ret = unsafe {
-            ib_sa_path_rec_get(
-                sa_client.raw_ptr(),
-                self.inner_dev.raw_ptr(),
-                source_port_id as _,
-                &mut path_request as *mut _,
-                path_rec_service_id() | path_rec_dgid() | path_rec_sgid() | path_rec_numb_path(),
-                EXPLORE_TIMEOUT_MS as _,
-                0,
-                linux_kernel_module::bindings::GFP_KERNEL,
-                Some(explore_complete_handler),
-                (&mut self as *mut Self).cast::<c_types::c_void>(),
-                &mut sa_query as *mut *mut ib_sa_query,
-            )
-        }; 
+        let ret = ib_sa_path_rec_get(
+            sa_client.raw_ptr(),
+            self.inner_dev.raw_ptr(),
+            source_port_id as _,
+            &mut path_request as *mut _,
+            path_rec_service_id() | path_rec_dgid() | path_rec_sgid() | path_rec_numb_path(),
+            EXPLORE_TIMEOUT_MS as _,
+            0,
+            linux_kernel_module::bindings::GFP_KERNEL,
+            Some(explore_complete_handler),
+            (&mut self as *mut Self).cast::<c_types::c_void>(),
+            &mut sa_query as *mut *mut ib_sa_query,
+        );
 
         if ret < 0 {
             return Err(CMError::Creation(ret));
         }
 
-        self.done.wait(EXPLORE_TIMEOUT_MS);
+        // wait for the response
+        self.done
+            .wait(EXPLORE_TIMEOUT_MS)
+            .map_err(|e| match e.to_kernel_errno() {
+                0 => CMError::Timeout,
+                _ => CMError::Unknown,
+            })?;
+
         self.result.ok_or(CMError::Timeout)
     }
 }
@@ -117,7 +122,7 @@ impl SAClient {
         Self(res)
     }
 
-    fn raw_ptr(&mut self) -> *mut ib_sa_client { 
+    fn raw_ptr(&mut self) -> *mut ib_sa_client {
         crate::to_ptr!(*(self.0))
     }
 }

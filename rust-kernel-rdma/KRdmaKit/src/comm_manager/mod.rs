@@ -44,15 +44,34 @@ pub enum CMError {
 
     #[error("Invalid arg on {0}: {1}")]
     InvalidArg(&'static str, String),
+
+    #[error("Unknown error")]
+    Unknown,
 }
 
 pub trait CMCallbacker {
-    fn handle_req(self: Arc<Self>, reply_cm: CMReplyer, event: &ib_cm_event)
+    fn handle_req(self: &mut Self, reply_cm: CMReplyer, event: &ib_cm_event)
         -> Result<(), CMError>;
 
     fn handle_dreq(
-        self: Arc<Self>,
+        self: &mut Self,
         reply_cm: CMReplyer,
+        event: &ib_cm_event,
+    ) -> Result<(), CMError> {
+        Ok(())
+    }
+
+    fn handle_sidr_req(
+        self: &mut Self,
+        mut reply_cm: CMReplyer,
+        event: &ib_cm_event,
+    ) -> Result<(), CMError> {
+        Ok(())
+    }
+
+    fn handle_sidr_rep(
+        self: &mut Self,
+        mut reply_cm: CMReplyer,
         event: &ib_cm_event,
     ) -> Result<(), CMError> {
         Ok(())
@@ -62,6 +81,7 @@ pub trait CMCallbacker {
 /// A wrapper over ib_cm_id
 /// which provides the common functionalities of the
 /// client-server sides CM
+#[allow(dead_code)]
 #[derive(Debug)]
 struct CMWrapper<T: CMCallbacker> {
     _dev: DeviceRef, // prevent usage error
@@ -120,15 +140,18 @@ where
 {
     let event = *env;
     let cm = CMReplyer::new(cm_id);
-    let ctx: Arc<T> = Arc::from_raw(cm.get_context());
+    // let mut ctx: Arc<T> = Arc::from_raw(cm.get_context());
+    let ctx: &mut T = &mut (*cm.get_context());
 
     let res = match event.event {
         ib_cm_event_type::IB_CM_REQ_RECEIVED => ctx.handle_req(cm, &event),
+        ib_cm_event_type::IB_CM_SIDR_REQ_RECEIVED => ctx.handle_sidr_req(cm, &event),
+        ib_cm_event_type::IB_CM_SIDR_REP_RECEIVED => ctx.handle_sidr_rep(cm, &event),
         _ => Err(CMError::CallbackError(event.event)),
     };
 
     if res.is_err() {
-        log::info!("{:?}", res);
+        log::error!("{:?}", res);
         return -1;
     }
     return 0;

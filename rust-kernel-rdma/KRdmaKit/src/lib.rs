@@ -36,9 +36,11 @@ pub mod thread_local;
 
 extern crate alloc;
 
+pub use rust_kernel_rdma_base;
+pub use rust_kernel_rdma_base::rust_kernel_linux_util::kthread::sleep;
+
 use consts::*;
 use linux_kernel_module::{c_types, println};
-pub use rust_kernel_rdma_base;
 use rust_kernel_rdma_base::rust_kernel_linux_util::timer::KTimer;
 use rust_kernel_rdma_base::*;
 

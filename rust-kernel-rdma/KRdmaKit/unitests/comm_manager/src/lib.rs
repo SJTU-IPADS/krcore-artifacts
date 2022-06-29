@@ -4,28 +4,71 @@
 #[warn(dead_code)]
 extern crate alloc;
 
-use alloc::string::String;
 use alloc::sync::Arc;
 
 use KRdmaKit::comm_manager::*;
+use KRdmaKit::rust_kernel_rdma_base::rust_kernel_linux_util::bindings::completion;
 use KRdmaKit::rust_kernel_rdma_base::*;
-
-use KRdmaKit::ctrl::RCtrl;
 
 use rust_kernel_linux_util as log;
 
 use krdma_test::*;
 
 #[derive(Debug)]
-pub struct CMHandler;
+struct CMHandler;
+
+struct CMHandlerClient(completion);
+
+impl core::fmt::Debug for CMHandlerClient {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("CMHandlerClient").finish()
+    }
+}
 
 impl CMCallbacker for CMHandler {
     fn handle_req(
-        self: Arc<Self>,
+        self: &mut Self,
         _reply_cm: CMReplyer,
         _event: &ib_cm_event,
     ) -> Result<(), CMError> {
         log::info!("in handle req!");
+        Ok(())
+    }
+
+    fn handle_sidr_req(
+        self: &mut Self,
+        mut reply_cm: CMReplyer,
+        event: &ib_cm_event,
+    ) -> Result<(), CMError> {
+        let conn_arg = unsafe { *(event.private_data as *mut usize) };
+        log::info!("In handle SIDR request {}", conn_arg);
+
+        // send a response
+        let rep: ib_cm_sidr_rep_param = Default::default();
+        reply_cm.send_sidr_reply(rep, 0 as usize)
+    }
+}
+
+impl CMCallbacker for CMHandlerClient {
+    fn handle_req(
+        self: &mut Self,
+        _reply_cm: CMReplyer,
+        _event: &ib_cm_event,
+    ) -> Result<(), CMError> {
+        Ok(())
+    }
+
+    fn handle_sidr_rep(
+        self: &mut Self,
+        mut _reply_cm: CMReplyer,
+        event: &ib_cm_event,
+    ) -> Result<(), CMError> {
+        log::info!(
+            "client sidr reponse received, event {:?}, private data: {:?}",
+            event.event,
+            event.private_data
+        );
+        self.0.done();
         Ok(())
     }
 }
@@ -98,24 +141,37 @@ fn test_cm() {
         valid_port,
         server_gid
     );
+    if path_res.is_err() {
+        log::error!("failed to query path");
+        return;
+    }
 
-    // TODO: what if all the gids is wrong? we should report an error
+    let path_res = path_res.unwrap();
 
-    /*
-    let server_ctx = driver
-        .devices()
-        .into_iter()
-        .next()
-        .expect("no rdma device available")
-        .open()
-        .unwrap(); */
+    let mut c_handler = Arc::new(CMHandlerClient(Default::default()));
+    let client_cm = CMSender::new(&c_handler, client_ctx.get_dev_ref());
+    log::info!("sanity check client cm: {:?}", client_cm);
 
-    /*
-    let server_service_id: u64 = 0;
-    let _ctrl = RCtrl::create(server_service_id, &server_ctx);
+    if client_cm.is_err() {
+        log::error!("failed to create client CM");
+        return;
+    }
+    let mut client_cm = client_cm.unwrap();
 
-    let path_res = client_ctx.explore_path(client_ctx.get_gid_as_string(), server_service_id);
-    log::info!("check created path res: {:?}", path_res.unwrap()); */
+    // send an SIDR request to the server_cm
+    let c_handler_ref = unsafe { Arc::get_mut_unchecked(&mut c_handler) };
+    c_handler_ref.0.init();
+    let req = ib_cm_sidr_req_param {
+        path: &path_res as *const _ as _,
+        service_id: server_service_id,
+        timeout_ms: 20,
+        max_cm_retries: 3,
+        ..Default::default()
+    };
+
+    let send_res = client_cm.send_sidr(req, 73 as usize);
+    log::info!("sanity check send res: {:?}", send_res);
+    c_handler_ref.0.wait(1000).unwrap();
 
     log::info!("pass all tests");
 }

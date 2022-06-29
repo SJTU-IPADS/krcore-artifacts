@@ -111,7 +111,7 @@ impl Device {
                 if status != ib_port_state::IB_PORT_ACTIVE {
                     continue;
                 }
-                if let Ok(gid) = self.query_gid(i as _) {
+                if let Ok(_gid) = self.query_gid(i as _) {
                     return Some(i);
                 }
             }
