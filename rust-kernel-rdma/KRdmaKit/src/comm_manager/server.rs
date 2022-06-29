@@ -5,6 +5,7 @@ use rust_kernel_rdma_base::*;
 
 /// The CM server is analogy to the UDP server,
 /// which listens on a port (listen_id).
+#[derive(Debug)]
 pub struct CMServer<T: CMCallbacker> {
     inner: CMWrapper<T>,
     listen_id: u64,
@@ -35,5 +36,14 @@ where
 
     pub fn listen_id(&self) -> u64 {
         self.listen_id
+    }
+}
+
+impl<T> Drop for CMServer<T>
+where
+    T: CMCallbacker,
+{
+    fn drop(&mut self) {
+        unsafe { ib_destroy_cm_id(self.inner.raw_ptr()) };
     }
 }

@@ -3,7 +3,7 @@ use rust_kernel_rdma_base::*;
 
 use linux_kernel_module::Error;
 
-use crate::ControlpathError;
+use crate::{device_v1::DeviceRef, ControlpathError};
 
 #[derive(Debug)]
 pub struct Context {
@@ -24,6 +24,10 @@ impl Context {
             | ib_access_flags::IB_ACCESS_REMOTE_WRITE
             | ib_access_flags::IB_ACCESS_REMOTE_ATOMIC;
         Self::new_from_flags(dev, mr_flags as i32)
+    }
+
+    pub fn get_dev_ref(&self) -> &DeviceRef {
+        &self.inner_device
     }
 
     pub fn new_from_flags(

@@ -1,20 +1,28 @@
 use linux_kernel_module::c_types;
 use rust_kernel_rdma_base::*;
 
+use alloc::string::String;
 use alloc::sync::Arc;
+
 use core::ptr::NonNull;
 
 use crate::device_v1::DeviceRef;
 use crate::log;
 
+pub use client::CMReplyer;
 pub use client::CMSender;
+pub use explorer::Explorer;
 pub use server::CMServer;
 
-use client::CMReplyer;
-
 mod client;
+/// implementations of the send methods of the CM
 mod send;
+
+/// server-side CM implementation
 mod server;
+
+/// implementation fo explore the `sa_path_rec`
+mod explorer;
 
 /// The error type of CM.
 #[derive(thiserror_no_std::Error, Debug)]
@@ -33,6 +41,9 @@ pub enum CMError {
 
     #[error("Create server error")]
     ServerError(&'static str, linux_kernel_module::Error),
+
+    #[error("Invalid arg on {0}: {1}")]
+    InvalidArg(&'static str, String),
 }
 
 pub trait CMCallbacker {
@@ -51,6 +62,7 @@ pub trait CMCallbacker {
 /// A wrapper over ib_cm_id
 /// which provides the common functionalities of the
 /// client-server sides CM
+#[derive(Debug)]
 struct CMWrapper<T: CMCallbacker> {
     _dev: DeviceRef, // prevent usage error
     inner: NonNull<ib_cm_id>,
@@ -92,7 +104,7 @@ where
     T: CMCallbacker,
 {
     let cm = ib_create_cm_id(dev, Some(cm_handler::<T>), Arc::as_ptr(context) as _);
-    if cm.is_null() {
+    if !cm.is_null() {
         Ok(cm)
     } else {
         Err(CMError::Creation(0))
@@ -117,7 +129,7 @@ where
 
     if res.is_err() {
         log::info!("{:?}", res);
+        return -1;
     }
-
-    unimplemented!();
+    return 0;
 }
