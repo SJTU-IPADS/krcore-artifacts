@@ -1,5 +1,3 @@
-use crate::ControlpathError;
-
 use super::{CMCallbacker, CMError, CMWrapper};
 
 use linux_kernel_module::Error;
@@ -35,8 +33,8 @@ where
     /// The assumption: the ib_cm_req_param has been properly set    
     pub fn send_req<T: Sized>(
         &mut self,
-        mut req: ib_cm_req_param,
-        mut pri: T,
+        _req: ib_cm_req_param,
+        _pri: T,
     ) -> Result<(), CMError> {
         unimplemented!();
     }
@@ -44,7 +42,7 @@ where
     /// This call will generate a IB_CM_DREQ_RECEIVED at the remote end
     /// This is usually called when an RCQP destroy itself.
     /// The assumption: the ib_cm_req_param has been properly set    
-    pub fn send_dreq<T: Sized>(&mut self, mut pri: T) -> Result<(), CMError> {
+    pub fn send_dreq<T: Sized>(&mut self, pri: T) -> Result<(), CMError> {
         unimplemented!();
     }
 

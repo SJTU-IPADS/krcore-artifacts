@@ -14,11 +14,11 @@ pub struct CMSender<T: CMCallbacker> {
     inner: CMWrapper<T>,
 }
 
-impl<T> CMSender<T>
+impl<C> CMSender<C>
 where
-    T: CMCallbacker,
+    C: CMCallbacker,
 {
-    pub fn new(context: &Arc<T>, dev: &DeviceRef) -> Result<Self, CMError> {
+    pub fn new(context: &Arc<C>, dev: &DeviceRef) -> Result<Self, CMError> {
         let raw_cm = unsafe { super::create_raw_cm_id(dev.raw_ptr(), context)? };
         Ok(Self {
             inner: CMWrapper::new(dev, context, raw_cm).unwrap(),
@@ -27,11 +27,12 @@ where
 
     delegate! {
     to self.inner {
-        pub fn send_sidr<V: Sized>(
+        pub fn send_sidr<T: Sized>(
             &mut self,
-            mut req: ib_cm_sidr_req_param,
-            pri: V,
+            req: ib_cm_sidr_req_param,
+            pri: T,
             ) -> Result<(), CMError>;
+        pub fn send_dreq<T: Sized>(&mut self, pri: T) -> Result<(), CMError>;
         }
     }
 }
@@ -80,5 +81,5 @@ impl CMReplyer {
             ));
         }
         Ok(())
-    }    
+    }
 }

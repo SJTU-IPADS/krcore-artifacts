@@ -3,9 +3,9 @@ use rust_kernel_linux_util::bindings::completion;
 use rust_kernel_rdma_base::*;
 
 use alloc::boxed::Box;
-use core::{option::Option, ptr::NonNull};
+use core::option::Option;
 
-use super::{c_types, Arc, CMError, DeviceRef, String};
+use super::{c_types, CMError, DeviceRef, String};
 use crate::{alloc::string::ToString, log};
 
 pub type SubnetAdminPathRecord = sa_path_rec;

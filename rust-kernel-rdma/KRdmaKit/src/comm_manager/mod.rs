@@ -55,25 +55,28 @@ pub trait CMCallbacker {
 
     fn handle_dreq(
         self: &mut Self,
-        reply_cm: CMReplyer,
-        event: &ib_cm_event,
+        _reply_cm: CMReplyer,
+        _event: &ib_cm_event,
     ) -> Result<(), CMError> {
+        // the user can not implement this
         Ok(())
     }
 
     fn handle_sidr_req(
         self: &mut Self,
-        mut reply_cm: CMReplyer,
-        event: &ib_cm_event,
+        _reply_cm: CMReplyer,
+        _event: &ib_cm_event,
     ) -> Result<(), CMError> {
+        // the user can not implement this
         Ok(())
     }
 
     fn handle_sidr_rep(
         self: &mut Self,
-        mut reply_cm: CMReplyer,
-        event: &ib_cm_event,
+        _reply_cm: CMReplyer,
+        _event: &ib_cm_event,
     ) -> Result<(), CMError> {
+        // the user can not implement this
         Ok(())
     }
 }
@@ -83,7 +86,7 @@ pub trait CMCallbacker {
 /// client-server sides CM
 #[allow(dead_code)]
 #[derive(Debug)]
-struct CMWrapper<T: CMCallbacker> {
+pub struct CMWrapper<T: CMCallbacker> {
     _dev: DeviceRef, // prevent usage error
     inner: NonNull<ib_cm_id>,
     callbacker: Arc<T>,

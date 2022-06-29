@@ -63,11 +63,17 @@ impl CMCallbacker for CMHandlerClient {
         mut _reply_cm: CMReplyer,
         event: &ib_cm_event,
     ) -> Result<(), CMError> {
+        let rep_param = unsafe { event.param.sidr_rep_rcvd }; // sidr_rep_rcvd
         log::info!(
-            "client sidr reponse received, event {:?}, private data: {:?}",
+            "client sidr reponse received, event {:?}, private data: {:?}, rep_param {:?}",
             event.event,
-            event.private_data
+            event.private_data,
+            rep_param
         );
+
+        if rep_param.status != ib_cm_sidr_status::IB_SIDR_SUCCESS { 
+            log::error!("failed to send SIDR {:?}", rep_param);
+        }
         self.0.done();
         Ok(())
     }
