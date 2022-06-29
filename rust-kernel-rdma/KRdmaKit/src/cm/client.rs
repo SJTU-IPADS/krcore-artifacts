@@ -44,7 +44,7 @@ impl ClientCM {
     }
 
     #[inline]
-    pub fn status(&self) -> ib_cm_state {
+    pub fn status(&self) -> ib_cm_state::Type {
         unsafe { *self.get_cm() }.state
     }
 

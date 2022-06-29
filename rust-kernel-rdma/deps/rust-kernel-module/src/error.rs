@@ -3,6 +3,7 @@ use core::num::TryFromIntError;
 use crate::bindings;
 use crate::c_types;
 
+#[derive(Debug)]
 pub struct Error(c_types::c_int);
 
 impl Error {
@@ -22,7 +23,7 @@ impl Error {
 }
 
 
-impl core::fmt::Debug for Error {
+impl core::fmt::Display for Error {
     fn fmt(&self, fmt: &mut ::core::fmt::Formatter) -> core::fmt::Result {
         match self.0 as u32 {
             bindings::EINVAL => write!(fmt, "EINVAL"),
@@ -30,7 +31,6 @@ impl core::fmt::Debug for Error {
         }
     }
 }
-
 
 impl From<TryFromIntError> for Error {
     fn from(_: TryFromIntError) -> Error {
