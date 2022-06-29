@@ -13,6 +13,8 @@ futures-micro = "0.4"
 ## spinlock
 spin = "0.9.2"           ## spin lock
 hashbrown = "0.9"
+thiserror-no-std = "2.0.2"
+delegate = "*"
 
 [features]
 #default = ["profile"]

@@ -10,6 +10,7 @@ use linux_kernel_module::{c_types, Error, KernelResult};
 use linux_kernel_module::bindings::mutex;
 use crate::consts::CONNECT_TIME_OUT_MS;
 
+
 type ExplorerMutex = mutex;
 
 pub struct IBExplorer {

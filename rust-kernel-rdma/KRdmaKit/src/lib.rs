@@ -1,18 +1,30 @@
 #![no_std]
-#![feature(
-    get_mut_unchecked,
-    new_uninit,
-    allocator_api,
-)]
+#![feature(get_mut_unchecked, new_uninit, allocator_api)]
 #![cfg_attr(
     feature = "alloc_ref",
     feature(allocator_api, alloc_layout_extra, nonnull_slice_from_raw_parts)
 )]
 
+/// Communication manager that is used to bootstrap RDMA connections
 pub mod cm;
+
+/// Configuration operations
 pub mod consts;
 pub mod ctrl;
+
+/// Abstraction for the RDMA-capable devices (RNIC)
 pub mod device;
+pub mod device_v1; // the new device implementation that will overwrite the old one
+
+/// Communication manager (CM) abstracts the CM implementation
+/// This module is used to bootstrap RDMA connection
+pub mod comm_manager;
+
+/// Analogy ib_context in the ibverbs.
+/// Provides a high-level context abstraction but further
+/// abstracts MR and PD in it.
+pub mod context;
+
 pub mod ib_path_explorer;
 pub mod mem;
 pub mod net_util;
@@ -24,9 +36,11 @@ pub mod thread_local;
 
 extern crate alloc;
 
+pub use rust_kernel_rdma_base;
+pub use rust_kernel_rdma_base::rust_kernel_linux_util::kthread::sleep;
+
 use consts::*;
 use linux_kernel_module::{c_types, println};
-pub use rust_kernel_rdma_base;
 use rust_kernel_rdma_base::rust_kernel_linux_util::timer::KTimer;
 use rust_kernel_rdma_base::*;
 
@@ -40,44 +54,62 @@ macro_rules! to_ptr {
 use alloc::vec::Vec;
 
 pub struct KDriver {
-    client: Box<ib_client>,
-    rnics: Vec<crate::device::RNIC>,
+    client: ib_client,
+    rnics: Vec<crate::device_v1::DeviceRef>,
 }
 
+pub type KDriverRef = Arc<KDriver>;
+
 use crate::log::debug;
-use alloc::boxed::Box;
+use alloc::sync::Arc;
 pub use rust_kernel_rdma_base::rust_kernel_linux_util as log;
 
 impl KDriver {
-    pub fn devices(&self) -> &Vec<crate::device::RNIC> {
+    pub fn devices(&self) -> &Vec<crate::device_v1::DeviceRef> {
         &self.rnics
     }
 
     /// ! warning: this function is **not** thread safe
-    pub unsafe fn create() -> Option<Box<Self>> {
-        let mut temp = Box::new(KDriver {
-            client: Box::new_zeroed().assume_init(),
+    pub unsafe fn create() -> Option<Arc<Self>> {
+        let mut temp = Arc::new(KDriver {
+            client: core::mem::MaybeUninit::zeroed().assume_init(),
             rnics: Vec::new(),
         });
 
-        _NICS = Some(Vec::new());
+        // First, we query all the ib_devices
+        {
+            let temp_inner = Arc::get_mut_unchecked(&mut temp);
 
-        temp.client.name = b"kRdmaKit\0".as_ptr() as *mut c_types::c_char;
-        temp.client.add = Some(KDriver_add_one);
-        temp.client.remove = Some(_KRdiver_remove_one);
+            _NICS = Some(Vec::new());
 
-        let err = ib_register_client((&mut *temp.client) as _);
-        if err != 0 {
-            return None;
+            temp_inner.client.name = b"kRdmaKit\0".as_ptr() as *mut c_types::c_char;
+            temp_inner.client.add = Some(KDriver_add_one);
+            temp_inner.client.remove = Some(_KRdiver_remove_one);
+
+            let err = ib_register_client((&mut temp_inner.client) as _);
+            if err != 0 {
+                return None;
+            }
         }
 
-        temp.rnics = get_temp_rnics()
+        // next, weconstruct the nics
+        // we need to do this to avoid move out temp upon constructing the devices
+        let rnics = get_temp_rnics()
             .into_iter()
-            .map(|dev| crate::device::RNIC::create(*dev, 1).unwrap())
+            .map(|dev| {
+                crate::device_v1::Device::new(*dev, &temp)
+                    .expect("Query ib_device pointers should never fail")
+            })
             .collect();
-        _NICS.take();
 
-        log::info!("KRdmaKit driver initialization done. ");
+        // modify the temp again
+        {
+            let temp_inner = Arc::get_mut_unchecked(&mut temp);
+            temp_inner.rnics = rnics;
+            _NICS.take();
+        }
+
+        log::debug!("KRdmaKit driver initialization done. ");
 
         Some(temp)
     }
@@ -85,7 +117,7 @@ impl KDriver {
 
 impl Drop for KDriver {
     fn drop(&mut self) {
-        unsafe { ib_unregister_client(&mut *self.client) };
+        unsafe { ib_unregister_client(&mut self.client) };
     }
 }
 
@@ -110,6 +142,13 @@ gen_add_dev_func!(_KRdiver_add_one, KDriver_add_one);
 #[allow(non_snake_case)]
 unsafe extern "C" fn _KRdiver_remove_one(dev: *mut ib_device, _client_data: *mut c_types::c_void) {
     log::info!("remove one dev {:?}", dev);
+}
+
+/// The error type of control plane operations
+#[derive(thiserror_no_std::Error, Debug)]
+pub enum ControlpathError {
+    #[error("create context {0} error: {1}")]
+    ContextError(&'static str, linux_kernel_module::Error),
 }
 
 /// profile for statistics
@@ -181,3 +220,11 @@ impl Default for Profile {
 unsafe impl Sync for Profile {}
 
 unsafe impl Send for Profile {}
+
+impl core::fmt::Debug for KDriver {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("KDriver")
+            .field("num_device", &self.rnics.len())
+            .finish()
+    }
+}
