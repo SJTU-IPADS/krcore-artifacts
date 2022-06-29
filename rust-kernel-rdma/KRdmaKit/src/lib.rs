@@ -5,6 +5,8 @@
     feature(allocator_api, alloc_layout_extra, nonnull_slice_from_raw_parts)
 )]
 
+use completion_queue::CompletionQueue;
+
 /// Communication manager that is used to bootstrap RDMA connections
 pub mod cm;
 
@@ -24,6 +26,10 @@ pub mod comm_manager;
 /// Provides a high-level context abstraction but further
 /// abstracts MR and PD in it.
 pub mod context;
+
+pub mod completion_queue;
+/// Unreliable datagram implementations
+pub mod unreliable_datagram;
 
 pub mod ib_path_explorer;
 pub mod mem;
@@ -149,6 +155,11 @@ unsafe extern "C" fn _KRdiver_remove_one(dev: *mut ib_device, _client_data: *mut
 pub enum ControlpathError {
     #[error("create context {0} error: {1}")]
     ContextError(&'static str, linux_kernel_module::Error),
+
+    /// Used for identify create different resource error
+    /// e.g., CQ, QP, etc.
+    #[error("create {0} error: {1}")]
+    CreationError(&'static str, linux_kernel_module::Error),
 }
 
 /// profile for statistics
