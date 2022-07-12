@@ -1,13 +1,15 @@
+use alloc::sync::Arc;
+use core::fmt::{Debug, Formatter};
+use core::ptr::NonNull;
+
+use rust_kernel_rdma_base::rust_kernel_linux_util::bindings::completion;
+use rust_kernel_rdma_base::*;
+
 use crate::comm_manager::{CMCallbacker, CMError, CMReplyer, CMSender};
 use crate::context::{AddressHandler, ContextRef};
 use crate::linux_kernel_module::Error;
 use crate::queue_pairs::ud_services::UnreliableDatagramMeta;
 use crate::{log, ControlpathError};
-use alloc::sync::Arc;
-use core::fmt::{Debug, Formatter};
-use core::ptr::NonNull;
-use rust_kernel_rdma_base::rust_kernel_linux_util::bindings::completion;
-use rust_kernel_rdma_base::*;
 
 /// The unreliable datagram endpoint
 /// that a client QP can use to communicate with a server
