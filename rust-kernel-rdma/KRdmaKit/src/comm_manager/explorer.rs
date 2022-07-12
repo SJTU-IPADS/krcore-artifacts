@@ -85,7 +85,7 @@ impl Explorer {
         let mut sa_query: *mut ib_sa_query = core::ptr::null_mut();
         let ret = ib_sa_path_rec_get(
             sa_client.raw_ptr(),
-            self.inner_dev.raw_ptr(),
+            self.inner_dev.raw_ptr().as_ptr(),
             source_port_id as _,
             &mut path_request as *mut _,
             path_rec_service_id() | path_rec_dgid() | path_rec_sgid() | path_rec_numb_path(),

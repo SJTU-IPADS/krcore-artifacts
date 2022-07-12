@@ -12,7 +12,7 @@ pub struct RMemPhy {
     // inner box
     inner_mem: Box<[core::mem::MaybeUninit<i8>]>,
 
-    // physical DMA address.
+    // physical DMA address.w
     dma_buf: Option<u64>,
     // size of the block
     capacity: usize,

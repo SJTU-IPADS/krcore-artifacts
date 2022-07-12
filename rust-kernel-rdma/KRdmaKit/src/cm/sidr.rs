@@ -145,7 +145,7 @@ impl<'a> SidrCM<'a> {
         let mut boxed = Box::new(res);
         let sidr_cm = boxed.as_mut();
 
-        if cm == core::ptr::null_mut() {
+        if cm == null_mut() {
             let cm = ClientCM::new(
                 ctx.get_raw_dev(),
                 Some(SidrCM::cm_handler),

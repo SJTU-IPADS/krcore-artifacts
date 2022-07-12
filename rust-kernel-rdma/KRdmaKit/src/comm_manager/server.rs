@@ -19,7 +19,7 @@ where
     /// 1. create a CMWrapper
     /// 2. listen this CMServer on `listen_id`
     pub fn new(listen_id: u64, context: &Arc<T>, dev: &DeviceRef) -> Result<Self, CMError> {
-        let raw_cm = unsafe { super::create_raw_cm_id(dev.raw_ptr(), context)? };
+        let raw_cm = unsafe { super::create_raw_cm_id(dev.raw_ptr().as_ptr(), context)? };
         // step #1.
         let res = Self {
             inner: CMWrapper::new(dev, context, raw_cm).unwrap(), // cannot fail
@@ -44,6 +44,6 @@ where
     T: CMCallbacker,
 {
     fn drop(&mut self) {
-        unsafe { ib_destroy_cm_id(self.inner.raw_ptr()) };
+        unsafe { ib_destroy_cm_id(self.inner.raw_ptr().as_ptr()) };
     }
 }
