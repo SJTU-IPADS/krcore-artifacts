@@ -23,8 +23,12 @@ pub type DeviceRef = Arc<Device>;
 use crate::context::Context;
 
 impl Device {
-    pub fn open_context(self: &DeviceRef) -> Result<Context, crate::ControlpathError> {
+    pub fn open_context(self: &DeviceRef) -> Result<Arc<Context>, crate::ControlpathError> {
         Context::new(self)
+    }
+
+    pub fn name(&self) -> alloc::string::String {
+        crate::utils::convert_c_str_to_string(&unsafe { self.inner.as_ref().name })
     }
 }
 
@@ -37,8 +41,8 @@ impl Device {
     }
 
     /// return the raw pointer of the device
-    pub(crate) unsafe fn raw_ptr(&self) -> *mut ib_device {
-        self.inner.as_ptr()
+    pub(crate) fn raw_ptr(&self) -> &NonNull<ib_device> {
+        &self.inner
     }
 }
 
@@ -75,7 +79,13 @@ impl Device {
     #[inline]
     pub fn get_port_attr(&self, port_id: u8) -> KernelResult<ib_port_attr> {
         let mut port_attr: ib_port_attr = Default::default();
-        let err = unsafe { ib_query_port(self.raw_ptr(), port_id as u8, &mut port_attr as *mut _) };
+        let err = unsafe {
+            ib_query_port(
+                self.raw_ptr().as_ptr(),
+                port_id as u8,
+                &mut port_attr as *mut _,
+            )
+        };
         if err != 0 {
             return Err(Error::from_kernel_errno(err));
         }

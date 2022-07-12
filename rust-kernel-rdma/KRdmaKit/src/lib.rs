@@ -5,6 +5,8 @@
     feature(allocator_api, alloc_layout_extra, nonnull_slice_from_raw_parts)
 )]
 
+use completion_queue::CompletionQueue;
+
 /// Communication manager that is used to bootstrap RDMA connections
 pub mod cm;
 
@@ -24,6 +26,11 @@ pub mod comm_manager;
 /// Provides a high-level context abstraction but further
 /// abstracts MR and PD in it.
 pub mod context;
+
+pub mod completion_queue;
+pub mod queue_pairs;
+pub mod memory_region;
+pub mod utils;
 
 pub mod ib_path_explorer;
 pub mod mem;
@@ -149,6 +156,27 @@ unsafe extern "C" fn _KRdiver_remove_one(dev: *mut ib_device, _client_data: *mut
 pub enum ControlpathError {
     #[error("create context {0} error: {1}")]
     ContextError(&'static str, linux_kernel_module::Error),
+
+    /// Used for identify create different resource error
+    /// e.g., CQ, QP, etc.
+    #[error("create {0} error: {1}")]
+    CreationError(&'static str, linux_kernel_module::Error),
+
+    #[error("Invalid arg for {0}")]
+    InvalidArg(&'static str),
+
+    #[error("Query error: {0} w/ errono: {1}")]
+    QueryError(&'static str, linux_kernel_module::Error),
+}
+
+/// The error type of data plane operations
+#[derive(thiserror_no_std::Error, Debug)]
+pub enum DatapathError {
+    #[error("post_send error with errorno {0}")]    
+    PostSendError(linux_kernel_module::Error),
+
+    #[error("poll_cq error with errorno {0}")]    
+    PollCQError(linux_kernel_module::Error),
 }
 
 /// profile for statistics

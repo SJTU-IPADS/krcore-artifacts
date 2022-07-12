@@ -19,7 +19,7 @@ where
         rep.private_data = ((&mut pri) as *mut T).cast::<linux_kernel_module::c_types::c_void>();
         rep.private_data_len = core::mem::size_of::<T>() as u8;
 
-        let err = unsafe { ib_send_cm_rep(self.raw_ptr(), &mut rep as *mut _) };
+        let err = unsafe { ib_send_cm_rep(self.raw_ptr().as_ptr(), &mut rep as *mut _) };
         if err != 0 {
             return Err(CMError::SendError(
                 "Send reply",
@@ -31,18 +31,14 @@ where
 
     /// This call will generate a IB_CM_REQ_RECEIVED at the remote end
     /// The assumption: the ib_cm_req_param has been properly set    
-    pub fn send_req<T: Sized>(
-        &mut self,
-        _req: ib_cm_req_param,
-        _pri: T,
-    ) -> Result<(), CMError> {
+    pub fn send_req<T: Sized>(&mut self, _req: ib_cm_req_param, _pri: T) -> Result<(), CMError> {
         unimplemented!();
     }
 
     /// This call will generate a IB_CM_DREQ_RECEIVED at the remote end
     /// This is usually called when an RCQP destroy itself.
     /// The assumption: the ib_cm_req_param has been properly set    
-    pub fn send_dreq<T: Sized>(&mut self, pri: T) -> Result<(), CMError> {
+    pub fn send_dreq<T: Sized>(&mut self, _pri: T) -> Result<(), CMError> {
         unimplemented!();
     }
 
@@ -57,7 +53,7 @@ where
         req.private_data = ((&mut pri) as *mut T).cast::<linux_kernel_module::c_types::c_void>();
         req.private_data_len = core::mem::size_of::<T>() as u8;
 
-        let err = unsafe { ib_send_cm_sidr_req(self.raw_ptr(), &mut req as *mut _) };
+        let err = unsafe { ib_send_cm_sidr_req(self.raw_ptr().as_ptr(), &mut req as *mut _) };
         if err != 0 {
             return Err(CMError::SendError(
                 "Send SIDR",

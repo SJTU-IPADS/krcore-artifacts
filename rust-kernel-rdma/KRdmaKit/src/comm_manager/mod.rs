@@ -49,9 +49,17 @@ pub enum CMError {
     Unknown,
 }
 
+/// The CMCallback implements various task after receiving CM messages
+/// Typically, a CM endpoint will only need to handle partial events
+/// e.g., 
+/// - Server: request events 
+/// - Client: response events
+/// Therefore, we provide a default implementation for these trait functions. 
 pub trait CMCallbacker {
-    fn handle_req(self: &mut Self, reply_cm: CMReplyer, event: &ib_cm_event)
-        -> Result<(), CMError>;
+    fn handle_req(self: &mut Self, _reply_cm: CMReplyer, _event: &ib_cm_event)
+        -> Result<(), CMError> { 
+        Ok(())
+    }
 
     fn handle_dreq(
         self: &mut Self,
@@ -82,8 +90,7 @@ pub trait CMCallbacker {
 }
 
 /// A wrapper over ib_cm_id
-/// which provides the common functionalities of the
-/// client-server sides CM
+/// which provides the common functionalities of the CM
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct CMWrapper<T: CMCallbacker> {
@@ -101,7 +108,7 @@ where
         dev: &DeviceRef,
         context: &Arc<T>,
         cm_ptr: *mut ib_cm_id,
-    ) -> core::option::Option<Self> {
+    ) -> Option<Self> {
         Some(Self {
             _dev: dev.clone(),
             inner: NonNull::new(cm_ptr)?,
@@ -109,11 +116,16 @@ where
         })
     }
 
-    pub(crate) unsafe fn raw_ptr(&self) -> *mut ib_cm_id {
-        self.inner.as_ptr()
+    pub(crate) unsafe fn raw_ptr(&self) -> &NonNull<ib_cm_id> {
+        &self.inner
+    }
+
+    pub(crate) fn callbacker(&self) -> &Arc<T>{
+        &self.callbacker
     }
 
     /// Get the current status of the CM
+    /// FIXME: should be more friendly to print
     pub fn status(&self) -> ib_cm_state::Type {
         unsafe { self.inner.as_ref() }.state
     }

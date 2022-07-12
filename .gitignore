@@ -1,0 +1,6 @@
+Cargo.lock
+**/target
+!mlnx-ofed-4.9-driver/**/target
+**/.idea
+**/.vscode
+.DS_Store
