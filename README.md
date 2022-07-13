@@ -1,7 +1,26 @@
-# KRCore: fast RDMA connection support 
+# KRCore: rust-based communication library for using RDMA 
 
-KRCore contains two-parts. The first is a kernel-space RDMA library written in Rust. 
-The second is a kernel-space component to provide fast user-space RDMA-capable connection setup. 
+KRCore has two parts. The first is a rust-based library for using RDMA, 
+i.e., by adding high-level abstractions to low-level RDMA libraries (ibverbs). 
+The second is a kernel-space component to provide fast user-space RDMA-capable connection setup,
+which builds on the first part. 
+
+## Rust-based RDMA library 
+
+The goals of this part is:
+1. Simplify building RDMA-based applications with rust
+2. Using rust to manage all the (local) lifecycles of RDMA resources (e.g., QP) in a safe and transparent way
+3. A unified codebase to run applications both in the kernel-space and user-space. 
+
+We have built basic support for the first and the second cases. 
+We are currently refining the code to eliminate non-rust style code as much as possible. 
+
+We are further developing support for user-space.
+
+## Kernel-space support for fast RDMA connections
+
+The second is a kernel-space component to provide fast user-space RDMA-capable connection setup.  For details, please refer to our USENIX ATC 2022 paper: https://www.usenix.org/conference/atc22/presentation/wei
+
 Please refer to [install.md](docs/install.md) for the environment setup and [exp.md](docs/exp.md) for the evaluations. All documents can be found in the `doc` directory of the artifact.
 
 Since KRCore is a kernel-space solution with RDMA, we should first build KRCore from source at the machines involved in the evaluations. Afterward, we provide scripts so that all the evaluations can be done on a single controller machine. 
