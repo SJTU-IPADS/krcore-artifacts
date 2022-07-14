@@ -16,9 +16,9 @@ pub struct MemoryRegion {
 }
 
 #[derive(Debug)]
-pub struct LocalKey(u32);
+pub struct LocalKey(pub u32);
 #[derive(Debug)]
-pub struct RemoteKey(u32);
+pub struct RemoteKey(pub u32);
 
 impl MemoryRegion {
     pub fn new(context: Arc<Context>, capacity: usize) -> Result<Self, crate::ControlpathError> {
@@ -47,5 +47,10 @@ impl MemoryRegion {
     #[inline]
     pub fn lkey(&self) -> LocalKey {
         LocalKey(self.ctx.lkey())
+    }
+
+    // TODO @Haotian : Just for test to use, remove it later
+    pub fn get_virt_addr(&self) -> u64 {
+        self.data.as_ptr() as u64
     }
 }

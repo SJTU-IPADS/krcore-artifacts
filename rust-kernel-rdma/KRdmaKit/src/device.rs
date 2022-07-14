@@ -9,7 +9,7 @@ use crate::net_util::gid_to_str;
 use alloc::string::String;
 use core::option::Option;
 use linux_kernel_module::{println, Error, KernelResult};
-use crate::debug;
+use rust_kernel_linux_util as log;
 
 /// The RNIC instance that abstracts gid, hca and attributes 
 pub struct RNIC {
@@ -229,7 +229,7 @@ impl<'a> RContext<'a> {
         unsafe { ib_dereg_mr(self.kmr) };
         unsafe { ib_dealloc_pd(self.pd) };
         self.pd = core::ptr::null_mut();
-        debug!("finish reset one device");
+        log::debug!("finish reset one device");
     }
 }
 
