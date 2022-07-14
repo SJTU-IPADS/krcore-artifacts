@@ -1,11 +1,13 @@
+use core::iter::TrustedRandomAccessNoCoerce;
+use core::ops::Range;
+use core::ptr::NonNull;
+
 use crate::log::timer::RTimer;
 use crate::memory_region::MemoryRegion;
 use crate::queue_pairs::endpoint::UnreliableDatagramEndpoint;
 use crate::{context::Context, CompletionQueue, DatapathError};
 use alloc::{boxed::Box, sync::Arc};
-use core::iter::TrustedRandomAccessNoCoerce;
-use core::ops::Range;
-use core::ptr::NonNull;
+
 use linux_kernel_module::Error;
 use rust_kernel_rdma_base::*;
 
