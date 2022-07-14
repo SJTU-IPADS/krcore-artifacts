@@ -1,8 +1,6 @@
 use rust_kernel_rdma_base::*;
-
 use alloc::sync::Arc;
 use core::ptr::{null_mut, NonNull};
-
 use crate::context::{Context, ContextRef};
 use crate::ControlpathError::CreationError;
 use crate::{ControlpathError, DatapathError};

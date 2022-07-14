@@ -57,7 +57,7 @@ pub enum CMError {
 /// Therefore, we provide a default implementation for these trait functions. 
 pub trait CMCallbacker {
     fn handle_req(self: &mut Self, _reply_cm: CMReplyer, _event: &ib_cm_event)
-        -> Result<(), CMError> { 
+        -> Result<(), CMError> {
         Ok(())
     }
 

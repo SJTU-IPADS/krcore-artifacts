@@ -1,5 +1,5 @@
 #![no_std]
-#![feature(get_mut_unchecked, new_uninit, allocator_api)]
+#![feature(get_mut_unchecked, new_uninit, allocator_api, trusted_random_access)]
 #![cfg_attr(
     feature = "alloc_ref",
     feature(allocator_api, alloc_layout_extra, nonnull_slice_from_raw_parts)
@@ -62,17 +62,16 @@ use alloc::vec::Vec;
 
 pub struct KDriver {
     client: ib_client,
-    rnics: Vec<crate::device_v1::DeviceRef>,
+    rnics: Vec<device_v1::DeviceRef>,
 }
 
 pub type KDriverRef = Arc<KDriver>;
 
-use crate::log::debug;
 use alloc::sync::Arc;
 pub use rust_kernel_rdma_base::rust_kernel_linux_util as log;
 
 impl KDriver {
-    pub fn devices(&self) -> &Vec<crate::device_v1::DeviceRef> {
+    pub fn devices(&self) -> &Vec<device_v1::DeviceRef> {
         &self.rnics
     }
 
@@ -104,7 +103,7 @@ impl KDriver {
         let rnics = get_temp_rnics()
             .into_iter()
             .map(|dev| {
-                crate::device_v1::Device::new(*dev, &temp)
+                device_v1::Device::new(*dev, &temp)
                     .expect("Query ib_device pointers should never fail")
             })
             .collect();
@@ -172,11 +171,17 @@ pub enum ControlpathError {
 /// The error type of data plane operations
 #[derive(thiserror_no_std::Error, Debug)]
 pub enum DatapathError {
-    #[error("post_send error with errorno {0}")]    
+    #[error("post_send error with errorno {0}")]
     PostSendError(linux_kernel_module::Error),
 
-    #[error("poll_cq error with errorno {0}")]    
+    #[error("post_send error with errorno {0}")]
+    PostRecvError(linux_kernel_module::Error),
+
+    #[error("poll_cq error with errorno {0}")]
     PollCQError(linux_kernel_module::Error),
+
+    #[error("timeout error")]
+    TimeoutError,
 }
 
 /// profile for statistics

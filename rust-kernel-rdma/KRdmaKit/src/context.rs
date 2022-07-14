@@ -75,6 +75,11 @@ impl Context {
         &self.pd
     }
 
+    // TODO @Haotian : Just for test to use, remove it later
+    pub fn get_kmr(&self) -> &NonNull<ib_mr> {
+        &self.kmr
+    }
+
     /// Create an address handler of this context
     pub fn create_address_handler(
         self: &Arc<Self>,
