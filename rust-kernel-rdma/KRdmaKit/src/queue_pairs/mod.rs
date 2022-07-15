@@ -2,7 +2,6 @@ use core::iter::TrustedRandomAccessNoCoerce;
 use core::ops::Range;
 use core::ptr::NonNull;
 
-use crate::log::timer::RTimer;
 use crate::memory_region::MemoryRegion;
 use crate::queue_pairs::endpoint::UnreliableDatagramEndpoint;
 use crate::{context::Context, CompletionQueue, DatapathError};

@@ -10,14 +10,12 @@ use rust_kernel_linux_util as log;
 use rust_kernel_linux_util::timer::RTimer;
 use KRdmaKit::comm_manager::*;
 use KRdmaKit::completion_queue::CompletionQueue;
-use KRdmaKit::mem::pa_to_va;
 use KRdmaKit::memory_region::MemoryRegion;
 use KRdmaKit::queue_pairs::builder::QueuePairBuilder;
 use KRdmaKit::queue_pairs::endpoint::{
-    UnreliableDatagramEndpoint, UnreliableDatagramEndpointQuerier,
+    UnreliableDatagramEndpointQuerier,
 };
 use KRdmaKit::queue_pairs::ud_services::UnreliableDatagramServer;
-use KRdmaKit::queue_pairs::QueuePair;
 use KRdmaKit::rust_kernel_rdma_base::*;
 use KRdmaKit::KDriver;
 
@@ -328,10 +326,10 @@ fn test_timer() -> Result<(), TestError> {
 }
 
 fn test_wrapper() -> Result<(), TestError> {
-    // test_cq_construction()?;
-    // test_ud_builder()?;
+    test_timer()?;
+    test_cq_construction()?;
+    test_ud_builder()?;
     test_ud_query()?;
-    // test_timer()?;
     Ok(())
 }
 
