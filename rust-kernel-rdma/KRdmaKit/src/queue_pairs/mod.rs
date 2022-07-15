@@ -110,7 +110,7 @@ impl QueuePair {
         &self._ctx
     }
 
-    /// Post a work request to the send queue of the queue pair, add it to the tail of the send queue
+    /// Post a work request (related to UD) to the send queue of the queue pair, add it to the tail of the send queue
     /// without context switch. The RDMA device will handle it (later) in asynchronous way.
     ///
     /// The parameter `range` indexes the input memory region, treat it as
@@ -121,7 +121,7 @@ impl QueuePair {
     ///
     /// If you need more information about post_send, please refer to
     /// [RDMAmojo](https://www.rdmamojo.com/2013/01/26/ibv_post_send/) for help.
-    pub fn post_send(
+    pub fn post_datagram(
         &self,
         endpoint: &UnreliableDatagramEndpoint,
         mr: &MemoryRegion,
@@ -130,13 +130,14 @@ impl QueuePair {
         signaled: bool,
     ) -> Result<(), DatapathError> {
         let mut wr: ib_ud_wr = Default::default();
-        let mut sge: ib_sge = Default::default();
         let mut bad_wr: *mut ib_send_wr = core::ptr::null_mut();
 
-        // first set the sge
-        sge.addr = unsafe { mr.get_rdma_addr() } + range.start;
-        sge.length = range.size() as u32;
-        sge.lkey = mr.lkey().0;
+        // first setup the sge
+        let mut sge = ib_sge { 
+            addr : unsafe { mr.get_rdma_addr() } + range.start, 
+            length : range.size() as u32, 
+            lkey : mr.lkey().0
+        };        
 
         // then set the wr
         wr.remote_qpn = endpoint.qpn();
@@ -182,12 +183,13 @@ impl QueuePair {
         wr_id: u64,
     ) -> Result<(), DatapathError> {
         let mut wr: ib_recv_wr = Default::default();
-        let mut sge: ib_sge = Default::default();
         let mut bad_wr: *mut ib_recv_wr = core::ptr::null_mut();
 
-        sge.addr = unsafe { mr.get_rdma_addr() } + range.start;
-        sge.length = range.size() as u32;
-        sge.lkey = mr.lkey().0;
+        let mut sge = ib_sge { 
+            addr : unsafe { mr.get_rdma_addr() } + range.start, 
+            length : range.size() as u32, 
+            lkey : mr.lkey().0
+        };
 
         wr.sg_list = &mut sge as *mut _;
         wr.num_sge = 1;
@@ -207,6 +209,7 @@ impl QueuePair {
     }
 
     /// Poll send_cq. Returned slice length is 0 if no work completion polled
+    #[inline]
     pub fn poll_send_cq<'c>(
         &self,
         completions: &'c mut [ib_wc],
@@ -215,6 +218,7 @@ impl QueuePair {
     }
 
     /// Poll recv_cq. Returned slice length is 0 if no work completion polled
+    #[inline]
     pub fn poll_recv_cq<'c>(
         &self,
         completions: &'c mut [ib_wc],

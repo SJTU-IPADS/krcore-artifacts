@@ -272,7 +272,7 @@ fn test_ud_query() -> Result<(), TestError> {
         })?;
 
     let _ = client_qp
-        .post_send(&endpoint, &client_mr, 0..64, client_buf as u64, true)
+        .post_datagram(&endpoint, &client_mr, 0..64, client_buf as u64, true)
         .map_err(|_| {
             log::error!("Failed post send");
             TestError::Error("Post send error.")
