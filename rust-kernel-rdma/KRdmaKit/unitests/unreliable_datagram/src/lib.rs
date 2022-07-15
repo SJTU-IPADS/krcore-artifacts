@@ -15,7 +15,7 @@ use KRdmaKit::queue_pairs::builder::QueuePairBuilder;
 use KRdmaKit::queue_pairs::endpoint::{
     UnreliableDatagramEndpointQuerier,
 };
-use KRdmaKit::queue_pairs::ud_services::UnreliableDatagramServer;
+use KRdmaKit::services::UnreliableDatagramServer;
 use KRdmaKit::rust_kernel_rdma_base::*;
 use KRdmaKit::KDriver;
 

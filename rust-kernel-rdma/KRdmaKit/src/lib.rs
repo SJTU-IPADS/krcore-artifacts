@@ -27,19 +27,22 @@ pub mod comm_manager;
 /// abstracts MR and PD in it.
 pub mod context;
 
+/// Services abstract necessary remote end to facialiate QP bring up
+pub mod services;
+
 pub mod completion_queue;
 pub mod queue_pairs;
 pub mod memory_region;
 pub mod utils;
+pub mod random;
+pub mod thread_local;
 
+// below are legacy modules and will be removed later
 pub mod ib_path_explorer;
 pub mod mem;
 pub mod net_util;
 pub mod qp;
-pub mod random;
-
 pub mod rpc;
-pub mod thread_local;
 
 extern crate alloc;
 

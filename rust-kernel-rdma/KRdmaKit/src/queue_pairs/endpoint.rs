@@ -8,7 +8,7 @@ use rust_kernel_rdma_base::*;
 use crate::comm_manager::{CMCallbacker, CMError, CMReplyer, CMSender};
 use crate::context::{AddressHandler, ContextRef};
 use crate::linux_kernel_module::Error;
-use crate::queue_pairs::ud_services::UnreliableDatagramMeta;
+use crate::services::UnreliableDatagramMeta;
 use crate::{log, ControlpathError};
 
 /// The unreliable datagram endpoint

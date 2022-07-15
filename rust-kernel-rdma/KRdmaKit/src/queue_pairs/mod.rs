@@ -16,9 +16,6 @@ pub mod builder;
 /// UD endpoint and queriers
 pub mod endpoint;
 
-/// services for simplify UD connections
-pub mod ud_services;
-
 #[allow(dead_code)]
 enum QPType {
     RC, // reliable connection
