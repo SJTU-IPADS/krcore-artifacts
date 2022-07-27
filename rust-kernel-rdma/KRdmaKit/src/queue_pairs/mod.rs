@@ -39,7 +39,7 @@ enum QPType {
 
 #[derive(Debug, PartialEq)]
 #[repr(u32)]
-enum QueuePairStatus {
+pub enum QueuePairStatus {
     Reset = ib_qp_state::IB_QPS_RESET,
     Init = ib_qp_state::IB_QPS_INIT,
     ReadyToSend = ib_qp_state::IB_QPS_RTS,
@@ -86,7 +86,7 @@ pub struct QueuePair {
 
 impl QueuePair {
     /// query the current status of the QP
-    fn status(&self) -> Result<QueuePairStatus, crate::ControlpathError> {
+    pub fn status(&self) -> Result<QueuePairStatus, crate::ControlpathError> {
         let mut attr: ib_qp_attr = Default::default();
         let mut init_attr: ib_qp_init_attr = Default::default();
         let ret = unsafe {
@@ -114,6 +114,10 @@ impl QueuePair {
         }
     }
 
+    pub fn path_mtu(&self) -> ib_mtu::Type { 
+        self.path_mtu
+    }
+
     #[inline]
     pub fn qp_num(&self) -> u32 {
         unsafe { self.inner_qp.as_ref().qp_num }
@@ -127,6 +131,16 @@ impl QueuePair {
     #[inline]
     pub fn qkey(&self) -> u32 {
         self.qkey
+    }
+
+    #[inline]
+    pub fn timeout(&self) -> u8 { 
+        self.timeout
+    }
+
+    #[inline]
+    pub fn max_rd_atomic(&self) -> u8 { 
+        self.max_rd_atomic
     }
 
     #[inline]

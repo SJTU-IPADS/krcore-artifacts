@@ -133,7 +133,7 @@ fn test_dct_builder() -> Result<(), TestError> {
 
     log::info!("The context's device name {}", ctx.get_dev_ref().name());
 
-    // create a QP
+    // create a target
     let builder = DynamicConnectedTargetBuilder::new(&ctx);
     let dct_target = builder.build_dynamic_connected_target(73).map_err(|e| {
         log::error!("failed to create the DCT target with error {:?}", e);
@@ -145,6 +145,21 @@ fn test_dct_builder() -> Result<(), TestError> {
         dct_target.dc_key(),
         dct_target.dct_num()
     );
+
+    // create a QP
+    let dc_qp = DynamicConnectedTargetBuilder::new(&ctx)
+        .build_dc()
+        .map_err(|e| {
+            log::error!("failed to create DCQP with error {:?}", e);
+            TestError::Error("DCQP creation error")
+        })?
+        .bring_up_dc()
+        .map_err(|e| {
+            log::error!("failed to bring up DCQP with error {:?}", e);
+            TestError::Error("DCQP bringup error")
+        })?;
+
+    log::info!("check DCQP: {:?}", dc_qp.qp_num());
 
     Ok(())
 }

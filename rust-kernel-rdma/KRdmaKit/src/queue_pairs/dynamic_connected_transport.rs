@@ -4,6 +4,7 @@ use core::ptr::NonNull;
 
 use linux_kernel_module::Error;
 
+use crate::bindings::ib_qp_cap;
 use crate::context::Context;
 use crate::rust_kernel_rdma_base::*;
 use crate::{CompletionQueue, ControlpathError, SharedReceiveQueue};
@@ -21,16 +22,15 @@ pub struct DynamicConnectedTarget {
     recv_cq: Arc<CompletionQueue>,
     shared_receive_queue: Box<SharedReceiveQueue>,
 
-    key : u64,
+    key: u64,
 }
 
-impl DynamicConnectedTarget { 
-
-    pub fn dct_num(&self) -> u32 { 
+impl DynamicConnectedTarget {
+    pub fn dct_num(&self) -> u32 {
         unsafe { self.inner_target.as_ref().dct_num }
     }
 
-    pub fn dc_key(&self) -> u64 { 
+    pub fn dc_key(&self) -> u64 {
         self.key
     }
 }
@@ -80,12 +80,12 @@ impl DynamicConnectedTargetBuilder {
             send_cq: send,
             recv_cq: recv,
             shared_receive_queue,
-            key : dc_key
+            key: dc_key,
         })
     }
 }
 
-impl super::QueuePairBuilder { 
+impl super::QueuePairBuilder {
     /// Build an dynamic connected queue pair with the set parameters.
     ///
     /// The built queue pair needs to be brought up to be used.
@@ -95,8 +95,40 @@ impl super::QueuePairBuilder {
     /// or recv completion queue or ud queue pair
     ///
     pub fn build_dc(self) -> Result<super::PreparedQueuePair, ControlpathError> {
-        unimplemented!()
-    }    
+        let send = Box::new(CompletionQueue::create(&self.ctx, self.max_cq_entries)?);
+        let recv = Arc::new(CompletionQueue::create(&self.ctx, self.max_cq_entries)?);
+        let shared_receive_queue = Box::new(SharedReceiveQueue::create(
+            &self.ctx,
+            self.max_recv_wr,
+            self.max_recv_sge,
+        )?);
+
+        let mut qp_attr = ib_exp_qp_init_attr {
+            cap: ib_qp_cap {
+                max_send_wr: self.max_send_wr,
+                max_recv_wr: 0, // we don't support recv wr for DC now
+                max_recv_sge: self.max_recv_sge,
+                max_send_sge: self.max_send_sge,
+                max_inline_data: self.max_inline_data,
+                ..Default::default()
+            },
+            sq_sig_type: ib_sig_type::IB_SIGNAL_REQ_WR,
+            qp_type: ib_qp_type::IB_EXP_QPT_DC_INI as _,
+            send_cq: send.raw_ptr().as_ptr(),
+            recv_cq: recv.raw_ptr().as_ptr(),
+            srq: shared_receive_queue.raw_ptr().as_ptr(),
+            ..Default::default()
+        };
+
+        let qp = unsafe { ib_create_qp_dct(self.ctx.get_pd().as_ptr(), &mut qp_attr as _) };
+        self.build_inner(
+            qp,
+            send,
+            recv,
+            super::QPType::DC,
+            Some(shared_receive_queue),
+        )
+    }
 }
 
 impl Drop for DynamicConnectedTarget {
