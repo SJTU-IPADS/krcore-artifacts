@@ -6,7 +6,6 @@
 extern crate alloc;
 
 use alloc::sync::Arc;
-
 use krdma_test::*;
 use rust_kernel_linux_util as log;
 use rust_kernel_linux_util::bindings::completion;
@@ -119,8 +118,8 @@ fn test_cq_construction() -> Result<(), TestError> {
     Ok(())
 }
 
-fn test_ud_builder() -> Result<(), TestError> {
-    log::info!("Start test ud builder.");
+fn test_dct_builder() -> Result<(), TestError> {
+    log::info!("Start test dct builder.");
     let driver = unsafe { KDriver::create().unwrap() };
     let ctx = driver
         .devices()
@@ -151,7 +150,7 @@ fn test_ud_builder() -> Result<(), TestError> {
     Ok(())
 }
 
-fn test_ud_query() -> Result<(), TestError> {
+fn test_dct_query() -> Result<(), TestError> {
     let driver = unsafe { KDriver::create().unwrap() };
 
     // server side
@@ -320,8 +319,8 @@ fn test_ud_query() -> Result<(), TestError> {
 
 fn test_wrapper() -> Result<(), TestError> {
     test_cq_construction()?;
-    test_ud_builder()?;
-    test_ud_query()?;
+    test_dct_builder()?;
+    test_dct_query()?;
     Ok(())
 }
 

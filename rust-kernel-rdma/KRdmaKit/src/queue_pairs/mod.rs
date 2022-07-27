@@ -24,6 +24,9 @@ pub mod endpoint;
 /// related to reliable QP connections
 mod rc_comm;
 
+#[cfg(dct)]
+pub mod dct_server;
+
 #[allow(dead_code)]
 #[derive(PartialEq)]
 enum QPType {
