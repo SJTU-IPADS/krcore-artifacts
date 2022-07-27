@@ -10,11 +10,11 @@ use rust_kernel_rdma_base::ib_destroy_qp;
 
 use crate::memory_region::MemoryRegion;
 use crate::queue_pairs::endpoint::UnreliableDatagramEndpoint;
-use crate::{context::Context, CompletionQueue, DatapathError};
+use crate::{context::Context, CompletionQueue, SharedReceiveQueue, DatapathError};
 
 /// UD queue pair builder to simplify UD creation
 pub mod builder;
-pub use builder::QueuePairBuilder;
+pub use builder::{QueuePairBuilder,PreparedQueuePair};
 
 mod callbacks;
 /// UD endpoint and queriers
@@ -65,6 +65,9 @@ pub struct QueuePair {
     /// the recv_cq can be shared between QPs
     /// so it is an Arc
     recv_cq: Arc<CompletionQueue>,
+
+    #[allow(dead_code)]
+    srq : Option<Box<SharedReceiveQueue>>,
 
     mode: QPType,
 

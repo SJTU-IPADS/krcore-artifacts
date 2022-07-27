@@ -10,8 +10,8 @@ use crate::context::Context;
 use crate::linux_kernel_module::*;
 use crate::queue_pairs::rc_comm::RCCommStruct;
 use crate::queue_pairs::{QPType, QueuePair, QueuePairStatus};
-use crate::{MAX_RD_ATOMIC, rust_kernel_linux_util as log};
 use crate::services::rc::RCConnectionData;
+use crate::{rust_kernel_linux_util as log, MAX_RD_ATOMIC};
 use crate::{CompletionQueue, ControlpathError};
 
 /// Builder for different kind of queue pairs (RCQP, UDQP ,etc.).
@@ -174,7 +174,7 @@ impl QueuePairBuilder {
     pub fn set_path_mtu(&mut self, path_mtu: ib_mtu::Type) -> &mut Self {
         self.path_mtu = path_mtu;
         self
-    }    
+    }
 
     /// Set the minimum RNR NAK Timer Field Value for the new `QueuePair`.
     ///
@@ -248,7 +248,7 @@ impl QueuePairBuilder {
                 &mut qp_attr as *mut ib_qp_init_attr,
             )
         };
-        self.build_inner(ib_qp, send, recv, QPType::UD)
+        self.build_inner(ib_qp, send, recv, QPType::UD, None)
     }
 
     pub fn build_rc(self) -> Result<PreparedQueuePair, ControlpathError> {
@@ -277,7 +277,7 @@ impl QueuePairBuilder {
                 &mut qp_attr as *mut ib_qp_init_attr,
             )
         };
-        self.build_inner(ib_qp, send, recv, QPType::RC)
+        self.build_inner(ib_qp, send, recv, QPType::RC, None)
     }
 
     fn build_inner(
@@ -286,6 +286,7 @@ impl QueuePairBuilder {
         send: Box<CompletionQueue>,
         recv: Arc<CompletionQueue>,
         qp_type: QPType,
+        srq: Option<Box::<crate::SharedReceiveQueue>>,
     ) -> Result<PreparedQueuePair, ControlpathError> {
         Ok(PreparedQueuePair {
             inner: QueuePair {
@@ -295,7 +296,9 @@ impl QueuePairBuilder {
                 rc_comm: None,
                 send_cq: send,
                 recv_cq: recv,
+                srq: srq,
                 mode: qp_type,
+
                 // the following is just borrowed from the builder
                 // as the QP may require them during connections
                 port_num: self.port_num,
@@ -473,10 +476,9 @@ impl PreparedQueuePair {
         let mut rc_qp = Arc::new(self.inner);
 
         // 1. create the CM for handling the communication
-        let rc_comm = RCCommStruct::new(rc_qp._ctx.get_dev_ref(), &rc_qp)
-            .map_err(|_| {
-                ControlpathError::CreationError("ib_cm_id", Error::from_kernel_errno(0))
-            })?;
+        let rc_comm = RCCommStruct::new(rc_qp._ctx.get_dev_ref(), &rc_qp).map_err(|_| {
+            ControlpathError::CreationError("ib_cm_id", Error::from_kernel_errno(0))
+        })?;
 
         let rc_qp_ref = unsafe { Arc::get_mut_unchecked(&mut rc_qp) };
         rc_qp_ref.rc_comm = Some(rc_comm);

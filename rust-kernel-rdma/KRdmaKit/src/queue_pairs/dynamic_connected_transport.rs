@@ -65,7 +65,7 @@ impl DynamicConnectedTargetBuilder {
             min_rnr_timer: self.min_rnr_timer,
             inline_size: self.max_inline_data,
             hop_limit: 1,
-            mtu: ib_mtu::IB_MTU_4096,
+            mtu: self.path_mtu,
             ..Default::default()
         };
 
@@ -83,6 +83,20 @@ impl DynamicConnectedTargetBuilder {
             key : dc_key
         })
     }
+}
+
+impl super::QueuePairBuilder { 
+    /// Build an dynamic connected queue pair with the set parameters.
+    ///
+    /// The built queue pair needs to be brought up to be used.
+    ///
+    /// # Errors:
+    /// - `CreationError` : error creating send completion queue
+    /// or recv completion queue or ud queue pair
+    ///
+    pub fn build_dc(self) -> Result<super::PreparedQueuePair, ControlpathError> {
+        unimplemented!()
+    }    
 }
 
 impl Drop for DynamicConnectedTarget {
