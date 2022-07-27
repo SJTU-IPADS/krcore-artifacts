@@ -114,7 +114,7 @@ where
     }
 }
 
-impl<R, QP> ConnectionService<R, QP>
+impl<R, QP> CMCallbacker for ConnectionService<R, QP>
 where
     QP: GenerateConnectionReply<R> + GetQueuePairInfo,
 {

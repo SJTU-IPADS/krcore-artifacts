@@ -1,5 +1,5 @@
 #![no_std]
-#![feature(get_mut_unchecked, new_uninit, allocator_api, trusted_random_access)]
+#![feature(get_mut_unchecked, new_uninit, allocator_api, trusted_random_access,stmt_expr_attributes)]
 #![cfg_attr(
     feature = "alloc_ref",
     feature(allocator_api, alloc_layout_extra, nonnull_slice_from_raw_parts)

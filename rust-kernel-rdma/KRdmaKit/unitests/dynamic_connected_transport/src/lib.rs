@@ -15,12 +15,11 @@ use KRdmaKit::memory_region::MemoryRegion;
 
 use KRdmaKit::queue_pairs::builder::QueuePairBuilder;
 use KRdmaKit::queue_pairs::dynamic_connected_transport::DynamicConnectedTargetBuilder;
-use KRdmaKit::queue_pairs::endpoint::UnreliableDatagramEndpointQuerier;
+use KRdmaKit::queue_pairs::endpoint::DatagramEndpointQuerier;
 
 use KRdmaKit::services::dc::DCTargetService;
 
 use KRdmaKit::rust_kernel_rdma_base::*;
-use KRdmaKit::services::UnreliableDatagramServer;
 use KRdmaKit::KDriver;
 
 /// The error type of data plane operations

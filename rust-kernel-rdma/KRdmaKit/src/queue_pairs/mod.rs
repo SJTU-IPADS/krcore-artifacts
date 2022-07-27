@@ -9,7 +9,7 @@ use rust_kernel_rdma_base::bindings::*;
 use rust_kernel_rdma_base::ib_destroy_qp;
 
 use crate::memory_region::MemoryRegion;
-use crate::queue_pairs::endpoint::UnreliableDatagramEndpoint;
+use crate::queue_pairs::endpoint::DatagramEndpoint;
 use crate::{context::Context, CompletionQueue, SharedReceiveQueue, DatapathError};
 
 /// UD queue pair builder to simplify UD creation
@@ -236,7 +236,7 @@ impl QueuePair {
     /// [RDMAmojo](https://www.rdmamojo.com/2013/01/26/ibv_post_send/) for help.
     pub fn post_datagram(
         &self,
-        endpoint: &UnreliableDatagramEndpoint,
+        endpoint: &DatagramEndpoint,
         mr: &MemoryRegion,
         range: Range<u64>,
         wr_id: u64,
