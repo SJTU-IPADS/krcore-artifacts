@@ -1,8 +1,10 @@
-use core::ptr::NonNull;
-use rust_kernel_rdma_base::*;
-use linux_kernel_module::Error;
+use core::mem::size_of;
+use core::ptr::{null_mut, NonNull};
 
 use super::{Arc, CMCallbacker, CMError, CMWrapper, DeviceRef};
+use linux_kernel_module::Error;
+use rust_kernel_rdma_base::bindings::*;
+use rust_kernel_rdma_base::*;
 
 /// CM sender is used at the client to initiate
 /// communication with the server
@@ -35,7 +37,7 @@ where
         self.inner.send_dreq(pri)
     }
 
-    pub fn callbacker(&self) -> &Arc<C> {
+    pub fn callbacker(&self) -> Option<Arc<C>> {
         self.inner.callbacker()
     }
 }
@@ -69,12 +71,9 @@ impl CMReplyer {
         }
     }
 
-    /// Return the context binded to the CMServer.
-    /// The context should be determined by the programmer.
-    /// Since it is unsafe to expose this API to the user,
-    /// we limit the scope of this function to this module
-    pub(super) unsafe fn get_context<T>(&self) -> *mut T {
-        self.inner.as_ref().context as _
+    #[inline]
+    pub fn raw_cm_id(&self) -> &NonNull<ib_cm_id> {
+        &self.inner
     }
 
     /// This call will generate IB_CM_SIDR_REP_RECEIVED at the remote end
@@ -85,7 +84,7 @@ impl CMReplyer {
         mut info: T,
     ) -> Result<(), CMError> {
         rep.info = ((&mut info) as *mut T).cast::<linux_kernel_module::c_types::c_void>();
-        rep.info_length = core::mem::size_of::<T>() as u8;
+        rep.info_length = size_of::<T>() as u8;
 
         let err = unsafe { ib_send_cm_sidr_rep(self.inner.as_ptr(), &mut rep as *mut _) };
         if err != 0 {
@@ -95,5 +94,64 @@ impl CMReplyer {
             ));
         }
         Ok(())
+    }
+
+    pub fn send_reply<T: Sized>(
+        &self,
+        mut rep: ib_cm_rep_param,
+        mut private_data: T,
+    ) -> Result<(), CMError> {
+        rep.private_data =
+            ((&mut private_data) as *mut T).cast::<linux_kernel_module::c_types::c_void>();
+        rep.private_data_len = size_of::<T>() as u8;
+        let err = unsafe { ib_send_cm_rep(self.inner.as_ptr(), &mut rep as *mut _) };
+        return if err != 0 {
+            Err(CMError::SendError(
+                "Send reply",
+                Error::from_kernel_errno(err),
+            ))
+        } else {
+            Ok(())
+        };
+    }
+
+    pub fn send_reject<T: Sized>(&self, mut private_data: T) -> Result<(), CMError> {
+        let err = unsafe {
+            ib_send_cm_rej(
+                self.inner.as_ptr(),
+                0,
+                null_mut(),
+                0 as u8,
+                ((&mut private_data) as *mut T).cast::<linux_kernel_module::c_types::c_void>(),
+                size_of::<T>() as u8,
+            )
+        };
+        return if err != 0 {
+            Err(CMError::SendError(
+                "Send reject",
+                Error::from_kernel_errno(err),
+            ))
+        } else {
+            Ok(())
+        };
+    }
+
+    pub fn send_rtu<T: Sized>(&self, mut private_data: T) -> Result<(), CMError> {
+        let inner_cm = self.inner.clone();
+        let err = unsafe {
+            ib_send_cm_rtu(
+                inner_cm.as_ptr(),
+                ((&mut private_data) as *mut T).cast::<linux_kernel_module::c_types::c_void>(),
+                size_of::<T>() as u8,
+            )
+        };
+        return if err != 0 {
+            Err(CMError::SendError(
+                "Send rtu",
+                Error::from_kernel_errno(err),
+            ))
+        } else {
+            Ok(())
+        };
     }
 }

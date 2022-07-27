@@ -1,7 +1,7 @@
 [workspace]
 
 [package]
-name = "unreliable_datagram_tests"
+name = "reliable_connection_tests"
 version = "0.1.0"
 authors = ["wxd","Haotian Wang"]
 edition = "2018"

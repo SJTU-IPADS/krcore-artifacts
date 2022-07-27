@@ -4,7 +4,7 @@ use rust_kernel_rdma_base::*;
 
 use linux_kernel_module::Error;
 
-use crate::{device_v1::DeviceRef, ControlpathError};
+use crate::{device::DeviceRef, ControlpathError};
 
 /// Context abstract the protection domain and memory registeration
 /// in the kernel space

@@ -6,8 +6,6 @@ extern crate alloc;
 
 use KRdmaKit::rust_kernel_rdma_base::*;
 
-use KRdmaKit::ctrl::RCtrl;
-
 use rust_kernel_linux_util as log;
 
 use krdma_test::*;
@@ -31,22 +29,6 @@ fn test_global_context() {
     
     let client_ctx = client_dev.open_context();
     log::info!("ctx open result: {:?}", client_ctx);
-
-    /* 
-    let server_ctx = driver
-        .devices()
-        .into_iter()
-        .next()
-        .expect("no rdma device available")
-        .open()
-        .unwrap(); */
-
-    /* 
-    let server_service_id: u64 = 0;
-    let _ctrl = RCtrl::create(server_service_id, &server_ctx);
-
-    let path_res = client_ctx.explore_path(client_ctx.get_gid_as_string(), server_service_id);
-    log::info!("check created path res: {:?}", path_res.unwrap()); */
 
     log::info!("pass all tests");
 }

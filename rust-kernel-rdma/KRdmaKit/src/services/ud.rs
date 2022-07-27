@@ -1,11 +1,12 @@
-use alloc::sync::Arc;
-use hashbrown::HashMap;
+use crate::linux_kernel_module::mutex::LinuxMutex;
+use crate::linux_kernel_module::sync::Mutex;
 
+use alloc::sync::Arc;
+
+use hashbrown::HashMap;
 use rust_kernel_rdma_base::*;
 
 use crate::comm_manager::{CMCallbacker, CMError, CMReplyer};
-use crate::linux_kernel_module::mutex::LinuxMutex;
-use crate::linux_kernel_module::sync::Mutex;
 use crate::queue_pairs::QueuePair;
 
 #[allow(dead_code)]
@@ -18,7 +19,6 @@ pub struct UnreliableDatagramMeta {
 }
 
 impl UnreliableDatagramMeta {
-    // TODO Result
     pub fn new(qp : &Arc<QueuePair>) -> Result<Self, CMError> {
         let port_num = qp.port_num();
         let port_attr = qp.ctx().get_dev_ref().get_port_attr(port_num).map_err(|err| {
@@ -29,7 +29,6 @@ impl UnreliableDatagramMeta {
         })?;
 
         let lid = port_attr.lid as u16;
-        let gid = gid;
         Ok(Self { lid, gid })
     }
 }
@@ -50,11 +49,10 @@ impl Default for UnreliableDatagramMeta {
 /// Usage:
 /// ```
 /// use std::sync::Arc;
-/// use crate::rust_kernel_linux_util as log;
-/// use KRdmaKit::{KDriver, log};
+/// use KRdmaKit::KDriver;
 /// use KRdmaKit::comm_manager::CMServer;
 /// use KRdmaKit::queue_pairs::builder::QueuePairBuilder;
-/// use KRdmaKit::queue_pairs::ud_services::UnreliableDatagramServer;
+/// use KRdmaKit::services::UnreliableDatagramServer;
 ///
 /// let driver = unsafe { KDriver::create().unwrap() };
 /// let server_ctx = driver
@@ -68,7 +66,7 @@ impl Default for UnreliableDatagramMeta {
 /// let server_cm = CMServer::new(server_service_id, &ud_server, server_ctx.get_dev_ref()).unwrap();
 /// let builder = QueuePairBuilder::new(&server_ctx);
 /// let qp_res = builder.build_ud().unwrap();
-/// let ud = Arc::new(qp_res.bring_up().unwrap());
+/// let ud = qp_res.bring_up_ud().unwrap();
 /// ud_server.reg_ud(73, &ud);
 /// ```
 pub struct UnreliableDatagramServer {

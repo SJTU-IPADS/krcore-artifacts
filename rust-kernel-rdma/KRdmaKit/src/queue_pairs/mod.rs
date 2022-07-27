@@ -1,22 +1,31 @@
+use crate::linux_kernel_module::Error;
+
+use alloc::{boxed::Box, sync::Arc};
 use core::iter::TrustedRandomAccessNoCoerce;
 use core::ops::Range;
-use core::ptr::NonNull;
+use core::ptr::{null_mut, NonNull};
+
+use rust_kernel_rdma_base::bindings::*;
+use rust_kernel_rdma_base::ib_destroy_qp;
 
 use crate::memory_region::MemoryRegion;
 use crate::queue_pairs::endpoint::UnreliableDatagramEndpoint;
 use crate::{context::Context, CompletionQueue, DatapathError};
-use alloc::{boxed::Box, sync::Arc};
-
-use linux_kernel_module::Error;
-use rust_kernel_rdma_base::*;
 
 /// UD queue pair builder to simplify UD creation
 pub mod builder;
+pub use builder::QueuePairBuilder;
 
+mod callbacks;
 /// UD endpoint and queriers
 pub mod endpoint;
 
+/// Abstract the communication manager related data structures
+/// related to reliable QP connections
+mod rc_comm;
+
 #[allow(dead_code)]
+#[derive(PartialEq)]
 enum QPType {
     RC, // reliable connection
     UD, // unreliable datagram
@@ -39,7 +48,11 @@ enum QueuePairStatus {
 /// A QueuePair must be bringup, which is able to post_send & poll_cq
 pub struct QueuePair {
     _ctx: Arc<Context>,
-    inner: NonNull<ib_qp>,
+    inner_qp: NonNull<ib_qp>,
+
+    /// data structures related to remote connections
+    /// is only need for RC, so it is an Option
+    rc_comm: Option<Box<rc_comm::RCCommStruct<Self>>>,
 
     /// the send_cq must be exclusively used by a QP
     /// thus, it is an Box
@@ -52,9 +65,16 @@ pub struct QueuePair {
     mode: QPType,
 
     /// sidr request handler need this field
-    // FIXME : duplicate with the field in PreparedQueuePair
-    qkey: u32,
     port_num: u8,
+    qkey: u32,
+    access: ib_access_flags::Type,
+    timeout: u8,
+    retry_count: u8,
+    rnr_retry: u8,
+    max_rd_atomic: u8,
+    min_rnr_timer: u8,
+    pkey_index: u16,
+    path_mtu: ib_mtu::Type,
 }
 
 impl QueuePair {
@@ -64,7 +84,7 @@ impl QueuePair {
         let mut init_attr: ib_qp_init_attr = Default::default();
         let ret = unsafe {
             ib_query_qp(
-                self.inner.as_ptr(),
+                self.inner_qp.as_ptr(),
                 &mut attr as *mut ib_qp_attr,
                 ib_qp_attr_mask::IB_QP_STATE,
                 &mut init_attr as *mut ib_qp_init_attr,
@@ -89,7 +109,7 @@ impl QueuePair {
 
     #[inline]
     pub fn qp_num(&self) -> u32 {
-        unsafe { self.inner.as_ref().qp_num }
+        unsafe { self.inner_qp.as_ref().qp_num }
     }
 
     #[inline]
@@ -107,69 +127,13 @@ impl QueuePair {
         &self._ctx
     }
 
-    /// Post a work request (related to UD) to the send queue of the queue pair, add it to the tail of the send queue
-    /// without context switch. The RDMA device will handle it (later) in asynchronous way.
-    ///
-    /// The parameter `range` indexes the input memory region, treat it as
-    /// a byte array and manipulate the memory in byte unit.
-    ///
-    /// `wr_id` is a 64 bits value associated with this WR. If a Work Completion is generated
-    /// when this Work Request ends, it will contain this value.
-    ///
-    /// If you need more information about post_send, please refer to
-    /// [RDMAmojo](https://www.rdmamojo.com/2013/01/26/ibv_post_send/) for help.
-    pub fn post_datagram(
-        &self,
-        endpoint: &UnreliableDatagramEndpoint,
-        mr: &MemoryRegion,
-        range: Range<u64>,
-        wr_id: u64,
-        signaled: bool,
-    ) -> Result<(), DatapathError> {
-        let mut wr: ib_ud_wr = Default::default();
-        let mut bad_wr: *mut ib_send_wr = core::ptr::null_mut();
-
-        // first setup the sge
-        let mut sge = ib_sge { 
-            addr : unsafe { mr.get_rdma_addr() } + range.start, 
-            length : range.size() as u32, 
-            lkey : mr.lkey().0
-        };        
-
-        // then set the wr
-        wr.remote_qpn = endpoint.qpn();
-        wr.remote_qkey = endpoint.qkey();
-        wr.ah = endpoint.raw_address_handler_ptr().as_ptr();
-        wr.wr.opcode = ib_wr_opcode::IB_WR_SEND;
-        wr.wr.send_flags = if signaled {
-            ib_send_flags::IB_SEND_SIGNALED
-        } else {
-            0
-        };
-        wr.wr.sg_list = &mut sge as *mut _;
-        wr.wr.num_sge = 1;
-        wr.wr.__bindgen_anon_1.wr_id = wr_id;
-        let err = unsafe {
-            bd_ib_post_send(
-                self.inner.as_ptr(),
-                &mut wr.wr as *mut _,
-                &mut bad_wr as *mut _,
-            )
-        };
-        if err != 0 {
-            Err(DatapathError::PostSendError(Error::from_kernel_errno(err)))
-        } else {
-            Ok(())
-        }
-    }
-
     /// Post a work request to the receive queue of the queue pair, add it to the tail of the
     /// receive queue without context switch. The RDMA device will take one
     /// of those Work Requests as soon as an incoming opcode to that QP consumes a Receive
     /// Request.
     ///
-    /// The parameter `range` indexes the input memory region, treat it as
-    /// a byte array and manipulate the memory in byte unit.
+    /// The parameter `range` indexes the input memory region, treats it as
+    /// a byte array and manipulates the memory in byte unit.
     ///
     /// Please refer to
     /// [RDMAmojo](https://www.rdmamojo.com/2013/02/02/ibv_post_recv/) for more information.
@@ -180,12 +144,12 @@ impl QueuePair {
         wr_id: u64,
     ) -> Result<(), DatapathError> {
         let mut wr: ib_recv_wr = Default::default();
-        let mut bad_wr: *mut ib_recv_wr = core::ptr::null_mut();
+        let mut bad_wr: *mut ib_recv_wr = null_mut();
 
-        let mut sge = ib_sge { 
-            addr : unsafe { mr.get_rdma_addr() } + range.start, 
-            length : range.size() as u32, 
-            lkey : mr.lkey().0
+        let mut sge = ib_sge {
+            addr: unsafe { mr.get_rdma_addr() } + range.start,
+            length: range.size() as u32,
+            lkey: mr.lkey().0,
         };
 
         wr.sg_list = &mut sge as *mut _;
@@ -193,7 +157,7 @@ impl QueuePair {
         unsafe { bd_set_recv_wr_id(&mut wr, wr_id) };
         let err = unsafe {
             bd_ib_post_recv(
-                self.inner.as_ptr(),
+                self.inner_qp.as_ptr(),
                 &mut wr as *mut _,
                 &mut bad_wr as *mut _,
             )
@@ -227,7 +191,217 @@ impl QueuePair {
 impl Drop for QueuePair {
     fn drop(&mut self) {
         unsafe {
-            ib_destroy_qp(self.inner.as_ptr());
+            ib_destroy_qp(self.inner_qp.as_ptr());
+            self.rc_comm.as_mut().map(|c| c.explicit_drop());
+        }
+    }
+}
+
+/// Unreliable Datagram
+impl QueuePair {
+    /// Post a work request (related to UD) to the send queue of the queue pair, add it to the tail of the send queue
+    /// without context switch. The RDMA device will handle it (later) in asynchronous way.
+    ///
+    /// The parameter `range` indexes the input memory region, treats it as
+    /// a byte array and manipulates the memory in byte unit.
+    ///
+    /// `wr_id` is a 64 bits value associated with this WR. If a Work Completion is generated
+    /// when this Work Request ends, it will contain this value.
+    ///
+    /// If you need more information about post_send, please refer to
+    /// [RDMAmojo](https://www.rdmamojo.com/2013/01/26/ibv_post_send/) for help.
+    pub fn post_datagram(
+        &self,
+        endpoint: &UnreliableDatagramEndpoint,
+        mr: &MemoryRegion,
+        range: Range<u64>,
+        wr_id: u64,
+        signaled: bool,
+    ) -> Result<(), DatapathError> {
+        if self.mode != QPType::UD {
+            return Err(DatapathError::QPTypeError);
+        }
+        let mut wr: ib_ud_wr = Default::default();
+        let mut bad_wr: *mut ib_send_wr = null_mut();
+
+        // first setup the sge
+        let mut sge = ib_sge {
+            addr: unsafe { mr.get_rdma_addr() } + range.start,
+            length: range.size() as u32,
+            lkey: mr.lkey().0,
+        };
+
+        // then set the wr
+        wr.remote_qpn = endpoint.qpn();
+        wr.remote_qkey = endpoint.qkey();
+        wr.ah = endpoint.raw_address_handler_ptr().as_ptr();
+        wr.wr.opcode = ib_wr_opcode::IB_WR_SEND;
+        wr.wr.send_flags = if signaled {
+            ib_send_flags::IB_SEND_SIGNALED
+        } else {
+            0
+        };
+        wr.wr.sg_list = &mut sge as *mut _;
+        wr.wr.num_sge = 1;
+        wr.wr.__bindgen_anon_1.wr_id = wr_id;
+        let err = unsafe {
+            bd_ib_post_send(
+                self.inner_qp.as_ptr(),
+                &mut wr.wr as *mut _,
+                &mut bad_wr as *mut _,
+            )
+        };
+        if err != 0 {
+            Err(DatapathError::PostSendError(Error::from_kernel_errno(err)))
+        } else {
+            Ok(())
+        }
+    }
+}
+
+/// Reliable Connection
+impl QueuePair {
+    
+    #[inline]
+    pub fn post_send_send(
+        &self,
+        mr: &MemoryRegion,
+        range: Range<u64>,
+        signaled: bool,
+        raddr: u64,
+        rkey: u32,
+    ) -> Result<(), DatapathError> {
+        if self.mode != QPType::RC {
+            return Err(DatapathError::QPTypeError);
+        }
+        let send_flag: i32 = if signaled {
+            ib_send_flags::IB_SEND_SIGNALED
+        } else {
+            0
+        };
+        self.post_send_inner(
+            ib_wr_opcode::IB_WR_SEND,
+            unsafe { mr.get_rdma_addr() } + range.start,
+            raddr,
+            mr.lkey().0,
+            rkey,
+            range.size() as u32,
+            0,
+            send_flag,
+        )
+    }
+
+    /// Post a one-sided RDMA read work request to the send queue.
+    ///
+    /// Param:
+    /// - `mr`: Reference to MemoryRegion to store read data from the remote side.
+    /// - `range`: Specify which range of mr you want to store the read data. Index the mr in byte dimension.
+    /// - `signaled`: Whether signaled while post send read
+    /// - `raddr`: Beginning address of remote side to read. Physical address in kernel mode
+    /// - `rkey`: Remote memory region key
+    #[inline]
+    pub fn post_send_read(
+        &self,
+        mr: &MemoryRegion,
+        range: Range<u64>,
+        signaled: bool,
+        raddr: u64,
+        rkey: u32,
+    ) -> Result<(), DatapathError> {
+        if self.mode != QPType::RC {
+            return Err(DatapathError::QPTypeError);
+        }
+        let send_flag: i32 = if signaled {
+            ib_send_flags::IB_SEND_SIGNALED
+        } else {
+            0
+        };
+        self.post_send_inner(
+            ib_wr_opcode::IB_WR_RDMA_READ,
+            unsafe { mr.get_rdma_addr() } + range.start,
+            raddr,
+            mr.lkey().0,
+            rkey,
+            range.size() as u32,
+            0,
+            send_flag,
+        )
+    }
+
+    /// Post a one-sided RDMA write work request to the send queue.
+    ///
+    /// Param:
+    /// - `mr`: Reference to MemoryRegion to store written data from the remote side.
+    /// - `range`: Specify which range of mr you want to store the written data. Index the mr in byte dimension.
+    /// - `signaled`: Whether signaled while post send write
+    /// - `raddr`: Beginning address of remote side to write. Physical address in kernel mode
+    /// - `rkey`: Remote memory region key
+    #[inline]
+    pub fn post_send_write(
+        &self,
+        mr: &MemoryRegion,
+        range: Range<u64>,
+        signaled: bool,
+        raddr: u64,
+        rkey: u32,
+    ) -> Result<(), DatapathError> {
+        if self.mode != QPType::RC {
+            return Err(DatapathError::QPTypeError);
+        }
+        let send_flag: i32 = if signaled {
+            ib_send_flags::IB_SEND_SIGNALED
+        } else {
+            0
+        };
+        self.post_send_inner(
+            ib_wr_opcode::IB_WR_RDMA_WRITE,
+            unsafe { mr.get_rdma_addr() } + range.start,
+            raddr,
+            mr.lkey().0,
+            rkey,
+            range.size() as u32,
+            0,
+            send_flag,
+        )
+    }
+
+    #[inline]
+    fn post_send_inner(
+        &self,
+        op: u32,
+        laddr: u64, // physical addr
+        raddr: u64, // physical addr
+        lkey: u32,
+        rkey: u32,
+        size: u32,      // size in bytes
+        imm_data: u32,  // immediate data
+        send_flag: i32, // send flags, see `ib_send_flags`
+    ) -> Result<(), DatapathError> {
+        let mut sge = ib_sge {
+            addr: laddr,
+            length: size,
+            lkey,
+        };
+        let mut wr: ib_rdma_wr = Default::default();
+        wr.wr.opcode = op;
+        wr.wr.send_flags = send_flag;
+        wr.wr.ex.imm_data = imm_data;
+        wr.wr.num_sge = 1;
+        wr.wr.sg_list = &mut sge as *mut _;
+        wr.remote_addr = raddr;
+        wr.rkey = rkey;
+        let mut bad_wr: *mut ib_send_wr = null_mut();
+        let err = unsafe {
+            bd_ib_post_send(
+                self.inner_qp.as_ptr(),
+                &mut wr.wr as *mut _,
+                &mut bad_wr as *mut _,
+            )
+        };
+        if err != 0 {
+            Err(DatapathError::PostSendError(Error::from_kernel_errno(err)))
+        } else {
+            Ok(())
         }
     }
 }

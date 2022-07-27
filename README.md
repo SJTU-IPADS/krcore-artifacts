@@ -1,7 +1,6 @@
 # KRCore: rust-based communication library for using RDMA 
 
-KRCore has two parts. The first is a rust-based library for using RDMA, 
-i.e., by adding high-level abstractions to low-level RDMA libraries (ibverbs). 
+KRCore has two parts. The first is a rust-based library for using RDMA,  i.e., by adding high-level abstractions to low-level RDMA libraries (ibverbs).  Our current implemenetation focus in the **kernel**, but will generalize to the user-space. 
 The second is a kernel-space component to provide fast user-space RDMA-capable connection setup,
 which builds on the first part. 
 
@@ -10,16 +9,15 @@ which builds on the first part.
 The goals of this part is:
 1. Simplify building RDMA-based applications with rust
 2. Using rust to manage all the (local) lifecycles of RDMA resources (e.g., QP) in a safe and transparent way
-3. A unified codebase to run applications both in the kernel-space and user-space. 
+3. (**TODO**) A unified codebase to run applications both in the kernel-space and user-space. 
 
-We have built basic support for the first and the second cases. 
-We are currently refining the code to eliminate non-rust style code as much as possible. 
-
-We are further developing support for user-space.
+User-space support is under development. 
 
 ## Kernel-space support for fast RDMA connections
 
-The second is a kernel-space component to provide fast user-space RDMA-capable connection setup.  For details, please refer to our USENIX ATC 2022 paper: https://www.usenix.org/conference/atc22/presentation/wei
+The second is a kernel-space component to provide fast user-space RDMA-capable connection setup.  For details, please refer to our USENIX ATC 2022 paper: https://www.usenix.org/conference/atc22/presentation/wei .
+
+To evaluate this part, please to to https://github.com/SJTU-IPADS/krcore-artifacts/tree/atc22-artifacts, or `git checkout atc22-artifacts`. 
 
 Please refer to [install.md](docs/install.md) for the environment setup and [exp.md](docs/exp.md) for the evaluations. All documents can be found in the `doc` directory of the artifact.
 

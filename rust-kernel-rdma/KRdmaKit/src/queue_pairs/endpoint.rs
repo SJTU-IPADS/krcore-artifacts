@@ -83,7 +83,8 @@ impl UnreliableDatagramEndpoint {
 /// This querier serves you a quick way to get the endpoint information from
 /// the server side (defined in `UnreliableDatagramServer`).
 pub struct UnreliableDatagramEndpointQuerier {
-    inner: CMSender<UnreliableDatagramQuerierInner>,
+    sender: CMSender<UnreliableDatagramQuerierInner>,
+    inner: Arc<UnreliableDatagramQuerierInner>,
 }
 
 impl UnreliableDatagramEndpointQuerier {
@@ -100,20 +101,25 @@ impl UnreliableDatagramEndpointQuerier {
         })?;
         let querier_inner_ref = unsafe { Arc::get_mut_unchecked(&mut querier_inner) };
         querier_inner_ref.completion.init();
-        Ok(Self { inner: sender })
+        Ok(Self {
+            sender,
+            inner: querier_inner,
+        })
     }
 
     /// Core method of the querier. Return an Endpoint if success and ControlPathError otherwise.
     ///
     /// Input:
     /// - `remote_service_id` : Predefined service id that you want to query
+    /// - `qd_hint`: Query remote UD information with qd_hint enables the server to have more than one UD qp server on one service id
     /// - `sa_path_rec` : path resolved by `Explorer`, attention that the resolved path must be consistent with the remote_service_id
     pub fn query(
         mut self,
         remote_service_id: u64,
+        qd_hint: usize,
         path: sa_path_rec,
     ) -> Result<UnreliableDatagramEndpoint, ControlpathError> {
-        let mut querier_inner = self.inner.callbacker().clone();
+        let mut querier_inner = self.inner;
         let querier_inner_ref = unsafe { Arc::get_mut_unchecked(&mut querier_inner) };
         let req = ib_cm_sidr_req_param {
             path: &path as *const _ as _,
@@ -123,8 +129,8 @@ impl UnreliableDatagramEndpointQuerier {
             ..Default::default()
         };
         let _ = self
-            .inner
-            .send_sidr(req, remote_service_id as usize)
+            .sender
+            .send_sidr(req, qd_hint as usize)
             .map_err(|err| match err {
                 CMError::Creation(i) => {
                     ControlpathError::QueryError("", Error::from_kernel_errno(i))

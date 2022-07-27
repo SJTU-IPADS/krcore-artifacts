@@ -18,6 +18,7 @@ const INCLUDED_KERNEL_ENUMS: &[&str] = &[
     "ib_send_flags",
     "ib_cm_sidr_status",
     "ib_mtu",
+    "ib_cm_rej_reason",
     "ib_event_type",
     "ib_wc_status",    
     "rdma_ah_attr_type",
