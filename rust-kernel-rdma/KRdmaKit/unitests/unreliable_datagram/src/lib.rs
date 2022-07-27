@@ -5,18 +5,16 @@
 extern crate alloc;
 use alloc::sync::Arc;
 use krdma_test::*;
-use log::bindings::completion;
 use rust_kernel_linux_util as log;
+use rust_kernel_linux_util::bindings::completion;
 use rust_kernel_linux_util::timer::RTimer;
 use KRdmaKit::comm_manager::*;
 use KRdmaKit::completion_queue::CompletionQueue;
 use KRdmaKit::memory_region::MemoryRegion;
 use KRdmaKit::queue_pairs::builder::QueuePairBuilder;
-use KRdmaKit::queue_pairs::endpoint::{
-    UnreliableDatagramEndpointQuerier,
-};
-use KRdmaKit::services::UnreliableDatagramServer;
+use KRdmaKit::queue_pairs::endpoint::UnreliableDatagramEndpointQuerier;
 use KRdmaKit::rust_kernel_rdma_base::*;
+use KRdmaKit::services::UnreliableDatagramServer;
 use KRdmaKit::KDriver;
 
 #[derive(Debug)]
@@ -139,7 +137,7 @@ fn test_ud_builder() -> Result<(), TestError> {
     if qp_res.is_err() {
         log::error!("Build ud error");
     } else {
-        let qp = qp_res.unwrap().bring_up();
+        let qp = qp_res.unwrap().bring_up_ud();
         if qp.is_err() {
             log::error!("Bring up ud error. {:?}", qp.err());
         } else {
@@ -162,11 +160,13 @@ fn test_ud_query() -> Result<(), TestError> {
             log::error!("Open server ctx error.");
             TestError::Error("Server context error.")
         })?;
+    let server_port: u8 = 1;
     log::info!(
         "Server context's device name {}",
         server_ctx.get_dev_ref().name()
     );
     let server_service_id = 73;
+    let qd_hint = 37 as usize;
     let ud_server = UnreliableDatagramServer::create();
     let _server_cm = CMServer::new(server_service_id, &ud_server, server_ctx.get_dev_ref())
         .map_err(|_| {
@@ -175,18 +175,18 @@ fn test_ud_query() -> Result<(), TestError> {
         })?;
 
     let mut builder = QueuePairBuilder::new(&server_ctx);
-    builder.allow_remote_rw();
+    builder.allow_remote_rw().set_port_num(server_port);
     let server_qp = builder.build_ud().map_err(|_| {
         log::error!("Failed to build UD QP.");
         TestError::Error("Build UD error.")
     })?;
 
-    let server_qp = Arc::new(server_qp.bring_up().map_err(|_| {
+    let server_qp = server_qp.bring_up_ud().map_err(|_| {
         log::error!("Failed to query path.");
         TestError::Error("Query path error.")
-    })?);
+    })?;
 
-    ud_server.reg_ud(73, &server_qp);
+    ud_server.reg_ud(qd_hint, &server_qp);
 
     // client side
     let client_ctx = driver
@@ -205,7 +205,7 @@ fn test_ud_query() -> Result<(), TestError> {
 
     // GID related to the server's
     let client_port: u8 = 1;
-    let gid = server_ctx.get_dev_ref().query_gid(1).unwrap();
+    let gid = server_ctx.get_dev_ref().query_gid(server_port).unwrap();
     let explorer = Explorer::new(client_ctx.get_dev_ref());
     let path =
         unsafe { explorer.resolve_inner(server_service_id, client_port, gid) }.map_err(|_| {
@@ -219,23 +219,22 @@ fn test_ud_query() -> Result<(), TestError> {
             TestError::Error("Create querier error")
         })?;
 
-    let endpoint = querier.query(server_service_id, path).map_err(|_| {
-        log::error!("Error querying endpoint");
-        TestError::Error("Query endpoint error")
-    })?;
+    let endpoint = querier
+        .query(server_service_id, qd_hint, path)
+        .map_err(|_| {
+            log::error!("Error querying endpoint");
+            TestError::Error("Query endpoint error")
+        })?;
 
     log::info!("{:?}", endpoint);
 
     let mut builder = QueuePairBuilder::new(&client_ctx);
-    builder
-        .set_qkey(endpoint.qkey())
-        .set_port_num(client_port)
-        .allow_remote_rw();
+    builder.set_port_num(client_port).allow_remote_rw();
     let client_qp = builder.build_ud().map_err(|_| {
         log::error!("Error creating client ud");
         TestError::Error("Create client ud error")
     })?;
-    let client_qp = client_qp.bring_up().map_err(|_| {
+    let client_qp = client_qp.bring_up_ud().map_err(|_| {
         log::error!("Error bringing client ud");
         TestError::Error("Bring client ud error")
     })?;
@@ -315,18 +314,7 @@ fn test_ud_query() -> Result<(), TestError> {
     Ok(())
 }
 
-fn test_timer() -> Result<(), TestError> {
-    let timer = RTimer::new();
-    loop {
-        if timer.passed_as_msec() > 50 as f64 {
-            break;
-        }
-    }
-    Ok(())
-}
-
 fn test_wrapper() -> Result<(), TestError> {
-    test_timer()?;
     test_cq_construction()?;
     test_ud_builder()?;
     test_ud_query()?;

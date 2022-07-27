@@ -37,6 +37,10 @@ where
     pub fn listen_id(&self) -> u64 {
         self.listen_id
     }
+    
+    pub fn inner(&self) -> &CMWrapper<T> {
+        &self.inner
+    }
 }
 
 impl<T> Drop for CMServer<T>

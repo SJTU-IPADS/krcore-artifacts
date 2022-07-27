@@ -2,11 +2,11 @@ use linux_kernel_module::c_types;
 use rust_kernel_rdma_base::*;
 
 use alloc::string::String;
-use alloc::sync::Arc;
+use alloc::sync::{Arc, Weak};
 
 use core::ptr::NonNull;
 
-use crate::device_v1::DeviceRef;
+use crate::device::DeviceRef;
 use crate::log;
 
 pub use client::CMReplyer;
@@ -51,13 +51,40 @@ pub enum CMError {
 
 /// The CMCallback implements various task after receiving CM messages
 /// Typically, a CM endpoint will only need to handle partial events
-/// e.g., 
-/// - Server: request events 
+/// e.g.,
+/// - Server: request events
 /// - Client: response events
-/// Therefore, we provide a default implementation for these trait functions. 
+/// Therefore, we provide a default implementation for these trait functions.
 pub trait CMCallbacker {
-    fn handle_req(self: &mut Self, _reply_cm: CMReplyer, _event: &ib_cm_event)
-        -> Result<(), CMError> {
+    fn handle_req(
+        self: &mut Self,
+        _reply_cm: CMReplyer,
+        _event: &ib_cm_event,
+    ) -> Result<(), CMError> {
+        Ok(())
+    }
+
+    fn handle_rep(
+        self: &mut Self,
+        _reply_cm: CMReplyer,
+        _event: &ib_cm_event,
+    ) -> Result<(), CMError> {
+        Ok(())
+    }
+
+    fn handle_rtu(
+        self: &mut Self,
+        _reply_cm: CMReplyer,
+        _event: &ib_cm_event,
+    ) -> Result<(), CMError> {
+        Ok(())
+    }
+
+    fn handle_rej(
+        self: &mut Self,
+        _reply_cm: CMReplyer,
+        _event: &ib_cm_event,
+    ) -> Result<(), CMError> {
         Ok(())
     }
 
@@ -96,7 +123,7 @@ pub trait CMCallbacker {
 pub struct CMWrapper<T: CMCallbacker> {
     _dev: DeviceRef, // prevent usage error
     inner: NonNull<ib_cm_id>,
-    callbacker: Arc<T>,
+    callbacker: Weak<T>,
 }
 
 impl<T> CMWrapper<T>
@@ -104,24 +131,33 @@ where
     T: CMCallbacker,
 {
     #[inline]
-    pub(crate) fn new(
-        dev: &DeviceRef,
-        context: &Arc<T>,
-        cm_ptr: *mut ib_cm_id,
-    ) -> Option<Self> {
+    pub(crate) fn new(dev: &DeviceRef, context: &Arc<T>, cm_ptr: *mut ib_cm_id) -> Option<Self> {
         Some(Self {
             _dev: dev.clone(),
             inner: NonNull::new(cm_ptr)?,
-            callbacker: context.clone(),
+            callbacker: Arc::downgrade(context),
         })
     }
 
-    pub(crate) unsafe fn raw_ptr(&self) -> &NonNull<ib_cm_id> {
+    #[inline]
+    pub fn new_from_callbacker(dev: &DeviceRef, callbacker: &Arc<T>) -> Result<Self, CMError> {
+        let cm_id = unsafe { create_raw_cm_id(dev.raw_ptr().as_ptr(), callbacker)? };
+        let inner = NonNull::new(cm_id).ok_or(CMError::Creation(0))?;
+        Ok(Self {
+            _dev: dev.clone(),
+            inner,
+            callbacker: Arc::downgrade(callbacker),
+        })
+    }
+
+    #[inline]
+    pub unsafe fn raw_ptr(&self) -> &NonNull<ib_cm_id> {
         &self.inner
     }
 
-    pub(crate) fn callbacker(&self) -> &Arc<T>{
-        &self.callbacker
+    #[inline]
+    pub(crate) fn callbacker(&self) -> Option<Arc<T>> {
+        self.callbacker.upgrade()
     }
 
     /// Get the current status of the CM
@@ -155,18 +191,37 @@ where
 {
     let event = *env;
     let cm = CMReplyer::new(cm_id);
-    // let mut ctx: Arc<T> = Arc::from_raw(cm.get_context());
-    let ctx: &mut T = &mut (*cm.get_context());
-
+    let ctx: &mut T = (cm_id.as_mut().unwrap().context as *mut T)
+        .as_mut()
+        .unwrap();
     let res = match event.event {
-        ib_cm_event_type::IB_CM_REQ_RECEIVED => ctx.handle_req(cm, &event),
+        ib_cm_event_type::IB_CM_REQ_RECEIVED => {
+            log::debug!("Handle REQ. CM addr 0x{:X}", cm_id as u64);
+            ctx.handle_req(cm, &event)
+        }
+        ib_cm_event_type::IB_CM_REP_RECEIVED => {
+            log::debug!("Handle REP. CM addr 0x{:X}", cm_id as u64);
+            ctx.handle_rep(cm, &event)
+        }
+        ib_cm_event_type::IB_CM_REJ_RECEIVED => {
+            log::debug!("Handle REJ. CM addr 0x{:X}", cm_id as u64);
+            ctx.handle_rej(cm, &event)
+        }
+        ib_cm_event_type::IB_CM_RTU_RECEIVED => {
+            log::debug!("Handle RTU. CM addr 0x{:X}", cm_id as u64);
+            ctx.handle_rtu(cm, &event)
+        }
+        ib_cm_event_type::IB_CM_DREQ_RECEIVED => {
+            log::debug!("Handle DREQ. CM addr 0x{:X}", cm_id as u64);
+            ctx.handle_dreq(cm, &event)
+        }
         ib_cm_event_type::IB_CM_SIDR_REQ_RECEIVED => ctx.handle_sidr_req(cm, &event),
         ib_cm_event_type::IB_CM_SIDR_REP_RECEIVED => ctx.handle_sidr_rep(cm, &event),
         _ => Err(CMError::CallbackError(event.event)),
     };
 
     if res.is_err() {
-        log::error!("{:?}", res);
+        log::error!("{:?} 0x{:X}", res, cm_id as u64);
         return -1;
     }
     return 0;

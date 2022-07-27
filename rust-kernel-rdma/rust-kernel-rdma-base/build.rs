@@ -139,6 +139,7 @@ const INCLUDED_KERNEL_FUNCS: &[&str] = &[
     "path_rec_numb_path",
     "ib_send_cm_rep",
     "ib_send_cm_req",
+    "ib_send_cm_rej",
     "ib_send_cm_dreq",
     "ib_send_cm_drep",
     "ib_send_cm_rtu",

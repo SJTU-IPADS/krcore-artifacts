@@ -5,18 +5,15 @@
     feature(allocator_api, alloc_layout_extra, nonnull_slice_from_raw_parts)
 )]
 
-use completion_queue::CompletionQueue;
+extern crate alloc;
 
-/// Communication manager that is used to bootstrap RDMA connections
-pub mod cm;
+use completion_queue::CompletionQueue;
 
 /// Configuration operations
 pub mod consts;
-pub mod ctrl;
 
 /// Abstraction for the RDMA-capable devices (RNIC)
-pub mod device;
-pub mod device_v1; // the new device implementation that will overwrite the old one
+pub mod device; // the new device implementation that will overwrite the old one
 
 /// Communication manager (CM) abstracts the CM implementation
 /// This module is used to bootstrap RDMA connection
@@ -30,21 +27,17 @@ pub mod context;
 /// Services abstract necessary remote end to facialiate QP bring up
 pub mod services;
 
+/// Abstraction for the completion queues 
 pub mod completion_queue;
+
+/// Abstraction for the QPs, including UD, RC and DC. 
 pub mod queue_pairs;
+
+/// Abstraction for the memory regions
 pub mod memory_region;
+
 pub mod utils;
 pub mod random;
-pub mod thread_local;
-
-// below are legacy modules and will be removed later
-pub mod ib_path_explorer;
-pub mod mem;
-pub mod net_util;
-pub mod qp;
-pub mod rpc;
-
-extern crate alloc;
 
 pub use rust_kernel_rdma_base;
 pub use rust_kernel_rdma_base::rust_kernel_linux_util::kthread::sleep;
@@ -65,7 +58,7 @@ use alloc::vec::Vec;
 
 pub struct KDriver {
     client: ib_client,
-    rnics: Vec<device_v1::DeviceRef>,
+    rnics: Vec<device::DeviceRef>,
 }
 
 pub type KDriverRef = Arc<KDriver>;
@@ -74,7 +67,7 @@ use alloc::sync::Arc;
 pub use rust_kernel_rdma_base::rust_kernel_linux_util as log;
 
 impl KDriver {
-    pub fn devices(&self) -> &Vec<device_v1::DeviceRef> {
+    pub fn devices(&self) -> &Vec<device::DeviceRef> {
         &self.rnics
     }
 
@@ -106,7 +99,7 @@ impl KDriver {
         let rnics = get_temp_rnics()
             .into_iter()
             .map(|dev| {
-                device_v1::Device::new(*dev, &temp)
+                device::Device::new(*dev, &temp)
                     .expect("Query ib_device pointers should never fail")
             })
             .collect();
@@ -185,9 +178,12 @@ pub enum DatapathError {
 
     #[error("timeout error")]
     TimeoutError,
+
+    #[error("qp type error")]
+    QPTypeError,
 }
 
-/// profile for statistics
+/// profile for the network operations
 pub struct Profile {
     timer: KTimer,
     total_op: u64,

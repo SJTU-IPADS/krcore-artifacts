@@ -31,8 +31,23 @@ where
 
     /// This call will generate a IB_CM_REQ_RECEIVED at the remote end
     /// The assumption: the ib_cm_req_param has been properly set    
-    pub fn send_req<T: Sized>(&mut self, _req: ib_cm_req_param, _pri: T) -> Result<(), CMError> {
-        unimplemented!();
+    pub fn send_req<T: Sized>(
+        &self,
+        mut req: ib_cm_req_param,
+        mut pri: T,
+    ) -> Result<(), CMError> {
+        // re-set the private data here
+        req.private_data = ((&mut pri) as *mut T).cast::<linux_kernel_module::c_types::c_void>();
+        req.private_data_len = core::mem::size_of::<T>() as u8;
+
+        let err = unsafe { ib_send_cm_req(self.raw_ptr().as_ptr(), &mut req as *mut _) };
+        if err != 0 {
+            return Err(CMError::SendError(
+                "Send request",
+                Error::from_kernel_errno(err),
+            ));
+        }
+        Ok(())
     }
 
     /// This call will generate a IB_CM_DREQ_RECEIVED at the remote end
