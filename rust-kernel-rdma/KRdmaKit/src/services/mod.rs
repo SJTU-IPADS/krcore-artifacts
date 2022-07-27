@@ -20,7 +20,7 @@ pub mod dc;
 pub mod rc;
 
 pub use rc::{RCConnectionData, ReliableConnectionServer};
-pub use ud::{DatagramMeta, UnreliableDatagramServer};
+pub use ud::{DatagramMeta, UnreliableDatagramAddressService};
 
 pub trait GenerateConnectionReply<ReplyData> {
     fn generate_connection_reply(&self) -> Result<ReplyData, CMError>;

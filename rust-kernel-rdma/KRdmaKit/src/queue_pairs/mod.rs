@@ -10,11 +10,12 @@ use rust_kernel_rdma_base::ib_destroy_qp;
 
 use crate::memory_region::MemoryRegion;
 use crate::queue_pairs::endpoint::DatagramEndpoint;
-use crate::{context::Context, CompletionQueue, SharedReceiveQueue, DatapathError};
+use crate::{context::Context, CompletionQueue, DatapathError, SharedReceiveQueue};
+use crate::comm_manager::CMError;
 
 /// UD queue pair builder to simplify UD creation
 pub mod builder;
-pub use builder::{QueuePairBuilder,PreparedQueuePair};
+pub use builder::{PreparedQueuePair, QueuePairBuilder};
 
 mod callbacks;
 /// UD endpoint and queriers
@@ -24,7 +25,7 @@ pub mod endpoint;
 /// related to reliable QP connections
 mod rc_comm;
 
-/// All the DCT related implementatations are encauplasted in this module 
+/// All the DCT related implementatations are encauplasted in this module
 #[cfg(feature = "dct")]
 pub mod dynamic_connected_transport;
 
@@ -70,7 +71,7 @@ pub struct QueuePair {
     recv_cq: Arc<CompletionQueue>,
 
     #[allow(dead_code)]
-    srq : Option<Box<SharedReceiveQueue>>,
+    srq: Option<Box<SharedReceiveQueue>>,
 
     mode: QPType,
 
@@ -117,7 +118,7 @@ impl QueuePair {
         }
     }
 
-    pub fn path_mtu(&self) -> ib_mtu::Type { 
+    pub fn path_mtu(&self) -> ib_mtu::Type {
         self.path_mtu
     }
 
@@ -137,18 +138,42 @@ impl QueuePair {
     }
 
     #[inline]
-    pub fn timeout(&self) -> u8 { 
+    pub fn timeout(&self) -> u8 {
         self.timeout
     }
 
     #[inline]
-    pub fn max_rd_atomic(&self) -> u8 { 
+    pub fn max_rd_atomic(&self) -> u8 {
         self.max_rd_atomic
     }
 
     #[inline]
     pub fn ctx(&self) -> &Arc<Context> {
         &self._ctx
+    }
+
+    /// get the datagram related data, namely:
+    /// - gid
+    /// - lid
+    ///
+    /// We mainly query them from the context
+    ///
+    pub fn get_datagram_meta(
+        &self,
+    ) -> Result<crate::services::DatagramMeta, CMError> {
+        let port_attr = self
+            .ctx()
+            .get_dev_ref()
+            .get_port_attr(self.port_num)
+            .map_err(|err| CMError::Creation(err.to_kernel_errno()))?;
+        let gid = self
+            .ctx()
+            .get_dev_ref()
+            .query_gid(self.port_num)
+            .map_err(|err| CMError::Creation(err.to_kernel_errno()))?;
+
+        let lid = port_attr.lid as u16;
+        Ok(crate::services::DatagramMeta { lid, gid })
     }
 
     /// Post a work request to the receive queue of the queue pair, add it to the tail of the
@@ -285,7 +310,6 @@ impl QueuePair {
 
 /// Reliable Connection
 impl QueuePair {
-    
     #[inline]
     pub fn post_send_send(
         &self,
