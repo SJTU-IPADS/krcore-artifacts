@@ -2,7 +2,10 @@
 #![feature(get_mut_unchecked)]
 #[warn(non_snake_case)]
 #[warn(dead_code)]
+
 extern crate alloc;
+
+use alloc::sync::Arc;
 
 use krdma_test::*;
 use rust_kernel_linux_util as log;
@@ -56,7 +59,7 @@ fn test_srq_construction() -> Result<(), TestError> {
 }
 
 fn test_dct_builder() -> Result<(), TestError> {
-    log::info!("Start test dct builder.");
+    log::info!("\nStart test dct builder.");
     let driver = unsafe { KDriver::create().unwrap() };
     let ctx = driver
         .devices()
@@ -103,7 +106,7 @@ fn test_dct_builder() -> Result<(), TestError> {
 }
 
 fn test_dct_query() -> Result<(), TestError> {
-    log::info!("DCT query service started"); 
+    log::info!("\nDCT query service started"); 
 
     let driver = unsafe { KDriver::create().unwrap() };
 
@@ -117,7 +120,7 @@ fn test_dct_query() -> Result<(), TestError> {
             log::error!("Open server ctx error.");
             TestError::Error("Server context error.")
         })?;
-    let server_port: u8 = 1;
+
     log::info!(
         "Server context's device name {}",
         server_ctx.get_dev_ref().name()
@@ -126,7 +129,57 @@ fn test_dct_query() -> Result<(), TestError> {
     // start the listening service
     let server_service_id = 73;    
     let server = DCTargetService::create();
-    let server_cm = CMServer::new(server_service_id, &server, server_ctx.get_dev_ref()).unwrap();
+    let _server_cm = CMServer::new(server_service_id, &server, server_ctx.get_dev_ref()).unwrap();
+
+  // create a target
+    let builder = DynamicConnectedTargetBuilder::new(&server_ctx);
+    let dct_target = Arc::new(builder.build_dynamic_connected_target(73).map_err(|e| {
+        log::error!("failed to create the DCT target with error {:?}", e);
+        TestError::Error("DCT target creation error")
+    })?);
+
+    log::info!(
+        "check dct key & num: [{} {}]",
+        dct_target.dc_key(),
+        dct_target.dct_num()
+    );
+    server.reg_qp(73, &dct_target); 
+
+    // create a QP
+    let dc_qp = DynamicConnectedTargetBuilder::new(&server_ctx)
+        .build_dc()
+        .map_err(|e| {
+            log::error!("failed to create DCQP with error {:?}", e);
+            TestError::Error("DCQP creation error")
+        })?
+        .bring_up_dc()
+        .map_err(|e| {
+            log::error!("failed to bring up DCQP with error {:?}", e);
+            TestError::Error("DCQP bringup error")
+        })?;
+
+    log::info!("check DCQP: {:?}", dc_qp.qp_num());
+
+    let gid = server_ctx.get_dev_ref().query_gid(dct_target.port_num()).unwrap();
+    let explorer = Explorer::new(server_ctx.get_dev_ref());
+    let path = unsafe { explorer.resolve_inner(server_service_id, dc_qp.port_num(), gid) }.map_err(|_| {
+        log::error!("Error resolving path.");
+        TestError::Error("Error resolving path.")
+    })?;    
+
+    // now start query the DCT (datagram) endpoint
+    let querier =
+        DatagramEndpointQuerier::create(&server_ctx, dc_qp.port_num()).map_err(|_| {
+            log::error!("Error creating querier");
+            TestError::Error("Error creating querier")
+        })?;
+
+    let endpoint = querier.query(server_service_id, 73, path).map_err(|_| {
+        log::error!("Error querying endpoint");
+        TestError::Error("Error querying endpoint")
+    })?;    
+
+    log::info!("sanity check the endpoint {:?}", endpoint); 
 
     Ok(())
 }

@@ -43,6 +43,10 @@ impl DynamicConnectedTarget {
         self.key
     }
 
+    pub fn port_num(&self) -> u8 { 
+        self.port_num
+    }
+
     pub fn get_datagram_meta(&self) -> Result<crate::services::DatagramMeta, CMError> {
         let port_attr = self
             .ctx()

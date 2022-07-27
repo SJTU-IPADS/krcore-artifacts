@@ -39,13 +39,30 @@ pub struct DatagramEndpoint {
 
 impl Debug for DatagramEndpoint {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        f.debug_struct("EndPoint")
-            .field("qpn", &self.qpn)
-            .field("qkey", &self.qkey)
-            .field("lid", &self.lid)
-            .field("gid", &self.gid)
-            .field("address handler", &self.address_handler)
-            .finish()
+        #[cfg(not(feature = "dct"))]
+        {
+            f.debug_struct("EndPoint")
+                .field("qpn", &self.qpn)
+                .field("qkey", &self.qkey)
+                .field("lid", &self.lid)
+                .field("gid", &self.gid)
+                .field("address handler", &self.address_handler)
+                .finish()
+        }
+
+        // FIXME: should refine later
+        #[cfg(feature = "dct")]
+        {
+            f.debug_struct("EndPoint")
+                .field("qpn", &self.qpn)
+                .field("qkey", &self.qkey)
+                .field("lid", &self.lid)
+                .field("gid", &self.gid)
+                .field("address handler", &self.address_handler)
+                .field("dct_num", &self.dct_num)
+                .field("dc_key", &self.dc_key)
+                .finish()
+        }
     }
 }
 
