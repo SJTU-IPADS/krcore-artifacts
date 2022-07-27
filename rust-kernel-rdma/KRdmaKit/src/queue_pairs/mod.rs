@@ -453,3 +453,115 @@ impl QueuePair {
         }
     }
 }
+
+#[cfg(feature = "dct")]
+impl QueuePair {     
+    /// Really similar to RCQP
+    /// except that we need to additinal pass an endpoint argument 
+    #[inline]    
+    pub fn post_send_dc_read(
+        &self,
+        endpoint: &DatagramEndpoint,
+        mr: &MemoryRegion,
+        range: Range<u64>,
+        signaled: bool,
+        raddr: u64,
+        rkey: u32,
+    ) -> Result<(), DatapathError> {
+        if self.mode != QPType::DC {
+            return Err(DatapathError::QPTypeError);
+        }
+        let send_flag: i32 = if signaled {
+            ib_send_flags::IB_SEND_SIGNALED
+        } else {
+            0
+        };
+        self.post_send_dc_inner(
+            ib_wr_opcode::IB_WR_RDMA_READ,
+            endpoint,
+            unsafe { mr.get_rdma_addr() } + range.start,
+            raddr,
+            mr.lkey().0,
+            rkey,
+            range.size() as u32,
+            0,
+            send_flag,
+        )
+    }    
+
+    #[inline]
+    pub fn post_send_dc_write(
+        &self,
+        endpoint: &DatagramEndpoint,
+        mr: &MemoryRegion,
+        range: Range<u64>,
+        signaled: bool,
+        raddr: u64,
+        rkey: u32,
+    ) -> Result<(), DatapathError> {
+        if self.mode != QPType::DC {
+            return Err(DatapathError::QPTypeError);
+        }
+        let send_flag: i32 = if signaled {
+            ib_send_flags::IB_SEND_SIGNALED
+        } else {
+            0
+        };
+        self.post_send_dc_inner(
+            ib_wr_opcode::IB_WR_RDMA_WRITE,
+            endpoint,
+            unsafe { mr.get_rdma_addr() } + range.start,
+            raddr,
+            mr.lkey().0,
+            rkey,
+            range.size() as u32,
+            0,
+            send_flag,
+        )
+    }
+    
+    #[inline]
+    fn post_send_dc_inner(
+        &self,
+        op: u32,
+        endpoint: &DatagramEndpoint,
+        laddr: u64, // physical addr
+        raddr: u64, // physical addr
+        lkey: u32,
+        rkey: u32,
+        size: u32,      // size in bytes
+        imm_data: u32,  // immediate data
+        send_flag: i32, // send flags, see `ib_send_flags`
+    ) -> Result<(), DatapathError> {
+        let mut sge = ib_sge {
+            addr: laddr,
+            length: size,
+            lkey,
+        };
+        let mut wr: ib_dc_wr = Default::default();
+        wr.wr.opcode = op;
+        wr.wr.send_flags = send_flag;
+        wr.wr.ex.imm_data = imm_data;
+        wr.wr.num_sge = 1;
+        wr.wr.sg_list = &mut sge as *mut _;
+        wr.remote_addr = raddr;
+        wr.rkey = rkey;
+
+        wr.dct_access_key = endpoint.dc_key();
+        wr.dct_number = endpoint.dct_num();
+
+        let mut bad_wr: *mut ib_send_wr = null_mut();
+        let err = unsafe {
+            bd_ib_post_send(
+                self.inner_qp.as_ptr(),
+                &mut wr.wr as *mut _,
+                &mut bad_wr as *mut _,
+            )
+        };
+        if err != 0 {
+            Err(DatapathError::PostSendError(Error::from_kernel_errno(err)))
+        } else {
+            Ok(())
+        }
+    }    
+}

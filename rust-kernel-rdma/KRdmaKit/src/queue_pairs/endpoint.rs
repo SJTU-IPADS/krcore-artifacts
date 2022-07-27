@@ -101,29 +101,47 @@ impl DatagramEndpoint {
         })
     }
 
+    #[inline]
     pub fn raw_address_handler_ptr(&self) -> &NonNull<ib_ah> {
         self.address_handler.raw_ptr()
     }
 
+    #[inline]
     pub fn address_handler(&self) -> &AddressHandler {
         &self.address_handler
     }
 
+    #[inline]
     pub fn qpn(&self) -> u32 {
         self.qpn
     }
 
+    #[inline]
     pub fn qkey(&self) -> u32 {
         self.qkey
     }
 
+    #[inline]
     pub fn lid(&self) -> u32 {
         self.lid
     }
 
+    #[inline]
     pub fn gid(&self) -> ib_gid {
         self.gid
     }
+
+    #[cfg(feature = "dct")]    
+    #[inline]
+    pub fn dc_key(&self) -> u64 { 
+        self.dc_key
+    }
+
+    #[cfg(feature = "dct")]    
+    #[inline]
+    pub fn dct_num(&self) -> u32 { 
+        self.dct_num
+    }    
 }
 
 /// This querier serves you a quick way to get the endpoint information from
