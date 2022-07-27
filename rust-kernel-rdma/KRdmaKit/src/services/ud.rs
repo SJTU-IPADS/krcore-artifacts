@@ -12,14 +12,14 @@ use crate::queue_pairs::QueuePair;
 #[allow(dead_code)]
 #[repr(C, align(8))]
 #[derive(Copy, Clone, Debug)]
-pub struct UnreliableDatagramMeta {
+pub struct DatagramMeta {
     // The payload's related data
     pub lid: u16,
     pub gid: ib_gid,
 }
 
-impl UnreliableDatagramMeta {
-    pub fn new(qp : &Arc<QueuePair>) -> Result<Self, CMError> {
+impl DatagramMeta {
+    pub fn new(qp : &QueuePair) -> Result<Self, CMError> {
         let port_num = qp.port_num();
         let port_attr = qp.ctx().get_dev_ref().get_port_attr(port_num).map_err(|err| {
             CMError::Creation(err.to_kernel_errno())
@@ -33,7 +33,7 @@ impl UnreliableDatagramMeta {
     }
 }
 
-impl Default for UnreliableDatagramMeta {
+impl Default for DatagramMeta {
     fn default() -> Self {
         Self {
             lid: 0,
@@ -61,8 +61,10 @@ impl Default for UnreliableDatagramMeta {
 ///     .next()
 ///     .expect("No device available")
 ///     .open_context().unwrap();
+/// 
 /// let server_service_id = 73;
 /// let ud_server = UnreliableDatagramServer::create();
+/// 
 /// let server_cm = CMServer::new(server_service_id, &ud_server, server_ctx.get_dev_ref()).unwrap();
 /// let builder = QueuePairBuilder::new(&server_ctx);
 /// let qp_res = builder.build_ud().unwrap();
@@ -110,12 +112,12 @@ impl CMCallbacker for UnreliableDatagramServer {
         let qd_hint = unsafe { *(event.private_data as *mut usize) };
         let mut rep: ib_cm_sidr_rep_param = Default::default();
         let ud = self.get_ud(qd_hint);
-        let mut payload = UnreliableDatagramMeta::default();
+        let mut payload = DatagramMeta::default();
         if ud.is_none() {
             rep.status = ib_cm_sidr_status::IB_SIDR_NO_QP;
         } else {
             let ud = ud.unwrap();
-            let payload_opt = UnreliableDatagramMeta::new(ud);
+            let payload_opt = DatagramMeta::new(ud);
             match payload_opt {
                 Ok(meta) => {
                     rep.qp_num = ud.qp_num();

@@ -28,6 +28,9 @@ mod rc_comm;
 #[cfg(feature = "dct")]
 pub mod dynamic_connected_transport;
 
+#[cfg(feature = "dct")]
+pub use dynamic_connected_transport::DynamicConnectedTarget;
+
 #[allow(dead_code)]
 #[derive(PartialEq)]
 enum QPType {

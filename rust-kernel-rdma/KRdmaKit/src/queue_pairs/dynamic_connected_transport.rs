@@ -5,6 +5,7 @@ use core::ptr::NonNull;
 use linux_kernel_module::Error;
 
 use crate::bindings::ib_qp_cap;
+use crate::comm_manager::CMError;
 use crate::context::Context;
 use crate::rust_kernel_rdma_base::*;
 use crate::{CompletionQueue, ControlpathError, SharedReceiveQueue};
@@ -23,15 +24,39 @@ pub struct DynamicConnectedTarget {
     shared_receive_queue: Box<SharedReceiveQueue>,
 
     key: u64,
+
+    /// The following is carried from the builder
+    port_num: u8,
 }
 
 impl DynamicConnectedTarget {
+    #[inline]
+    pub fn ctx(&self) -> &Arc<Context> {
+        &self._ctx
+    }
+
     pub fn dct_num(&self) -> u32 {
         unsafe { self.inner_target.as_ref().dct_num }
     }
 
     pub fn dc_key(&self) -> u64 {
         self.key
+    }
+
+    pub fn get_datagram_meta(&self) -> Result<crate::services::DatagramMeta, CMError> {
+        let port_attr = self
+            .ctx()
+            .get_dev_ref()
+            .get_port_attr(self.port_num)
+            .map_err(|err| CMError::Creation(err.to_kernel_errno()))?;
+        let gid = self
+            .ctx()
+            .get_dev_ref()
+            .query_gid(self.port_num)
+            .map_err(|err| CMError::Creation(err.to_kernel_errno()))?;
+
+        let lid = port_attr.lid as u16;
+        Ok(crate::services::DatagramMeta { lid, gid })
     }
 }
 
@@ -81,6 +106,7 @@ impl DynamicConnectedTargetBuilder {
             recv_cq: recv,
             shared_receive_queue,
             key: dc_key,
+            port_num: self.port_num,
         })
     }
 }

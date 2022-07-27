@@ -8,7 +8,7 @@ use rust_kernel_rdma_base::*;
 use crate::comm_manager::{CMCallbacker, CMError, CMReplyer, CMSender};
 use crate::context::{AddressHandler, ContextRef};
 use crate::linux_kernel_module::Error;
-use crate::services::UnreliableDatagramMeta;
+use crate::services::DatagramMeta;
 use crate::{log, ControlpathError};
 
 /// The unreliable datagram endpoint
@@ -190,7 +190,7 @@ impl CMCallbacker for UnreliableDatagramQuerierInner {
                 rep_param.status
             );
         } else {
-            let reply = unsafe { *(rep_param.info as *mut UnreliableDatagramMeta) };
+            let reply = unsafe { *(rep_param.info as *mut DatagramMeta) };
             self.endpoint = UnreliableDatagramEndpoint::new(
                 &self.ctx,
                 self.port_num,
