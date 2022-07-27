@@ -6,8 +6,9 @@
 )]
 
 extern crate alloc;
+use alloc::sync::Arc;
 
-use completion_queue::CompletionQueue;
+pub use completion_queue::{CompletionQueue, SharedReceiveQueue};
 
 /// Configuration operations
 pub mod consts;
@@ -63,7 +64,6 @@ pub struct KDriver {
 
 pub type KDriverRef = Arc<KDriver>;
 
-use alloc::sync::Arc;
 pub use rust_kernel_rdma_base::rust_kernel_linux_util as log;
 
 impl KDriver {

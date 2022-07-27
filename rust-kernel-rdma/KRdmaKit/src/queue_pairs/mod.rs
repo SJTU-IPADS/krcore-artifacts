@@ -24,6 +24,7 @@ pub mod endpoint;
 /// related to reliable QP connections
 mod rc_comm;
 
+/// All the DCT related implementatations are encauplasted in this module 
 #[cfg(dct)]
 pub mod dynamic_connected_transport;
 
