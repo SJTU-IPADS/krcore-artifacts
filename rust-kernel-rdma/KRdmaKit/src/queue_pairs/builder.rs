@@ -15,6 +15,7 @@ use crate::services::rc::RCConnectionData;
 use crate::{CompletionQueue, ControlpathError};
 
 /// Builder for different kind of queue pairs (RCQP, UDQP ,etc.).
+/// Store the necessary configuration parameters required
 ///
 /// Set necessary fields and build the corresponding queue pairs.
 pub struct QueuePairBuilder {

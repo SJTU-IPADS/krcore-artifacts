@@ -25,7 +25,7 @@ pub mod endpoint;
 mod rc_comm;
 
 #[cfg(dct)]
-pub mod dct_server;
+pub mod dynamic_connected_transport;
 
 #[allow(dead_code)]
 #[derive(PartialEq)]
