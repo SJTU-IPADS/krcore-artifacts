@@ -25,7 +25,7 @@ pub mod endpoint;
 mod rc_comm;
 
 /// All the DCT related implementatations are encauplasted in this module 
-#[cfg(dct)]
+#[cfg(feature = "dct")]
 pub mod dynamic_connected_transport;
 
 #[allow(dead_code)]

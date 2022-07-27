@@ -19,25 +19,25 @@ use crate::{CompletionQueue, ControlpathError};
 ///
 /// Set necessary fields and build the corresponding queue pairs.
 pub struct QueuePairBuilder {
-    ctx: Arc<Context>,
-    max_send_wr: u32,
-    max_recv_wr: u32,
-    max_cq_entries: u32,
-    max_send_sge: u32,
-    max_recv_sge: u32,
-    max_inline_data: u32,
+    pub(super) ctx: Arc<Context>,
+    pub(super) max_send_wr: u32,
+    pub(super) max_recv_wr: u32,
+    pub(super) max_cq_entries: u32,
+    pub(super) max_send_sge: u32,
+    pub(super) max_recv_sge: u32,
+    pub(super) max_inline_data: u32,
 
     // carried along to handshake phase
-    access: ib_access_flags::Type,
-    path_mtu: ib_mtu::Type,
-    timeout: u8,
-    retry_count: u8,
-    rnr_retry: u8,
-    min_rnr_timer: u8,
-    max_rd_atomic: u8,
-    pkey_index: u16,
-    port_num: u8,
-    qkey: u32,
+    pub(super) access: ib_access_flags::Type,
+    pub(super) path_mtu: ib_mtu::Type,
+    pub(super) timeout: u8,
+    pub(super) retry_count: u8,
+    pub(super) rnr_retry: u8,
+    pub(super) min_rnr_timer: u8,
+    pub(super) max_rd_atomic: u8,
+    pub(super) pkey_index: u16,
+    pub(super) port_num: u8,
+    pub(super) qkey: u32,
 }
 
 impl QueuePairBuilder {

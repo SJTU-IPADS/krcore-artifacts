@@ -2,19 +2,18 @@
 #![feature(get_mut_unchecked)]
 #[warn(non_snake_case)]
 #[warn(dead_code)]
-
 extern crate alloc;
 
-use alloc::sync::Arc;
 use krdma_test::*;
 use rust_kernel_linux_util as log;
 use rust_kernel_linux_util::bindings::completion;
 use rust_kernel_linux_util::timer::RTimer;
 
 use KRdmaKit::comm_manager::*;
-use KRdmaKit::completion_queue::CompletionQueue;
+use KRdmaKit::completion_queue::SharedReceiveQueue;
 use KRdmaKit::memory_region::MemoryRegion;
 use KRdmaKit::queue_pairs::builder::QueuePairBuilder;
+use KRdmaKit::queue_pairs::dynamic_connected_transport::DynamicConnectedTargetBuilder;
 use KRdmaKit::queue_pairs::endpoint::UnreliableDatagramEndpointQuerier;
 use KRdmaKit::rust_kernel_rdma_base::*;
 use KRdmaKit::services::UnreliableDatagramServer;
@@ -92,8 +91,8 @@ pub enum TestError {
     Error(&'static str),
 }
 
-fn test_cq_construction() -> Result<(), TestError> {
-    log::info!("Start test cq construction.");
+fn test_srq_construction() -> Result<(), TestError> {
+    log::info!("Start test srq construction.");
 
     let driver = unsafe { KDriver::create().unwrap() };
 
@@ -111,9 +110,9 @@ fn test_cq_construction() -> Result<(), TestError> {
     log::info!("The context's device name {}", ctx.get_dev_ref().name());
 
     // create a QP
-    let _cq = CompletionQueue::create(&ctx, 1024).map_err(|e| {
-        log::error!("create context error {:?}", e);
-        TestError::Error("Failed to create CQ")
+    let _srq = SharedReceiveQueue::create(&ctx, 32, 1).map_err(|e| {
+        log::error!("create shared receive queue error {:?}", e);
+        TestError::Error("Failed to create shared receive queue")
     })?;
     Ok(())
 }
@@ -135,18 +134,18 @@ fn test_dct_builder() -> Result<(), TestError> {
     log::info!("The context's device name {}", ctx.get_dev_ref().name());
 
     // create a QP
-    let builder = QueuePairBuilder::new(&ctx);
-    let qp_res = builder.build_ud();
-    if qp_res.is_err() {
-        log::error!("Build ud error");
-    } else {
-        let qp = qp_res.unwrap().bring_up_ud();
-        if qp.is_err() {
-            log::error!("Bring up ud error. {:?}", qp.err());
-        } else {
-            log::info!("Pass test ud builder.");
-        }
-    }
+    let builder = DynamicConnectedTargetBuilder::new(&ctx);
+    let dct_target = builder.build_dynamic_connected_target(73).map_err(|e| {
+        log::error!("failed to create the DCT target with error {:?}", e);
+        TestError::Error("DCT target creation error")
+    })?;
+
+    log::info!(
+        "check dct key & num: [{} {}]",
+        dct_target.dc_key(),
+        dct_target.dct_num()
+    );
+
     Ok(())
 }
 
@@ -318,9 +317,9 @@ fn test_dct_query() -> Result<(), TestError> {
 }
 
 fn test_wrapper() -> Result<(), TestError> {
-    test_cq_construction()?;
+    test_srq_construction()?;
     test_dct_builder()?;
-    test_dct_query()?;
+    // test_dct_query()?;
     Ok(())
 }
 

@@ -117,6 +117,11 @@ impl SharedReceiveQueue {
             })
         };
     }    
+
+    pub fn raw_ptr(&self) -> &NonNull<ib_srq> {
+        &self.srq
+    }    
+
 }
 
 impl Drop for CompletionQueue {
