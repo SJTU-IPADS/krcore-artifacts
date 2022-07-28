@@ -8,7 +8,6 @@ use alloc::sync::Arc;
 
 use krdma_test::*;
 use rust_kernel_linux_util as log;
-use rust_kernel_linux_util::bindings::completion;
 use rust_kernel_linux_util::timer::RTimer;
 
 use KRdmaKit::comm_manager::*;
@@ -131,7 +130,9 @@ fn test_dct_query() -> Result<(), TestError> {
     let _server_cm = CMServer::new(server_service_id, &server, server_ctx.get_dev_ref()).unwrap();
 
     // create a target
-    let builder = DynamicConnectedTargetBuilder::new(&server_ctx);
+    let mut builder = DynamicConnectedTargetBuilder::new(&server_ctx);
+    builder.allow_remote_rw().allow_remote_atomic();
+
     let dct_target = Arc::new(builder.build_dynamic_connected_target(73).map_err(|e| {
         log::error!("failed to create the DCT target with error {:?}", e);
         TestError::Error("DCT target creation error")
@@ -145,7 +146,9 @@ fn test_dct_query() -> Result<(), TestError> {
     server.reg_qp(73, &dct_target);
 
     // create a QP
-    let dc_qp = DynamicConnectedTargetBuilder::new(&server_ctx)
+    let mut builder = DynamicConnectedTargetBuilder::new(&server_ctx);
+    builder.allow_remote_rw().allow_remote_atomic();
+    let dc_qp = builder
         .build_dc()
         .map_err(|e| {
             log::error!("failed to create DCQP with error {:?}", e);
@@ -189,25 +192,37 @@ fn test_dct_query() -> Result<(), TestError> {
         .map_err(|_| TestError::Error("Failed to create client MR."))?;
 
     let _ = dc_qp
-        .post_send_dc_read(&endpoint, &mr, 0..8, true, unsafe { mr.get_rdma_addr() + 16 }, mr.rkey().0)
-        .map_err(|_| TestError::Error("Failed to read remote mr"))?;
+        .post_send_dc_read(
+            &endpoint,
+            &mr,
+            0..8,
+            true,
+            unsafe { mr.get_rdma_addr() + 16 },
+            mr.rkey().0 + 16,
+        )
+        .map_err(|_| TestError::Error("Failed to post send"))?;
 
-    let mut completions = [Default::default(); 1];
+    let mut completions = [Default::default(); 3];
     let timer = RTimer::new();
     loop {
         let ret = dc_qp
             .poll_send_cq(&mut completions)
             .map_err(|_| TestError::Error("Failed to poll"))?;
+
         if ret.len() > 0 {
             break;
         }
-        if timer.passed_as_msec() > 15.0 {
+        if timer.passed_as_msec() > 40.0 {
             log::error!("time out while poll send cq");
             break;
         }
     }
-    
-    log::info!("sanity check the polled ib_wc {:?}", completions[0].status);
+
+    log::info!(
+        "sanity check the polled ib_wc {:?}, op_code : {:?}",
+        completions[0].status,
+        completions[0].opcode
+    );
 
     Ok(())
 }

@@ -1,3 +1,6 @@
+#[allow(unused_imports)]
+use crate::{log, linux_kernel_module};
+
 use crate::linux_kernel_module::Error;
 
 use alloc::{boxed::Box, sync::Arc};
@@ -502,11 +505,13 @@ impl QueuePair {
         if self.mode != QPType::DC {
             return Err(DatapathError::QPTypeError);
         }
+        
         let send_flag: i32 = if signaled {
             ib_send_flags::IB_SEND_SIGNALED
         } else {
             0
         };
+
         self.post_send_dc_inner(
             ib_wr_opcode::IB_WR_RDMA_WRITE,
             endpoint,
@@ -548,8 +553,8 @@ impl QueuePair {
         wr.wr.sg_list = &mut sge as *mut _;
         wr.remote_addr = raddr;
         wr.rkey = rkey;
-        wr.ah = endpoint.raw_address_handler_ptr().as_ptr();
 
+        wr.ah = endpoint.raw_address_handler_ptr().as_ptr();
         wr.dct_access_key = endpoint.dc_key();
         wr.dct_number = endpoint.dct_num();
 

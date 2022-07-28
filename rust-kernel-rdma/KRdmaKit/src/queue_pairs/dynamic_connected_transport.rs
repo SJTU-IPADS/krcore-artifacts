@@ -62,6 +62,7 @@ impl DynamicConnectedTarget {
         let lid = port_attr.lid as u16;
         Ok(crate::services::DatagramMeta { lid, gid })
     }
+    
 }
 
 impl DynamicConnectedTargetBuilder {

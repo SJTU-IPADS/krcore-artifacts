@@ -8,11 +8,13 @@ use rust_kernel_rdma_base::*;
 use crate::comm_manager::{CMCallbacker, CMError, CMReplyer, CMSender};
 use crate::context::{AddressHandler, ContextRef};
 use crate::linux_kernel_module::Error;
-use crate::services::DatagramMeta;
 use crate::{log, ControlpathError};
 
 #[cfg(feature = "dct")]
 use crate::services::dc::DynamicConnectedMeta;
+
+#[cfg(not(feature = "dct"))]
+use crate::services::DatagramMeta;
 
 /// The datagram endpoint
 /// that a client QP can use to communicate with a server.
@@ -256,6 +258,10 @@ impl CMCallbacker for DatagramQuerierInner {
                 rep_param.status
             );
         } else {
+           #[cfg(not(feature = "dct"))]
+            let reply = unsafe { *(rep_param.info as *mut DatagramMeta) };
+
+            #[cfg(feature = "dct")]
             let reply = unsafe { *(rep_param.info as *mut DynamicConnectedMeta) };
 
             #[cfg(feature = "dct")]
