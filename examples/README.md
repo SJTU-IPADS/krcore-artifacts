@@ -2,7 +2,7 @@
 
 ```shell
 cd krcore/examples # path to the examples
-./run_examples rc_kernel # or ud_kernel 
+./run_examples krdmakit_kernel_ud # or krdmakit_kernel_rc
 dmesg # see the kernel module output
 ```
 
@@ -100,7 +100,7 @@ loop {
     if ret.len() > 0 {
         break;
     }
-    if timer.passed_as_msec() > 15.0 {
+    if timer.passed_as_msec() > 100.0 {
         log::error!("poll client send cq time out");
         return Err(TestError::Error("poll client send cq time out"));
     }

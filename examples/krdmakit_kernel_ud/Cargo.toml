@@ -1,7 +1,7 @@
 [workspace]
 
 [package]
-name = "rc_kernel_tests"
+name = "krdmakit_kernel_ud_tests"
 version = "0.1.0"
 authors = ["wxd","Haotian Wang"]
 edition = "2018"
