@@ -8,35 +8,70 @@ use rust_kernel_rdma_base::*;
 use crate::comm_manager::{CMCallbacker, CMError, CMReplyer, CMSender};
 use crate::context::{AddressHandler, ContextRef};
 use crate::linux_kernel_module::Error;
-use crate::services::UnreliableDatagramMeta;
 use crate::{log, ControlpathError};
 
-/// The unreliable datagram endpoint
-/// that a client QP can use to communicate with a server
+#[cfg(feature = "dct")]
+use crate::services::dc::DynamicConnectedMeta;
+
+#[cfg(not(feature = "dct"))]
+use crate::services::DatagramMeta;
+
+/// The datagram endpoint
+/// that a client QP can use to communicate with a server.
+///
+/// If feature=dct is enabled, it further contains the dct_num and dc_key fields.
+///
+/// Note:
+/// - when dct is enabled, the qkey & qpn fields are meaningless if the remote end is UD.
+/// - when dct is enabled, the dct_num & dc_key fields are meaningless if the remote end is DCT.
+/// 
+/// Warn:
+/// - The behavior is **undefined** if you query a DCT endpoint, while remote is listening UD queries (and vice verse).
 ///
 /// For the meaning of these fields, check the documentations in builder.rs
 ///
-pub struct UnreliableDatagramEndpoint {
+pub struct DatagramEndpoint {
     address_handler: AddressHandler,
     qpn: u32,
     qkey: u32,
     lid: u32,
     gid: ib_gid,
+    #[cfg(feature = "dct")]
+    dct_num: u32,
+    #[cfg(feature = "dct")]
+    dc_key: u64,
 }
 
-impl Debug for UnreliableDatagramEndpoint {
+impl Debug for DatagramEndpoint {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        f.debug_struct("EndPoint")
-            .field("qpn", &self.qpn)
-            .field("qkey", &self.qkey)
-            .field("lid", &self.lid)
-            .field("gid", &self.gid)
-            .field("address handler", &self.address_handler)
-            .finish()
+        #[cfg(not(feature = "dct"))]
+        {
+            f.debug_struct("EndPoint")
+                .field("qpn", &self.qpn)
+                .field("qkey", &self.qkey)
+                .field("lid", &self.lid)
+                .field("gid", &self.gid)
+                .field("address handler", &self.address_handler)
+                .finish()
+        }
+
+        // FIXME: should refine later
+        #[cfg(feature = "dct")]
+        {
+            f.debug_struct("EndPoint")
+                .field("qpn", &self.qpn)
+                .field("qkey", &self.qkey)
+                .field("lid", &self.lid)
+                .field("gid", &self.gid)
+                .field("address handler", &self.address_handler)
+                .field("dct_num", &self.dct_num)
+                .field("dc_key", &self.dc_key)
+                .finish()
+        }
     }
 }
 
-impl UnreliableDatagramEndpoint {
+impl DatagramEndpoint {
     pub fn new(
         ctx: &ContextRef,
         local_port_num: u8,
@@ -44,61 +79,96 @@ impl UnreliableDatagramEndpoint {
         gid: ib_gid,
         qpn: u32,
         qkey: u32,
+
+        #[cfg(feature = "dct")] dct_num: u32,
+        #[cfg(feature = "dct")] dc_key: u64,
     ) -> Result<Self, ControlpathError> {
         let ah = ctx.create_address_handler(local_port_num, lid, gid)?;
+
+        #[cfg(not(feature = "dct"))]
+        return Ok(Self {
+            address_handler: ah,
+            qpn,
+            qkey,
+            lid,
+            gid,
+        });
+
+        #[cfg(feature = "dct")]
         Ok(Self {
             address_handler: ah,
             qpn,
             qkey,
             lid,
             gid,
+            dct_num,
+            dc_key,
         })
     }
 
+    #[inline]
     pub fn raw_address_handler_ptr(&self) -> &NonNull<ib_ah> {
         self.address_handler.raw_ptr()
     }
 
+    #[inline]
     pub fn address_handler(&self) -> &AddressHandler {
         &self.address_handler
     }
 
+    #[inline]
     pub fn qpn(&self) -> u32 {
         self.qpn
     }
 
+    #[inline]
     pub fn qkey(&self) -> u32 {
         self.qkey
     }
 
+    #[inline]
     pub fn lid(&self) -> u32 {
         self.lid
     }
 
+    #[inline]
     pub fn gid(&self) -> ib_gid {
         self.gid
     }
+
+    #[cfg(feature = "dct")]    
+    #[inline]
+    pub fn dc_key(&self) -> u64 { 
+        self.dc_key
+    }
+
+    #[cfg(feature = "dct")]    
+    #[inline]
+    pub fn dct_num(&self) -> u32 { 
+        self.dct_num
+    }    
 }
 
 /// This querier serves you a quick way to get the endpoint information from
-/// the server side (defined in `UnreliableDatagramServer`).
-pub struct UnreliableDatagramEndpointQuerier {
-    sender: CMSender<UnreliableDatagramQuerierInner>,
-    inner: Arc<UnreliableDatagramQuerierInner>,
+/// the server side (see `services/mod.rs`).
+pub struct DatagramEndpointQuerier {
+    sender: CMSender<DatagramQuerierInner>,
+    inner: Arc<DatagramQuerierInner>,
 }
 
-impl UnreliableDatagramEndpointQuerier {
-    /// Create an UnreliableDatagramEndpointQuerier.
+impl DatagramEndpointQuerier {
+    /// Create an DatagramEndpointQuerier.
     ///
     /// The `port_num` should be consistent with local queue pair's port_num you are going to build
     pub fn create(ctx: &ContextRef, local_port_num: u8) -> Result<Self, ControlpathError> {
-        let mut querier_inner = UnreliableDatagramQuerierInner::create(ctx, local_port_num);
+        let mut querier_inner = DatagramQuerierInner::create(ctx, local_port_num);
         let sender = CMSender::new(&querier_inner, ctx.get_dev_ref()).map_err(|err| match err {
             CMError::Creation(i) => {
                 ControlpathError::CreationError("UD Querier", Error::from_kernel_errno(i))
             }
             _ => ControlpathError::CreationError("UD Querier unknown error", Error::EAGAIN),
         })?;
+
         let querier_inner_ref = unsafe { Arc::get_mut_unchecked(&mut querier_inner) };
         querier_inner_ref.completion.init();
         Ok(Self {
@@ -118,7 +188,7 @@ impl UnreliableDatagramEndpointQuerier {
         remote_service_id: u64,
         qd_hint: usize,
         path: sa_path_rec,
-    ) -> Result<UnreliableDatagramEndpoint, ControlpathError> {
+    ) -> Result<DatagramEndpoint, ControlpathError> {
         let mut querier_inner = self.inner;
         let querier_inner_ref = unsafe { Arc::get_mut_unchecked(&mut querier_inner) };
         let req = ib_cm_sidr_req_param {
@@ -137,10 +207,11 @@ impl UnreliableDatagramEndpointQuerier {
                 }
                 _ => ControlpathError::QueryError("", Error::EAGAIN),
             })?;
+
         querier_inner_ref
             .completion
             .wait(1000)
-            .map_err(|err: Error| ControlpathError::QueryError("Unreliable Datagram", err))?;
+            .map_err(|err: Error| ControlpathError::QueryError("Datagram Endpoint", err))?;
         querier_inner_ref
             .take_endpoint()
             .ok_or(ControlpathError::QueryError(
@@ -151,16 +222,16 @@ impl UnreliableDatagramEndpointQuerier {
 }
 
 /// Wrap it in CMSender which already implements callback function to establish UD sidr connection
-pub struct UnreliableDatagramQuerierInner {
+pub struct DatagramQuerierInner {
     completion: completion,
     ctx: ContextRef,
-    endpoint: Option<UnreliableDatagramEndpoint>,
+    endpoint: Option<DatagramEndpoint>,
     port_num: u8,
 }
 
-impl UnreliableDatagramQuerierInner {
-    fn create(ctx: &ContextRef, port_num: u8) -> Arc<UnreliableDatagramQuerierInner> {
-        let mut querier_inner = Arc::new(UnreliableDatagramQuerierInner {
+impl DatagramQuerierInner {
+    fn create(ctx: &ContextRef, port_num: u8) -> Arc<DatagramQuerierInner> {
+        let mut querier_inner = Arc::new(DatagramQuerierInner {
             completion: Default::default(),
             ctx: ctx.clone(),
             endpoint: None,
@@ -171,12 +242,12 @@ impl UnreliableDatagramQuerierInner {
         querier_inner
     }
 
-    fn take_endpoint(&mut self) -> Option<UnreliableDatagramEndpoint> {
+    fn take_endpoint(&mut self) -> Option<DatagramEndpoint> {
         self.endpoint.take()
     }
 }
 
-impl CMCallbacker for UnreliableDatagramQuerierInner {
+impl CMCallbacker for DatagramQuerierInner {
     /// Called on receiving SIDR_REP from server side
     fn handle_sidr_rep(
         self: &mut Self,
@@ -190,16 +261,39 @@ impl CMCallbacker for UnreliableDatagramQuerierInner {
                 rep_param.status
             );
         } else {
-            let reply = unsafe { *(rep_param.info as *mut UnreliableDatagramMeta) };
-            self.endpoint = UnreliableDatagramEndpoint::new(
-                &self.ctx,
-                self.port_num,
-                reply.lid as u32,
-                reply.gid,
-                rep_param.qpn,
-                rep_param.qkey,
-            )
-            .ok();
+           #[cfg(not(feature = "dct"))]
+            let reply = unsafe { *(rep_param.info as *mut DatagramMeta) };
+
+            #[cfg(feature = "dct")]
+            let reply = unsafe { *(rep_param.info as *mut DynamicConnectedMeta) };
+
+            #[cfg(feature = "dct")]
+            {
+                self.endpoint = DatagramEndpoint::new(
+                    &self.ctx,
+                    self.port_num,
+                    reply.datagram_addr.lid as u32,
+                    reply.datagram_addr.gid,
+                    rep_param.qpn,
+                    rep_param.qkey,
+                    reply.dct_num,
+                    reply.dc_key,
+                )
+                .ok();
+            }
+
+            #[cfg(not(feature = "dct"))]
+            {
+                self.endpoint = DatagramEndpoint::new(
+                    &self.ctx,
+                    self.port_num,
+                    reply.lid as u32,
+                    reply.gid,
+                    rep_param.qpn,
+                    rep_param.qkey,
+                )
+                .ok();
+            }
         }
         self.completion.done();
         Ok(())

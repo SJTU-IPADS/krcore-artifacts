@@ -10,33 +10,34 @@ use crate::context::Context;
 use crate::linux_kernel_module::*;
 use crate::queue_pairs::rc_comm::RCCommStruct;
 use crate::queue_pairs::{QPType, QueuePair, QueuePairStatus};
-use crate::{MAX_RD_ATOMIC, rust_kernel_linux_util as log};
 use crate::services::rc::RCConnectionData;
+use crate::{rust_kernel_linux_util as log, MAX_RD_ATOMIC};
 use crate::{CompletionQueue, ControlpathError};
 
 /// Builder for different kind of queue pairs (RCQP, UDQP ,etc.).
+/// Store the necessary configuration parameters required
 ///
 /// Set necessary fields and build the corresponding queue pairs.
 pub struct QueuePairBuilder {
-    ctx: Arc<Context>,
-    max_send_wr: u32,
-    max_recv_wr: u32,
-    max_cq_entries: u32,
-    max_send_sge: u32,
-    max_recv_sge: u32,
-    max_inline_data: u32,
+    pub(super) ctx: Arc<Context>,
+    pub(super) max_send_wr: u32,
+    pub(super) max_recv_wr: u32,
+    pub(super) max_cq_entries: u32,
+    pub(super) max_send_sge: u32,
+    pub(super) max_recv_sge: u32,
+    pub(super) max_inline_data: u32,
 
     // carried along to handshake phase
-    access: ib_access_flags::Type,
-    path_mtu: ib_mtu::Type,
-    timeout: u8,
-    retry_count: u8,
-    rnr_retry: u8,
-    min_rnr_timer: u8,
-    max_rd_atomic: u8,
-    pkey_index: u16,
-    port_num: u8,
-    qkey: u32,
+    pub(super) access: ib_access_flags::Type,
+    pub(super) path_mtu: ib_mtu::Type,
+    pub(super) timeout: u8,
+    pub(super) retry_count: u8,
+    pub(super) rnr_retry: u8,
+    pub(super) min_rnr_timer: u8,
+    pub(super) max_rd_atomic: u8,
+    pub(super) pkey_index: u16,
+    pub(super) port_num: u8,
+    pub(super) qkey: u32,
 }
 
 impl QueuePairBuilder {
@@ -49,8 +50,8 @@ impl QueuePairBuilder {
         let _ = random::getrandom(&mut qkey);
         Self {
             ctx: ctx.clone(),
-            max_send_wr: 2048,
-            max_recv_wr: 4096,
+            max_send_wr: 128,
+            max_recv_wr: 2048,
             max_cq_entries: 2048,
             max_send_sge: 16,
             max_recv_sge: 1,
@@ -58,8 +59,8 @@ impl QueuePairBuilder {
             access: ib_access_flags::IB_ACCESS_LOCAL_WRITE,
             path_mtu: ib_mtu::IB_MTU_512,
             timeout: 4,
-            retry_count: 6,
-            rnr_retry: 6,
+            retry_count: 5,
+            rnr_retry: 5,
             min_rnr_timer: 16,
             max_rd_atomic: MAX_RD_ATOMIC as u8,
             pkey_index: 0,
@@ -173,7 +174,7 @@ impl QueuePairBuilder {
     pub fn set_path_mtu(&mut self, path_mtu: ib_mtu::Type) -> &mut Self {
         self.path_mtu = path_mtu;
         self
-    }    
+    }
 
     /// Set the minimum RNR NAK Timer Field Value for the new `QueuePair`.
     ///
@@ -247,7 +248,7 @@ impl QueuePairBuilder {
                 &mut qp_attr as *mut ib_qp_init_attr,
             )
         };
-        self.build_inner(ib_qp, send, recv, QPType::UD)
+        self.build_inner(ib_qp, send, recv, QPType::UD, None)
     }
 
     pub fn build_rc(self) -> Result<PreparedQueuePair, ControlpathError> {
@@ -276,15 +277,16 @@ impl QueuePairBuilder {
                 &mut qp_attr as *mut ib_qp_init_attr,
             )
         };
-        self.build_inner(ib_qp, send, recv, QPType::RC)
+        self.build_inner(ib_qp, send, recv, QPType::RC, None)
     }
 
-    fn build_inner(
+    pub(super) fn build_inner(
         self,
         qp_ptr: *mut ib_qp,
         send: Box<CompletionQueue>,
         recv: Arc<CompletionQueue>,
         qp_type: QPType,
+        srq: Option<Box<crate::SharedReceiveQueue>>,
     ) -> Result<PreparedQueuePair, ControlpathError> {
         Ok(PreparedQueuePair {
             inner: QueuePair {
@@ -294,7 +296,9 @@ impl QueuePairBuilder {
                 rc_comm: None,
                 send_cq: send,
                 recv_cq: recv,
+                srq: srq,
                 mode: qp_type,
+
                 // the following is just borrowed from the builder
                 // as the QP may require them during connections
                 port_num: self.port_num,
@@ -472,10 +476,9 @@ impl PreparedQueuePair {
         let mut rc_qp = Arc::new(self.inner);
 
         // 1. create the CM for handling the communication
-        let rc_comm = RCCommStruct::new(rc_qp._ctx.get_dev_ref(), &rc_qp)
-            .map_err(|_| {
-                ControlpathError::CreationError("ib_cm_id", Error::from_kernel_errno(0))
-            })?;
+        let rc_comm = RCCommStruct::new(rc_qp._ctx.get_dev_ref(), &rc_qp).map_err(|_| {
+            ControlpathError::CreationError("ib_cm_id", Error::from_kernel_errno(0))
+        })?;
 
         let rc_qp_ref = unsafe { Arc::get_mut_unchecked(&mut rc_qp) };
         rc_qp_ref.rc_comm = Some(rc_comm);
@@ -526,5 +529,114 @@ impl PreparedQueuePair {
                 Error::from_kernel_errno(0),
             ))
         }
+    }
+
+    #[cfg(feature = "dct")]
+    /// Bring up DC by modifying attributes of a queue pair. The returned
+    /// queue pair is able to be used for communication.
+    ///
+    /// Attributes modified in RESET -> INIT:
+    /// - qp_state : set to `ib_qp_state::IB_QPS_INIT`
+    /// - pkey_index : set to the value in the builder's corresponding field
+    /// - port_num : set to the value in the builder's corresponding field
+    /// - qkey : set to the value in the builder's corresponding field
+    ///
+    /// Attributes modified in INIT -> RTR
+    /// - qp_state : set to `ib_qp_state::IB_QPS_RTR`
+    ///
+    /// Attributes modified in RTR -> RTS:
+    /// - qp_state : set to `ib_qp_state::IB_QPS_RTS`
+    /// - sq_psn : set to inner `ib_qp`'s current qp_num
+    ///
+    pub fn bring_up_dc(self) -> Result<Arc<QueuePair>, ControlpathError> {
+        if self.inner.mode != QPType::DC {
+            return Err(ControlpathError::CreationError(
+                "bring up type check error!",
+                Error::from_kernel_errno(0),
+            ));
+        }
+
+        let qp_status = self.inner.status()?;
+        if qp_status == QueuePairStatus::Reset {
+            let mut attr = ib_qp_attr {
+                qp_state: ib_qp_state::IB_QPS_INIT,
+                pkey_index: self.pkey_index,
+                port_num: self.port_num,
+                ..Default::default()
+            };
+
+            let mask = ib_qp_attr_mask::IB_QP_STATE
+                | ib_qp_attr_mask::IB_QP_PKEY_INDEX
+                | ib_qp_attr_mask::IB_QP_PORT
+                | ib_qp_attr_mask::IB_QP_DC_KEY;
+
+            let ret =
+                unsafe { ib_modify_qp(self.inner.inner_qp.as_ptr(), &mut attr as *mut _, mask) };
+            if ret != 0 {
+                log::error!("bring DC INIT error!");
+                return Err(ControlpathError::CreationError(
+                    "bring DC INIT error",
+                    Error::from_kernel_errno(ret),
+                ));
+            }
+        }
+
+        let qp_status = self.inner.status()?;
+        if qp_status == QueuePairStatus::Init {
+            // RTR
+            let mut qp_attr: ib_qp_attr = Default::default();
+            let mut mask: linux_kernel_module::c_types::c_int = ib_qp_attr_mask::IB_QP_STATE;
+
+            qp_attr.qp_state = ib_qp_state::IB_QPS_RTR;
+
+            qp_attr.path_mtu = self.inner.path_mtu();
+            mask = mask | ib_qp_attr_mask::IB_QP_PATH_MTU;
+
+            qp_attr.ah_attr.port_num = self.port_num;
+
+            qp_attr.ah_attr.sl = 0;
+            qp_attr.ah_attr.ah_flags = 0;
+            mask = mask | ib_qp_attr_mask::IB_QP_AV;
+
+            let ret =
+                unsafe { ib_modify_qp(self.inner.inner_qp.as_ptr(), &mut qp_attr as *mut _, mask) };
+            if ret != 0 {
+                log::error!("bring DC RTR error!");
+                return Err(ControlpathError::CreationError(
+                    "bring DC RTR error",
+                    Error::from_kernel_errno(ret),
+                ));
+            }
+        }
+
+        let qp_status = self.inner.status()?;
+        if qp_status == QueuePairStatus::ReadyToRecv {
+            // RTS
+            let mut attr = ib_qp_attr {
+                qp_state: ib_qp_state::IB_QPS_RTS,
+                timeout: self.inner.timeout(),
+                retry_cnt: self.retry_count,
+                rnr_retry: self.rnr_retry,
+                max_rd_atomic: self.inner.max_rd_atomic(),
+                ..Default::default()
+            };
+
+            let mask = ib_qp_attr_mask::IB_QP_STATE
+                | ib_qp_attr_mask::IB_QP_TIMEOUT
+                | ib_qp_attr_mask::IB_QP_RETRY_CNT
+                | ib_qp_attr_mask::IB_QP_RNR_RETRY
+                | ib_qp_attr_mask::IB_QP_MAX_QP_RD_ATOMIC;
+
+            let ret =
+                unsafe { ib_modify_qp(self.inner.inner_qp.as_ptr(), &mut attr as *mut _, mask) };
+            if ret != 0 {
+                log::error!("bring DC RTS error!");
+                return Err(ControlpathError::CreationError(
+                    "bring DC RTS error",
+                    Error::from_kernel_errno(ret),
+                ));
+            }
+        }
+        Ok(Arc::new(self.inner))
     }
 }

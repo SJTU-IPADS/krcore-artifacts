@@ -1,9 +1,8 @@
 [package]
 name = "KRdmaKit"
 version = "0.1.0"
-authors = ["xmm <wxdwfc@gmail.com>"]
+authors = ["Xingda Wei <wxdwfc@gmail.com>", "Fangming Lu", "Haotian Wang"]
 edition = "2018"
-
 
 [dependencies]
 rust-kernel-rdma-base = { path = "../rust-kernel-rdma-base" }
@@ -17,7 +16,6 @@ thiserror-no-std = "2.0.2"
 delegate = "*"
 
 [features]
-#default = ["profile"]
 dct = ["rust-kernel-rdma-base/dct"]
 profile = []
 

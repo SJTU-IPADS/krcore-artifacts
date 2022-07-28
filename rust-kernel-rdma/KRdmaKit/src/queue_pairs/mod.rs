@@ -1,3 +1,6 @@
+#[allow(unused_imports)]
+use crate::{log, linux_kernel_module};
+
 use crate::linux_kernel_module::Error;
 
 use alloc::{boxed::Box, sync::Arc};
@@ -9,12 +12,13 @@ use rust_kernel_rdma_base::bindings::*;
 use rust_kernel_rdma_base::ib_destroy_qp;
 
 use crate::memory_region::MemoryRegion;
-use crate::queue_pairs::endpoint::UnreliableDatagramEndpoint;
-use crate::{context::Context, CompletionQueue, DatapathError};
+use crate::queue_pairs::endpoint::DatagramEndpoint;
+use crate::{context::Context, CompletionQueue, DatapathError, SharedReceiveQueue};
+use crate::comm_manager::CMError;
 
 /// UD queue pair builder to simplify UD creation
 pub mod builder;
-pub use builder::QueuePairBuilder;
+pub use builder::{PreparedQueuePair, QueuePairBuilder};
 
 mod callbacks;
 /// UD endpoint and queriers
@@ -23,6 +27,13 @@ pub mod endpoint;
 /// Abstract the communication manager related data structures
 /// related to reliable QP connections
 mod rc_comm;
+
+/// All the DCT related implementatations are encauplasted in this module
+#[cfg(feature = "dct")]
+pub mod dynamic_connected_transport;
+
+#[cfg(feature = "dct")]
+pub use dynamic_connected_transport::DynamicConnectedTarget;
 
 #[allow(dead_code)]
 #[derive(PartialEq)]
@@ -35,7 +46,7 @@ enum QPType {
 
 #[derive(Debug, PartialEq)]
 #[repr(u32)]
-enum QueuePairStatus {
+pub enum QueuePairStatus {
     Reset = ib_qp_state::IB_QPS_RESET,
     Init = ib_qp_state::IB_QPS_INIT,
     ReadyToSend = ib_qp_state::IB_QPS_RTS,
@@ -62,6 +73,9 @@ pub struct QueuePair {
     /// so it is an Arc
     recv_cq: Arc<CompletionQueue>,
 
+    #[allow(dead_code)]
+    srq: Option<Box<SharedReceiveQueue>>,
+
     mode: QPType,
 
     /// sidr request handler need this field
@@ -79,7 +93,7 @@ pub struct QueuePair {
 
 impl QueuePair {
     /// query the current status of the QP
-    fn status(&self) -> Result<QueuePairStatus, crate::ControlpathError> {
+    pub fn status(&self) -> Result<QueuePairStatus, crate::ControlpathError> {
         let mut attr: ib_qp_attr = Default::default();
         let mut init_attr: ib_qp_init_attr = Default::default();
         let ret = unsafe {
@@ -107,6 +121,10 @@ impl QueuePair {
         }
     }
 
+    pub fn path_mtu(&self) -> ib_mtu::Type {
+        self.path_mtu
+    }
+
     #[inline]
     pub fn qp_num(&self) -> u32 {
         unsafe { self.inner_qp.as_ref().qp_num }
@@ -123,8 +141,42 @@ impl QueuePair {
     }
 
     #[inline]
+    pub fn timeout(&self) -> u8 {
+        self.timeout
+    }
+
+    #[inline]
+    pub fn max_rd_atomic(&self) -> u8 {
+        self.max_rd_atomic
+    }
+
+    #[inline]
     pub fn ctx(&self) -> &Arc<Context> {
         &self._ctx
+    }
+
+    /// get the datagram related data, namely:
+    /// - gid
+    /// - lid
+    ///
+    /// We mainly query them from the context
+    ///
+    pub fn get_datagram_meta(
+        &self,
+    ) -> Result<crate::services::DatagramMeta, CMError> {
+        let port_attr = self
+            .ctx()
+            .get_dev_ref()
+            .get_port_attr(self.port_num)
+            .map_err(|err| CMError::Creation(err.to_kernel_errno()))?;
+        let gid = self
+            .ctx()
+            .get_dev_ref()
+            .query_gid(self.port_num)
+            .map_err(|err| CMError::Creation(err.to_kernel_errno()))?;
+
+        let lid = port_attr.lid as u16;
+        Ok(crate::services::DatagramMeta { lid, gid })
     }
 
     /// Post a work request to the receive queue of the queue pair, add it to the tail of the
@@ -212,7 +264,7 @@ impl QueuePair {
     /// [RDMAmojo](https://www.rdmamojo.com/2013/01/26/ibv_post_send/) for help.
     pub fn post_datagram(
         &self,
-        endpoint: &UnreliableDatagramEndpoint,
+        endpoint: &DatagramEndpoint,
         mr: &MemoryRegion,
         range: Range<u64>,
         wr_id: u64,
@@ -261,7 +313,6 @@ impl QueuePair {
 
 /// Reliable Connection
 impl QueuePair {
-    
     #[inline]
     pub fn post_send_send(
         &self,
@@ -404,4 +455,121 @@ impl QueuePair {
             Ok(())
         }
     }
+}
+
+#[cfg(feature = "dct")]
+impl QueuePair {     
+    /// Really similar to RCQP
+    /// except that we need to additinal pass an endpoint argument 
+    #[inline]    
+    pub fn post_send_dc_read(
+        &self,
+        endpoint: &DatagramEndpoint,
+        mr: &MemoryRegion,
+        range: Range<u64>,
+        signaled: bool,
+        raddr: u64,
+        rkey: u32,
+    ) -> Result<(), DatapathError> {
+        if self.mode != QPType::DC {
+            return Err(DatapathError::QPTypeError);
+        }
+        let send_flag: i32 = if signaled {
+            ib_send_flags::IB_SEND_SIGNALED
+        } else {
+            0
+        };
+        self.post_send_dc_inner(
+            ib_wr_opcode::IB_WR_RDMA_READ,
+            endpoint,
+            unsafe { mr.get_rdma_addr() } + range.start,
+            raddr,
+            mr.lkey().0,
+            rkey,
+            range.size() as u32,
+            0,
+            send_flag,
+        )
+    }    
+
+    #[inline]
+    pub fn post_send_dc_write(
+        &self,
+        endpoint: &DatagramEndpoint,
+        mr: &MemoryRegion,
+        range: Range<u64>,
+        signaled: bool,
+        raddr: u64,
+        rkey: u32,
+    ) -> Result<(), DatapathError> {
+        if self.mode != QPType::DC {
+            return Err(DatapathError::QPTypeError);
+        }
+        
+        let send_flag: i32 = if signaled {
+            ib_send_flags::IB_SEND_SIGNALED
+        } else {
+            0
+        };
+
+        self.post_send_dc_inner(
+            ib_wr_opcode::IB_WR_RDMA_WRITE,
+            endpoint,
+            unsafe { mr.get_rdma_addr() } + range.start,
+            raddr,
+            mr.lkey().0,
+            rkey,
+            range.size() as u32,
+            0,
+            send_flag,
+        )
+    }
+    
+    #[inline]
+    fn post_send_dc_inner(
+        &self,
+        op: u32,
+        endpoint: &DatagramEndpoint,
+        laddr: u64, // physical addr
+        raddr: u64, // physical addr
+        lkey: u32,
+        rkey: u32,
+        size: u32,      // size in bytes
+        imm_data: u32,  // immediate data
+        send_flag: i32, // send flags, see `ib_send_flags`
+    ) -> Result<(), DatapathError> {
+
+        let mut sge = ib_sge {
+            addr: laddr,
+            length: size,
+            lkey,
+        };
+
+        let mut wr: ib_dc_wr = Default::default();
+        wr.wr.opcode = op;
+        wr.wr.send_flags = send_flag;
+        wr.wr.ex.imm_data = imm_data;
+        wr.wr.num_sge = 1;
+        wr.wr.sg_list = &mut sge as *mut _;
+        wr.remote_addr = raddr;
+        wr.rkey = rkey;
+
+        wr.ah = endpoint.raw_address_handler_ptr().as_ptr();
+        wr.dct_access_key = endpoint.dc_key();
+        wr.dct_number = endpoint.dct_num();
+
+        let mut bad_wr: *mut ib_send_wr = null_mut();
+        let err = unsafe {
+            bd_ib_post_send(
+                self.inner_qp.as_ptr(),
+                &mut wr.wr as *mut _,
+                &mut bad_wr as *mut _,
+            )
+        };
+        if err != 0 {
+            Err(DatapathError::PostSendError(Error::from_kernel_errno(err)))
+        } else {
+            Ok(())
+        }
+    }    
 }

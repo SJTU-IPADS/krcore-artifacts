@@ -62,6 +62,7 @@ fn client() -> Result<(), TestError> {
         .allow_remote_rw()
         .allow_remote_atomic()
         .set_port_num(client_port);
+        
     let client_qp = builder.build_rc().map_err(|_| {
         log::error!("Failed to build RC QP.");
         TestError::Error

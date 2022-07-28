@@ -12,6 +12,13 @@ pub struct CompletionQueue {
     cq: NonNull<ib_cq>,
 }
 
+/// An abstraction shared receive queue (SRQ)
+#[derive(Debug)]
+pub struct SharedReceiveQueue {
+    _ctx: Arc<Context>,
+    srq: NonNull<ib_srq>,
+}
+
 impl CompletionQueue {
     /// Currently, we don't need complex CQ handler as the callback
     /// Thus, we simplify the creation process.
@@ -80,10 +87,55 @@ impl CompletionQueue {
     }
 }
 
+impl SharedReceiveQueue { 
+    /// `max_cq_entries` is the maximum size of the completion queue
+    ///
+    /// # Errors:
+    /// - `CreationError` : This error meaning there is something wrong
+    /// when creating completion queue with the given context and arguments.
+    /// Check them carefully if they are valid and legal.
+    ///
+    pub fn create(context: &ContextRef, max_wr: u32, max_sge : u32) -> Result<Self, ControlpathError> {
+
+        let mut srq_attr : ib_srq_init_attr = Default::default();
+        srq_attr.attr.max_wr = max_wr;
+        srq_attr.attr.max_sge = max_sge;
+
+        let raw_ptr: *mut ib_srq = unsafe {
+            ib_create_srq(
+                context.get_pd().as_ptr(),
+                &mut srq_attr as _,
+            )
+        };
+
+        return if raw_ptr.is_null() {
+            Err(CreationError("SRQ", linux_kernel_module::Error::EINVAL))
+        } else {
+            Ok(Self {
+                _ctx: context.clone(),
+                srq: unsafe { NonNull::new_unchecked(raw_ptr) },
+            })
+        };
+    }    
+
+    pub fn raw_ptr(&self) -> &NonNull<ib_srq> {
+        &self.srq
+    }    
+
+}
+
 impl Drop for CompletionQueue {
     fn drop(&mut self) {
         unsafe {
             ib_free_cq(self.cq.as_ptr());
+        }
+    }
+}
+
+impl Drop for SharedReceiveQueue {
+    fn drop(&mut self) {
+        unsafe {
+            ib_destroy_srq(self.srq.as_ptr());
         }
     }
 }
