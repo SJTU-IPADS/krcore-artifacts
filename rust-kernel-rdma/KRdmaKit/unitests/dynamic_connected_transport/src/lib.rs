@@ -191,6 +191,15 @@ fn test_dct_query() -> Result<(), TestError> {
     let mr = MemoryRegion::new(server_ctx.clone(), 256)
         .map_err(|_| TestError::Error("Failed to create client MR."))?;
 
+    let ptr_test_slot = mr.get_virt_addr() as *mut u64;
+    let ptr_test_slot_1 = (mr.get_virt_addr() + 16) as *mut u64;
+    unsafe { *ptr_test_slot_1 = 73 };
+    log::info!(
+        "pre check ptr test slots: {} {}",
+        unsafe { *ptr_test_slot },
+        unsafe { *ptr_test_slot_1 }
+    );
+
     let _ = dc_qp
         .post_send_dc_read(
             &endpoint,
@@ -198,7 +207,7 @@ fn test_dct_query() -> Result<(), TestError> {
             0..8,
             true,
             unsafe { mr.get_rdma_addr() + 16 },
-            mr.rkey().0 + 16,
+            mr.rkey().0,
         )
         .map_err(|_| TestError::Error("Failed to post send"))?;
 
@@ -223,6 +232,16 @@ fn test_dct_query() -> Result<(), TestError> {
         completions[0].status,
         completions[0].opcode
     );
+
+    log::info!(
+        "post check ptr test slots: {} {}",
+        unsafe { *ptr_test_slot },
+        unsafe { *ptr_test_slot_1 }
+    );
+
+    if *ptr_test_slot != *ptr_test_slot_1 {
+        return TestError("DC value read check not passed");
+    }
 
     Ok(())
 }
