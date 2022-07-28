@@ -14,7 +14,6 @@ use KRdmaKit::comm_manager::*;
 use KRdmaKit::completion_queue::SharedReceiveQueue;
 use KRdmaKit::memory_region::MemoryRegion;
 
-use KRdmaKit::queue_pairs::builder::QueuePairBuilder;
 use KRdmaKit::queue_pairs::dynamic_connected_transport::DynamicConnectedTargetBuilder;
 use KRdmaKit::queue_pairs::endpoint::DatagramEndpointQuerier;
 
@@ -221,7 +220,7 @@ fn test_dct_query() -> Result<(), TestError> {
         if ret.len() > 0 {
             break;
         }
-        if timer.passed_as_msec() > 40.0 {
+        if timer.passed_as_msec() > 100.0 {
             log::error!("time out while poll send cq");
             break;
         }
@@ -239,8 +238,8 @@ fn test_dct_query() -> Result<(), TestError> {
         unsafe { *ptr_test_slot_1 }
     );
 
-    if *ptr_test_slot != *ptr_test_slot_1 {
-        return TestError("DC value read check not passed");
+    if unsafe { *ptr_test_slot != *ptr_test_slot_1 } {
+        return Err(TestError::Error("DC value read check not passed"));
     }
 
     Ok(())
