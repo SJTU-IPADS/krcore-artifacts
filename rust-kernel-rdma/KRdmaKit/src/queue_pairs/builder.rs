@@ -147,6 +147,40 @@ impl QueuePairBuilder {
     /// retransmitting the packet.
     ///
     /// Default value is 4 (65.536µs).
+    ///
+    /// - 0 - infinite
+    /// - 1 - 8.192 usec (0.000008 sec)
+    /// - 2 - 16.384 usec (0.000016 sec)
+    /// - 3 - 32.768 usec (0.000032 sec)
+    /// - 4 - 65.536 usec (0.000065 sec)
+    /// - 5 - 131.072 usec (0.000131 sec)
+    /// - 6 - 262.144 usec (0.000262 sec)
+    /// - 7 - 524.288 usec (0.000524 sec)
+    /// - 8 - 1048.576 usec (0.00104 sec)
+    /// - 9 - 2097.152 usec (0.00209 sec)
+    /// - 10 - 4194.304 usec (0.00419 sec)
+    /// - 11 - 8388.608 usec (0.00838 sec)
+    /// - 12 - 16777.22 usec (0.01677 sec)
+    /// - 13 - 33554.43 usec (0.0335 sec)
+    /// - 14 - 67108.86 usec (0.0671 sec)
+    /// - 15 - 134217.7 usec (0.134 sec)
+    /// - 16 - 268435.5 usec (0.268 sec)
+    /// - 17 - 536870.9 usec (0.536 sec)
+    /// - 18 - 1073742 usec (1.07 sec)
+    /// - 19 - 2147484 usec (2.14 sec)
+    /// - 20 - 4294967 usec (4.29 sec)
+    /// - 21 - 8589935 usec (8.58 sec)
+    /// - 22 - 17179869 usec (17.1 sec)
+    /// - 23 - 34359738 usec (34.3 sec)
+    /// - 24 - 68719477 usec (68.7 sec)
+    /// - 25 - 137000000 usec (137 sec)
+    /// - 26 - 275000000 usec (275 sec)
+    /// - 27 - 550000000 usec (550 sec)
+    /// - 28 - 1100000000 usec (1100 sec)
+    /// - 29 - 2200000000 usec (2200 sec)
+    /// - 30 - 4400000000 usec (4400 sec)
+    /// - 31 - 8800000000 usec (8800 sec)
+    ///
     /// Relevant only to RC QPs.
     pub fn set_timeout(&mut self, timeout: u8) -> &mut Self {
         self.timeout = timeout;
@@ -171,6 +205,17 @@ impl QueuePairBuilder {
         self
     }
 
+    /// Set the maximum payload size of a packet that can be transferred in the path.
+    ///
+    /// It can be one of the following enumerated values:
+    /// - IBV_MTU_256 - 256 bytes
+    /// - IBV_MTU_512 - 512 bytes
+    /// - IBV_MTU_1024 - 1024 bytes
+    /// - IBV_MTU_2048 - 2048 bytes
+    /// - IBV_MTU_4096 - 4096 bytes
+    ///
+    /// For UC and RC QPs, when needed, the RDMA device will automatically
+    /// fragment the messages to packet of this size.
     pub fn set_path_mtu(&mut self, path_mtu: ib_mtu::Type) -> &mut Self {
         self.path_mtu = path_mtu;
         self
@@ -178,7 +223,41 @@ impl QueuePairBuilder {
 
     /// Set the minimum RNR NAK Timer Field Value for the new `QueuePair`.
     ///
-    /// Default value is 16 (2.56 ms delay).
+    /// Default value is 16
+    ///
+    /// - 0 - 655.36 milliseconds delay
+    /// - 1 - 0.01 milliseconds delay
+    /// - 2 - 0.02 milliseconds delay
+    /// - 3 - 0.03 milliseconds delay
+    /// - 4 - 0.04 milliseconds delay
+    /// - 5 - 0.06 milliseconds delay
+    /// - 6 - 0.08 milliseconds delay
+    /// - 7 - 0.12 milliseconds delay
+    /// - 8 - 0.16 milliseconds delay
+    /// - 9 - 0.24 milliseconds delay
+    /// - 10 - 0.32 milliseconds delay
+    /// - 11 - 0.48 milliseconds delay
+    /// - 12 - 0.64 milliseconds delay
+    /// - 13 - 0.96 milliseconds delay
+    /// - 14 - 1.28 milliseconds delay
+    /// - 15 - 1.92 milliseconds delay
+    /// - 16 - 2.56 milliseconds delay
+    /// - 17 - 3.84 milliseconds delay
+    /// - 18 - 5.12 milliseconds delay
+    /// - 19 - 7.68 milliseconds delay
+    /// - 20 - 10.24 milliseconds delay
+    /// - 21 - 15.36 milliseconds delay
+    /// - 22 - 20.48 milliseconds delay
+    /// - 23 - 30.72 milliseconds delay
+    /// - 24 - 40.96 milliseconds delay
+    /// - 25 - 61.44 milliseconds delay
+    /// - 26 - 81.92 milliseconds delay
+    /// - 27 - 122.88 milliseconds delay
+    /// - 28 - 163.84 milliseconds delay
+    /// - 29 - 245.76 milliseconds delay
+    /// - 30 - 327.68 milliseconds delay
+    /// -31 - 491.52 milliseconds delay
+    ///
     /// Relevant only for RC QPs.
     pub fn set_min_rnr_timer(&mut self, min_rnr_timer: u8) -> &mut Self {
         self.min_rnr_timer = min_rnr_timer;
@@ -209,6 +288,12 @@ impl QueuePairBuilder {
         self
     }
 
+    /// Set the number of RDMA read & atomic operations outstanding at any time
+    /// that can be handled by this QP as an initiator.
+    ///
+    /// Default value is 16
+    ///
+    /// Relevant only for RC QPs
     pub fn set_max_rd_atomic(&mut self, max_rd_atomic: u8) -> &mut Self {
         self.max_rd_atomic = max_rd_atomic;
         self

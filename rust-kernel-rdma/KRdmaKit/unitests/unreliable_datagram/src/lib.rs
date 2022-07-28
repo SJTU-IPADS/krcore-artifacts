@@ -2,10 +2,7 @@
 #![feature(get_mut_unchecked)]
 #[warn(non_snake_case)]
 #[warn(dead_code)]
-
 extern crate alloc;
-
-use alloc::sync::Arc;
 
 use krdma_test::*;
 use rust_kernel_linux_util as log;
@@ -16,75 +13,10 @@ use KRdmaKit::comm_manager::*;
 use KRdmaKit::completion_queue::CompletionQueue;
 use KRdmaKit::memory_region::MemoryRegion;
 use KRdmaKit::queue_pairs::builder::QueuePairBuilder;
-use KRdmaKit::queue_pairs::endpoint::UnreliableDatagramEndpointQuerier;
+use KRdmaKit::queue_pairs::endpoint::DatagramEndpointQuerier;
 use KRdmaKit::rust_kernel_rdma_base::*;
-use KRdmaKit::services::UnreliableDatagramServer;
+use KRdmaKit::services::UnreliableDatagramAddressService;
 use KRdmaKit::KDriver;
-
-#[derive(Debug)]
-struct CMHandler;
-
-struct CMHandlerClient(completion);
-
-impl core::fmt::Debug for CMHandlerClient {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.debug_struct("CMHandlerClient").finish()
-    }
-}
-
-impl CMCallbacker for CMHandler {
-    fn handle_req(
-        self: &mut Self,
-        _reply_cm: CMReplyer,
-        _event: &ib_cm_event,
-    ) -> Result<(), CMError> {
-        log::info!("in handle req!");
-        Ok(())
-    }
-
-    fn handle_sidr_req(
-        self: &mut Self,
-        mut reply_cm: CMReplyer,
-        event: &ib_cm_event,
-    ) -> Result<(), CMError> {
-        let conn_arg = unsafe { *(event.private_data as *mut usize) };
-        log::info!("In handle SIDR request {}", conn_arg);
-
-        // send a response
-        let rep: ib_cm_sidr_rep_param = Default::default();
-        reply_cm.send_sidr_reply(rep, 0 as usize)
-    }
-}
-
-impl CMCallbacker for CMHandlerClient {
-    fn handle_req(
-        self: &mut Self,
-        _reply_cm: CMReplyer,
-        _event: &ib_cm_event,
-    ) -> Result<(), CMError> {
-        Ok(())
-    }
-
-    fn handle_sidr_rep(
-        self: &mut Self,
-        mut _reply_cm: CMReplyer,
-        event: &ib_cm_event,
-    ) -> Result<(), CMError> {
-        let rep_param = unsafe { event.param.sidr_rep_rcvd }; // sidr_rep_rcvd
-        log::info!(
-            "client sidr reponse received, event {:?}, private data: {:?}, rep_param {:?}",
-            event.event,
-            event.private_data,
-            rep_param
-        );
-
-        if rep_param.status != ib_cm_sidr_status::IB_SIDR_SUCCESS {
-            log::error!("failed to send SIDR {:?}", rep_param);
-        }
-        self.0.done();
-        Ok(())
-    }
-}
 
 /// The error type of data plane operations
 #[derive(thiserror_no_std::Error, Debug)]
@@ -171,7 +103,7 @@ fn test_ud_query() -> Result<(), TestError> {
     );
     let server_service_id = 73;
     let qd_hint = 37 as usize;
-    let ud_server = UnreliableDatagramServer::create();
+    let ud_server = UnreliableDatagramAddressService::create();
     let _server_cm = CMServer::new(server_service_id, &ud_server, server_ctx.get_dev_ref())
         .map_err(|_| {
             log::error!("Open server ctx error.");
@@ -190,7 +122,7 @@ fn test_ud_query() -> Result<(), TestError> {
         TestError::Error("Query path error.")
     })?;
 
-    ud_server.reg_ud(qd_hint, &server_qp);
+    ud_server.reg_qp(qd_hint, &server_qp);
 
     // client side
     let client_ctx = driver
@@ -217,11 +149,10 @@ fn test_ud_query() -> Result<(), TestError> {
             TestError::Error("Resolve path error.")
         })?;
 
-    let querier =
-        UnreliableDatagramEndpointQuerier::create(&client_ctx, client_port).map_err(|_| {
-            log::error!("Error creating querier");
-            TestError::Error("Create querier error")
-        })?;
+    let querier = DatagramEndpointQuerier::create(&client_ctx, client_port).map_err(|_| {
+        log::error!("Error creating querier");
+        TestError::Error("Create querier error")
+    })?;
 
     let endpoint = querier
         .query(server_service_id, qd_hint, path)
@@ -315,7 +246,11 @@ fn test_ud_query() -> Result<(), TestError> {
     log::info!("[After]  server value is {}", unsafe {
         *((server_buf as u64 + GRH_SIZE) as *mut i8)
     });
-    Ok(())
+    if unsafe { *((server_buf as u64 + GRH_SIZE) as *mut i8) == 127 } {
+        Ok(())
+    } else {
+        Err(TestError::Error("post send failed"))
+    }
 }
 
 fn test_wrapper() -> Result<(), TestError> {
