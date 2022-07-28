@@ -24,6 +24,9 @@ use crate::services::DatagramMeta;
 /// Note:
 /// - when dct is enabled, the qkey & qpn fields are meaningless if the remote end is UD.
 /// - when dct is enabled, the dct_num & dc_key fields are meaningless if the remote end is DCT.
+/// 
+/// Warn:
+/// - The behavior is **undefined** if you query a DCT endpoint, while remote is listening UD queries (and vice verse).
 ///
 /// For the meaning of these fields, check the documentations in builder.rs
 ///
