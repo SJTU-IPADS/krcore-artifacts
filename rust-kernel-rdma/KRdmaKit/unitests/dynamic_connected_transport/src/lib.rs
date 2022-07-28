@@ -2,7 +2,6 @@
 #![feature(get_mut_unchecked)]
 #[warn(non_snake_case)]
 #[warn(dead_code)]
-
 extern crate alloc;
 
 use alloc::sync::Arc;
@@ -106,7 +105,7 @@ fn test_dct_builder() -> Result<(), TestError> {
 }
 
 fn test_dct_query() -> Result<(), TestError> {
-    log::info!("\nDCT query service started"); 
+    log::info!("\nDCT query service started");
 
     let driver = unsafe { KDriver::create().unwrap() };
 
@@ -127,11 +126,11 @@ fn test_dct_query() -> Result<(), TestError> {
     );
 
     // start the listening service
-    let server_service_id = 73;    
+    let server_service_id = 73;
     let server = DCTargetService::create();
     let _server_cm = CMServer::new(server_service_id, &server, server_ctx.get_dev_ref()).unwrap();
 
-  // create a target
+    // create a target
     let builder = DynamicConnectedTargetBuilder::new(&server_ctx);
     let dct_target = Arc::new(builder.build_dynamic_connected_target(73).map_err(|e| {
         log::error!("failed to create the DCT target with error {:?}", e);
@@ -143,7 +142,7 @@ fn test_dct_query() -> Result<(), TestError> {
         dct_target.dc_key(),
         dct_target.dct_num()
     );
-    server.reg_qp(73, &dct_target); 
+    server.reg_qp(73, &dct_target);
 
     // create a QP
     let dc_qp = DynamicConnectedTargetBuilder::new(&server_ctx)
@@ -160,26 +159,55 @@ fn test_dct_query() -> Result<(), TestError> {
 
     log::info!("check DCQP: {:?}", dc_qp.qp_num());
 
-    let gid = server_ctx.get_dev_ref().query_gid(dct_target.port_num()).unwrap();
+    let gid = server_ctx
+        .get_dev_ref()
+        .query_gid(dct_target.port_num())
+        .unwrap();
     let explorer = Explorer::new(server_ctx.get_dev_ref());
-    let path = unsafe { explorer.resolve_inner(server_service_id, dc_qp.port_num(), gid) }.map_err(|_| {
-        log::error!("Error resolving path.");
-        TestError::Error("Error resolving path.")
-    })?;    
+    let path = unsafe { explorer.resolve_inner(server_service_id, dc_qp.port_num(), gid) }
+        .map_err(|_| {
+            log::error!("Error resolving path.");
+            TestError::Error("Error resolving path.")
+        })?;
 
     // now start query the DCT (datagram) endpoint
-    let querier =
-        DatagramEndpointQuerier::create(&server_ctx, dc_qp.port_num()).map_err(|_| {
-            log::error!("Error creating querier");
-            TestError::Error("Error creating querier")
-        })?;
+    let querier = DatagramEndpointQuerier::create(&server_ctx, dc_qp.port_num()).map_err(|_| {
+        log::error!("Error creating querier");
+        TestError::Error("Error creating querier")
+    })?;
 
     let endpoint = querier.query(server_service_id, 73, path).map_err(|_| {
         log::error!("Error querying endpoint");
         TestError::Error("Error querying endpoint")
-    })?;    
+    })?;
 
-    log::info!("sanity check the endpoint {:?}", endpoint); 
+    log::info!("sanity check the endpoint {:?}", endpoint);
+
+    // send the requests
+    // memory region
+    let mr = MemoryRegion::new(server_ctx.clone(), 256)
+        .map_err(|_| TestError::Error("Failed to create client MR."))?;
+
+    let _ = dc_qp
+        .post_send_dc_read(&endpoint, &mr, 0..8, true, unsafe { mr.get_rdma_addr() + 16 }, mr.rkey().0)
+        .map_err(|_| TestError::Error("Failed to read remote mr"))?;
+
+    let mut completions = [Default::default(); 1];
+    let timer = RTimer::new();
+    loop {
+        let ret = dc_qp
+            .poll_send_cq(&mut completions)
+            .map_err(|_| TestError::Error("Failed to poll"))?;
+        if ret.len() > 0 {
+            break;
+        }
+        if timer.passed_as_msec() > 15.0 {
+            log::error!("time out while poll send cq");
+            break;
+        }
+    }
+    
+    log::info!("sanity check the polled ib_wc {:?}", completions[0].status);
 
     Ok(())
 }

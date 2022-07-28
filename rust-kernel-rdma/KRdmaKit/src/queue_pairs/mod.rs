@@ -533,11 +533,13 @@ impl QueuePair {
         imm_data: u32,  // immediate data
         send_flag: i32, // send flags, see `ib_send_flags`
     ) -> Result<(), DatapathError> {
+
         let mut sge = ib_sge {
             addr: laddr,
             length: size,
             lkey,
         };
+
         let mut wr: ib_dc_wr = Default::default();
         wr.wr.opcode = op;
         wr.wr.send_flags = send_flag;
@@ -546,6 +548,7 @@ impl QueuePair {
         wr.wr.sg_list = &mut sge as *mut _;
         wr.remote_addr = raddr;
         wr.rkey = rkey;
+        wr.ah = endpoint.raw_address_handler_ptr().as_ptr();
 
         wr.dct_access_key = endpoint.dc_key();
         wr.dct_number = endpoint.dct_num();
