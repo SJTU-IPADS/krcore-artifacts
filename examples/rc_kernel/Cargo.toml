@@ -1,7 +1,7 @@
 [workspace]
 
 [package]
-name = "rc_tests"
+name = "rc_kernel_tests"
 version = "0.1.0"
 authors = ["wxd","Haotian Wang"]
 edition = "2018"
@@ -12,12 +12,13 @@ crate-type = ["staticlib"]
 test = false
 
 [features]
-default = ["KRdmaKit", "rust-kernel-linux-util","krdma-test"]
+default = ["KRdmaKit", "rust-kernel-linux-util","krdma-test", "krdmakit-macros"]
 
 [dependencies]
 KRdmaKit = { path = "../../rust-kernel-rdma/KRdmaKit", optional = true, features=["dct"] }
 rust-kernel-linux-util = {path = "../../rust-kernel-rdma/rust-kernel-linux-util",optional = true, features=["static_log_check","max_level_info"]}
 krdma-test = {path = "../../rust-kernel-rdma/krdma-test",optional = true}
+krdmakit-macros = {path = "../../krdmakit-macros", optional = true}
 hashbrown = "0.9"
 thiserror-no-std = "2.0.2"
 

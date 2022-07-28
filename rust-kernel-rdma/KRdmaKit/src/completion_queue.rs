@@ -57,7 +57,7 @@ impl CompletionQueue {
     }
 
     /// Poll multiple completions from the CQ
-    /// This call taks &self, because the underlying ib_poll_cq
+    /// This call takes &self, because the underlying ib_poll_cq
     /// will ensure thread safety. 
     #[inline]
     pub fn poll<'c>(&self, completions: &'c mut [ib_wc]) -> Result<&'c mut [ib_wc], DatapathError> {

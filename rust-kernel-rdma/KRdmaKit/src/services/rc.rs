@@ -12,7 +12,7 @@ use crate::context::Context;
 use crate::log::*;
 use crate::queue_pairs::{QueuePair, QueuePairBuilder};
 
-/// RCConnectionData is used for rmmote QP to connect with it
+/// RCConnectionData is used for remote QP to connect with it
 #[repr(C, align(8))]
 #[derive(Copy, Clone, Debug)]
 pub struct RCConnectionData {
@@ -82,7 +82,9 @@ impl ReliableConnectionServer {
 }
 
 impl CMCallbacker for ReliableConnectionServer {
-    /// The `handle_req` will create a QP after receiving a connection request. 
+    /// The `handle_req` will create a QP after receiving a connection request.
+    ///
+    /// Responsible for creating and registering server side rc-qp on receiving req from the client.
     fn handle_req(&mut self, reply_cm: CMReplyer, event: &ib_cm_event) -> Result<(), CMError> {
         // 1. decode the request
         let data = unsafe { *(event.private_data as *mut RCConnectionData) };
@@ -132,10 +134,13 @@ impl CMCallbacker for ReliableConnectionServer {
         Ok(())
     }
 
+    /// `handle_rtu` is the ReadyToUse handler responsible for handle rtu from the client side
     fn handle_rtu(&mut self, _reply_cm: CMReplyer, _event: &ib_cm_event) -> Result<(), CMError> {
         Ok(())
     }
 
+    /// `handle_dreq` handle the de-register request from the client, it will de-register the
+    /// corresponding earlier created rc-qp in server side and release related resources.
     fn handle_dreq(
         self: &mut Self,
         reply_cm: CMReplyer,

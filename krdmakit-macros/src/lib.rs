@@ -12,8 +12,11 @@ use quote::quote;
 ///
 #[proc_macro]
 pub fn declare_module_param(args: TokenStream) -> TokenStream {
-    let arr: Vec<String> = args.to_string()
-        .split(",").map(|x| String::from(x.trim())).collect();
+    let arr: Vec<String> = args
+        .to_string()
+        .split(",")
+        .map(|x| String::from(x.trim()))
+        .collect();
     assert_eq!(arr.len(), 2);
     let param_name = Ident::new(&arr[0], Span::call_site());
     let type_name: proc_macro2::TokenStream = arr[1].parse().unwrap();
@@ -28,9 +31,9 @@ pub fn declare_module_param(args: TokenStream) -> TokenStream {
                 unsafe { #param_name }
             }
         }
-    }.into()
+    }
+    .into()
 }
-
 
 /// Generate code for declaring global variables in rust
 /// Note: can only be used in lib.rs
@@ -52,8 +55,11 @@ pub fn declare_module_param(args: TokenStream) -> TokenStream {
 ///
 #[proc_macro]
 pub fn declare_global(args: TokenStream) -> TokenStream {
-    let arr: Vec<String> = args.to_string()
-        .split(",").map(|x| String::from(x.trim())).collect();
+    let arr: Vec<String> = args
+        .to_string()
+        .split(",")
+        .map(|x| String::from(x.trim()))
+        .collect();
     assert_eq!(arr.len(), 2);
     let param_name = Ident::new(&arr[0], Span::call_site());
 
@@ -88,5 +94,6 @@ pub fn declare_global(args: TokenStream) -> TokenStream {
                 crate::#param_name = None;
             }
         }
-    }.into()
+    }
+    .into()
 }
