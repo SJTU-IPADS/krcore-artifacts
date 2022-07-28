@@ -6,6 +6,8 @@ which builds on the first part.
 
 ## Rust-based RDMA library 
 
+Crate location: `./rust-kernel-rdma/KRdmaKit`. 
+
 The goals of this part is:
 1. Simplify building RDMA-based applications with rust
 2. Using rust to manage all the (local) lifecycles of RDMA resources (e.g., QP) in a safe and transparent way
@@ -15,9 +17,11 @@ User-space support is under development.
 
 ## Kernel-space support for fast RDMA connections
 
+Crate location: `./KRdmaKit-syscall`.
+
 The second is a kernel-space component to provide fast user-space RDMA-capable connection setup.  For details, please refer to our USENIX ATC 2022 paper: https://www.usenix.org/conference/atc22/presentation/wei .
 
-To evaluate this part, please to to https://github.com/SJTU-IPADS/krcore-artifacts/tree/atc22-artifacts, or `git checkout atc22-artifacts`. 
+To evaluate this part, please go to https://github.com/SJTU-IPADS/krcore-artifacts/tree/atc22-artifacts, or `git checkout atc22-artifacts`. 
 
 Please refer to [install.md](docs/install.md) for the environment setup and [exp.md](docs/exp.md) for the evaluations. All documents can be found in the `doc` directory of the artifact.
 
