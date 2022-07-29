@@ -1,8 +1,6 @@
 #[allow(unused_imports)]
-use rdma_shim::{Error, println};
-
+use rdma_shim::{Error, println, log};
 use rdma_shim::bindings::*;
-use rdma_shim::utils::log; 
 
 use alloc::{boxed::Box, sync::Arc};
 use core::iter::TrustedRandomAccessNoCoerce;

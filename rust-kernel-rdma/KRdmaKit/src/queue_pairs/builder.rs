@@ -1,17 +1,15 @@
-use rust_kernel_linux_util::bindings::*;
-use rust_kernel_rdma_base::*;
+use rdma_shim::bindings::*;
+use rdma_shim::{log, println};
 
 use alloc::{boxed::Box, sync::Arc};
 use core::ptr::NonNull;
 
-use crate::bindings::ib_qp_cap;
+use crate::MAX_RD_ATOMIC;
 use crate::comm_manager::CMError;
 use crate::context::Context;
-use crate::linux_kernel_module::*;
 use crate::queue_pairs::rc_comm::RCCommStruct;
 use crate::queue_pairs::{QPType, QueuePair, QueuePairStatus};
 use crate::services::rc::RCConnectionData;
-use crate::{rust_kernel_linux_util as log, MAX_RD_ATOMIC};
 use crate::{CompletionQueue, ControlpathError};
 
 /// Builder for different kind of queue pairs (RCQP, UDQP ,etc.).
