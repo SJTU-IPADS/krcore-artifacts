@@ -12,4 +12,11 @@ pub mod ffi {
 
 pub mod utils { 
     pub use rust_kernel_rdma_base::rust_kernel_linux_util::timer::KTimer;
+    pub use rust_kernel_rdma_base::rust_kernel_linux_util::kthread::sleep;
+    pub use crate::linux_kernel_module::mutex::LinuxMutex;
+    pub use crate::linux_kernel_module::mutex::Mutex;
+    
+    pub use rust_kernel_rdma_base::rust_kernel_linux_util as log;
 }
+
+pub use rust_kernel_rdma_base::linux_kernel_module::println;

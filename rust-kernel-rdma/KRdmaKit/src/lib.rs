@@ -40,13 +40,12 @@ pub mod memory_region;
 pub mod utils;
 pub mod random;
 
-pub use rust_kernel_rdma_base;
-pub use rust_kernel_rdma_base::rust_kernel_linux_util::kthread::sleep;
+pub use rdma_shim; 
+use rdma_shim::utils::{sleep, KTimer};
+use rdma_shim::bindings::*;
 
 use consts::*;
 use linux_kernel_module::{c_types, println};
-use rust_kernel_rdma_base::rust_kernel_linux_util::timer::KTimer;
-use rust_kernel_rdma_base::*;
 
 #[macro_export]
 macro_rules! to_ptr {
@@ -64,7 +63,7 @@ pub struct KDriver {
 
 pub type KDriverRef = Arc<KDriver>;
 
-pub use rust_kernel_rdma_base::rust_kernel_linux_util as log;
+pub use rdma_shim::utils::log;
 
 impl KDriver {
     pub fn devices(&self) -> &Vec<device::DeviceRef> {
