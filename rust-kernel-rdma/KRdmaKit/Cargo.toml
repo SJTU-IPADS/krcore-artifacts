@@ -5,6 +5,7 @@ authors = ["Xingda Wei <wxdwfc@gmail.com>", "Fangming Lu", "Haotian Wang"]
 edition = "2018"
 
 [dependencies]
+rdma-shim = {path = "../../rdma-shim"} 
 rust-kernel-rdma-base = { path = "../rust-kernel-rdma-base" }
 no-std-net = { path = "../deps/no-std-net" }
 nostd_async = "0.3.1"
@@ -17,6 +18,7 @@ delegate = "*"
 
 [features]
 dct = ["rust-kernel-rdma-base/dct"]
+kernel = ["rdma-shim/kernel"]
 profile = []
 
 ## IF enable `rpc_server`, the `poll_all` will busy polling the UD result. IF disabled, the application should

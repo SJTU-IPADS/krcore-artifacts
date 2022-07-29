@@ -1,0 +1,12 @@
+[package]
+name = "rdma-shim"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rust-kernel-rdma-base = { path = "../rust-kernel-rdma/rust-kernel-rdma-base", optional = true}
+
+[features]
+kernel = ["rust-kernel-rdma-base"]

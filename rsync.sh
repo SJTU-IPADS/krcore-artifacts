@@ -12,6 +12,7 @@ do
         $PWD/deps \
         $PWD/KRdmaKit-syscall \
         $PWD/krdmakit-macros \
+        $PWD/rdma-shim \
         $PWD/rust-kernel-rdma \
         $PWD/testlib \
         $PWD/include \
