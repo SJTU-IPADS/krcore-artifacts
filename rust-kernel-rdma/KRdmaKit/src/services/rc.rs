@@ -1,7 +1,6 @@
 use rust_kernel_rdma_base::bindings::*;
 
-use crate::linux_kernel_module::mutex::LinuxMutex;
-use crate::linux_kernel_module::sync::Mutex;
+use rdma_shim::utils::{LinuxMutex, Mutex};
 
 use alloc::sync::Arc;
 use core::ptr::NonNull;
