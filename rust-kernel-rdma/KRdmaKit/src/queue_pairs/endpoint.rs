@@ -8,6 +8,7 @@ use rdma_shim::{log, Error, println};
 
 use crate::comm_manager::{CMCallbacker, CMError, CMReplyer, CMSender};
 use crate::context::{AddressHandler, ContextRef};
+use crate::ControlpathError;
 
 #[cfg(feature = "dct")]
 use crate::services::dc::DynamicConnectedMeta;

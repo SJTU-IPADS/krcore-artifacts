@@ -1,5 +1,6 @@
+/// This module must be used in the kernel
+use rdma_shim::bindings::*;
 use rdma_shim::utils::completion;
-use rdma_shim::*;
 
 use alloc::boxed::Box;
 use alloc::sync::Arc;
@@ -7,8 +8,8 @@ use alloc::sync::Arc;
 use crate::comm_manager::{CMCallbacker, CMError, CMWrapper};
 use crate::device::DeviceRef;
 
-/// RCComm is used to abstract the handshake with the server. 
-/// Since the linux `completion` may contain self-reference pointers, 
+/// RCComm is used to abstract the handshake with the server.
+/// Since the linux `completion` may contain self-reference pointers,
 /// we need to create this struct on the heap
 /// so it has to be allocated on heap.
 pub struct RCCommStruct<T: CMCallbacker> {
@@ -28,7 +29,10 @@ impl<T: CMCallbacker> RCCommStruct<T> {
     }
 
     #[inline]
-    pub fn wait(&mut self, timeout_msecs: i32) -> KernelResult<()> {
+    pub fn wait(
+        &mut self,
+        timeout_msecs: i32,
+    ) -> rdma_shim::kernel::linux_kernel_module::KernelResult<()> {
         self.done.wait(timeout_msecs)
     }
 

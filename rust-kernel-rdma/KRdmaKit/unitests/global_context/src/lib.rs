@@ -4,11 +4,10 @@
 #[warn(dead_code)]
 extern crate alloc;
 
-use KRdmaKit::rust_kernel_rdma_base::*;
-
 use rust_kernel_linux_util as log;
 
 use krdma_test::*;
+use KRdmaKit::rdma_shim::linux_kernel_module;
 
 #[krdma_main]
 fn test_global_context() {

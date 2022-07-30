@@ -44,8 +44,6 @@ impl QueuePairBuilder {
     ///
     /// Set the builder's necessary fields and build the queue pair that's needed.
     pub fn new(ctx: &Arc<Context>) -> Self {
-        let mut qkey: [u8; 1] = [0x0; 1];
-        let _ = random::getrandom(&mut qkey);
         Self {
             ctx: ctx.clone(),
             max_send_wr: 128,
@@ -63,7 +61,7 @@ impl QueuePairBuilder {
             max_rd_atomic: MAX_RD_ATOMIC as u8,
             pkey_index: 0,
             port_num: 1,
-            qkey: qkey[0] as u32,
+            qkey: 73, // a magic number
         }
     }
 
@@ -668,7 +666,7 @@ impl PreparedQueuePair {
         if qp_status == QueuePairStatus::Init {
             // RTR
             let mut qp_attr: ib_qp_attr = Default::default();
-            let mut mask: linux_kernel_module::c_types::c_int = ib_qp_attr_mask::IB_QP_STATE;
+            let mut mask: rdma_shim::ffi::c_types::c_int = ib_qp_attr_mask::IB_QP_STATE;
 
             qp_attr.qp_state = ib_qp_state::IB_QPS_RTR;
 

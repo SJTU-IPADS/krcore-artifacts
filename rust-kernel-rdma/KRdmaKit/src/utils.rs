@@ -1,5 +1,5 @@
 use crate::alloc::string::ToString;
-use rdma_shim::ffi::c_types;
+use rdma_shim::ffi::c_types::c_char;
 
 use alloc::string::String;
 

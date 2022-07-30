@@ -1,10 +1,18 @@
 pub use rust_kernel_rdma_base::linux_kernel_module;
+pub use rust_kernel_rdma_base::rust_kernel_linux_util;
 
 /// RDMA bindings
 pub mod bindings { 
     pub use rust_kernel_rdma_base::bindings::*;
     pub use rust_kernel_rdma_base::ib_create_qp;
     pub use rust_kernel_rdma_base::ib_destroy_qp;
+
+    /// DCT-related bindings
+    #[cfg(feature = "dct")]
+    mod dct { 
+        pub use rust_kernel_rdma_base::{ib_create_qp_dct, safe_ib_create_dct};
+    }
+    pub use dct::*;
 }
 
 pub mod ffi { 
