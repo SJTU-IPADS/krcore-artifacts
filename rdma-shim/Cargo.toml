@@ -11,4 +11,8 @@ rust-kernel-rdma-base = { path = "../rust-kernel-rdma/rust-kernel-rdma-base", op
 [features]
 kernel = ["rust-kernel-rdma-base"]
 dct = ["rust-kernel-rdma-base/dct"]
+user = ["rdma-sys"]
+
+default = ["user"]
+
 
