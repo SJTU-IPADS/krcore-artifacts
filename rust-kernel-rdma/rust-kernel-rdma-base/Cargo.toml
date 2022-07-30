@@ -13,7 +13,7 @@ no-std-net = {path = "../deps/no-std-net"}
 paste = "1.0"
 
 [build-dependencies]
-bindgen = "0.54"
+bindgen = "0.54.0"
 cc = "1.0"
 shlex = "0.1"
 
