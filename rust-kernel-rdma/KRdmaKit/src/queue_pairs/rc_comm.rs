@@ -1,12 +1,11 @@
-use linux_kernel_module::*;
-use rust_kernel_rdma_base::*;
+use rdma_shim::utils::completion;
+use rdma_shim::*;
 
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 
 use crate::comm_manager::{CMCallbacker, CMError, CMWrapper};
 use crate::device::DeviceRef;
-use crate::rust_kernel_linux_util::bindings::completion;
 
 /// RCComm is used to abstract the handshake with the server. 
 /// Since the linux `completion` may contain self-reference pointers, 

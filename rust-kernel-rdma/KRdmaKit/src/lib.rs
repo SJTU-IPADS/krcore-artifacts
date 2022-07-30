@@ -43,9 +43,10 @@ pub mod random;
 pub use rdma_shim; 
 use rdma_shim::utils::{sleep, KTimer};
 use rdma_shim::bindings::*;
+use rdma_shim::ffi::c_types;
+pub(crate) use rdma_shim::{Error, println};
 
 use consts::*;
-use linux_kernel_module::{c_types, println};
 
 #[macro_export]
 macro_rules! to_ptr {
@@ -63,7 +64,7 @@ pub struct KDriver {
 
 pub type KDriverRef = Arc<KDriver>;
 
-pub use rdma_shim::utils::log;
+pub use rdma_shim::log;
 
 impl KDriver {
     pub fn devices(&self) -> &Vec<device::DeviceRef> {
@@ -138,7 +139,7 @@ unsafe extern "C" fn _KRdiver_add_one(dev: *mut ib_device) {
     //    get_temp_rnics().push(nic.ok().unwrap());
     get_temp_rnics().push(dev);
 }
-gen_add_dev_func!(_KRdiver_add_one, KDriver_add_one);
+rdma_shim::gen_add_dev_func!(_KRdiver_add_one, KDriver_add_one);
 
 #[allow(non_snake_case)]
 unsafe extern "C" fn _KRdiver_remove_one(dev: *mut ib_device, _client_data: *mut c_types::c_void) {
@@ -149,31 +150,31 @@ unsafe extern "C" fn _KRdiver_remove_one(dev: *mut ib_device, _client_data: *mut
 #[derive(thiserror_no_std::Error, Debug)]
 pub enum ControlpathError {
     #[error("create context {0} error: {1}")]
-    ContextError(&'static str, linux_kernel_module::Error),
+    ContextError(&'static str, Error),
 
     /// Used for identify create different resource error
     /// e.g., CQ, QP, etc.
     #[error("create {0} error: {1}")]
-    CreationError(&'static str, linux_kernel_module::Error),
+    CreationError(&'static str, Error),
 
     #[error("Invalid arg for {0}")]
     InvalidArg(&'static str),
 
     #[error("Query error: {0} w/ errono: {1}")]
-    QueryError(&'static str, linux_kernel_module::Error),
+    QueryError(&'static str, Error),
 }
 
 /// The error type of data plane operations
 #[derive(thiserror_no_std::Error, Debug)]
 pub enum DatapathError {
     #[error("post_send error with errorno {0}")]
-    PostSendError(linux_kernel_module::Error),
+    PostSendError(Error),
 
     #[error("post_send error with errorno {0}")]
-    PostRecvError(linux_kernel_module::Error),
+    PostRecvError(Error),
 
     #[error("poll_cq error with errorno {0}")]
-    PollCQError(linux_kernel_module::Error),
+    PollCQError(Error),
 
     #[error("timeout error")]
     TimeoutError,

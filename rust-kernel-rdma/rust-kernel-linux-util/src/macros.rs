@@ -3,7 +3,7 @@ macro_rules! log {
     ($lvl:expr, $($arg:tt)+) => ({
         let lvl = $lvl;
         if lvl <= $crate::STATIC_MAX_LEVEL && lvl <= $crate::max_level() {
-            println!("{}@{}: [{:5}] - {}", __log_file!(), __log_line!(),
+            $crate::println!("{}@{}: [{:5}] - {}", __log_file!(), __log_line!(),
             lvl,
              __log_format_args!($($arg)+));
         }

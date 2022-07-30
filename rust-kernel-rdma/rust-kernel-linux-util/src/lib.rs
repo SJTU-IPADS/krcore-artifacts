@@ -21,6 +21,9 @@ pub use level::LevelFilter;
 #[macro_use]
 pub mod macros;
 
+#[allow(unused_imports)]
+pub(crate) use linux_kernel_module::println;
+
 cfg_if! {
     if #[cfg(feature = "static_log_check")] {
         // omit

@@ -3,6 +3,7 @@ pub use rust_kernel_rdma_base::linux_kernel_module;
 /// RDMA bindings
 pub mod bindings { 
     pub use rust_kernel_rdma_base::bindings::*;
+    pub use rust_kernel_rdma_base::ib_create_qp;
     pub use rust_kernel_rdma_base::ib_destroy_qp;
 }
 
@@ -12,12 +13,15 @@ pub mod ffi {
 
 pub mod utils { 
     pub use rust_kernel_rdma_base::rust_kernel_linux_util::timer::KTimer;
+    pub use rust_kernel_rdma_base::rust_kernel_linux_util::bindings::completion; 
     pub use rust_kernel_rdma_base::rust_kernel_linux_util::kthread::sleep;
+
     pub use crate::linux_kernel_module::mutex::LinuxMutex;
-    pub use crate::linux_kernel_module::sync::Mutex;    
+    pub use crate::linux_kernel_module::sync::Mutex;   
 }
 
 pub use rust_kernel_rdma_base::linux_kernel_module::println;
 pub use rust_kernel_rdma_base::rust_kernel_linux_util as log;
 
 pub use rust_kernel_rdma_base::linux_kernel_module::Error;
+pub use rust_kernel_rdma_base::gen_add_dev_func;
