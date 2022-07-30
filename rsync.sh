@@ -13,6 +13,7 @@ do
         $PWD/KRdmaKit-syscall \
         $PWD/krdmakit-macros \
         $PWD/rdma-shim \
+        $PWD/rust-user-rdma \
         $PWD/rust-kernel-rdma \
         $PWD/testlib \
         $PWD/include \
