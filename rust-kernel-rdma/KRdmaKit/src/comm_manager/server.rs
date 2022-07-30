@@ -1,7 +1,7 @@
 use alloc::sync::Arc;
 
 use super::{CMCallbacker, CMError, CMWrapper, DeviceRef};
-use rust_kernel_rdma_base::*;
+use rdma_shim::bindings::*;
 
 /// The CM server is analogy to the UDP server,
 /// which listens on a port (listen_id).

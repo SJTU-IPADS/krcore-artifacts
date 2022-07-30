@@ -7,13 +7,14 @@ extern crate alloc;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use krdma_test::*;
-use rust_kernel_linux_util as log;
+use KRdmaKit::rdma_shim::log;
+use KRdmaKit::rdma_shim::linux_kernel_module;
+
 use rust_kernel_linux_util::timer::RTimer;
 
 use KRdmaKit::comm_manager::*;
 use KRdmaKit::memory_region::MemoryRegion;
 use KRdmaKit::queue_pairs::builder::QueuePairBuilder;
-use KRdmaKit::rust_kernel_rdma_base::*;
 use KRdmaKit::services::rc::ReliableConnectionServer;
 use KRdmaKit::KDriver;
 use KRdmaKit::queue_pairs::QueuePair;

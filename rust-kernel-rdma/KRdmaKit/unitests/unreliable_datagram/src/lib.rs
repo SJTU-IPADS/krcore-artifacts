@@ -5,8 +5,10 @@
 extern crate alloc;
 
 use krdma_test::*;
+
+use KRdmaKit::rdma_shim::{linux_kernel_module, rust_kernel_linux_util};
+
 use rust_kernel_linux_util as log;
-use rust_kernel_linux_util::bindings::completion;
 use rust_kernel_linux_util::timer::RTimer;
 
 use KRdmaKit::comm_manager::*;
@@ -14,7 +16,6 @@ use KRdmaKit::completion_queue::CompletionQueue;
 use KRdmaKit::memory_region::MemoryRegion;
 use KRdmaKit::queue_pairs::builder::QueuePairBuilder;
 use KRdmaKit::queue_pairs::endpoint::DatagramEndpointQuerier;
-use KRdmaKit::rust_kernel_rdma_base::*;
 use KRdmaKit::services::UnreliableDatagramAddressService;
 use KRdmaKit::KDriver;
 

@@ -26,6 +26,7 @@ pub mod comm_manager;
 pub mod context;
 
 /// Services abstract necessary remote end to facialiate QP bring up
+#[cfg(feature = "kernel")]
 pub mod services;
 
 /// Abstraction for the completion queues 

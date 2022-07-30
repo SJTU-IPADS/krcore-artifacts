@@ -7,6 +7,8 @@ extern crate alloc;
 use alloc::sync::Arc;
 
 use krdma_test::*;
+use KRdmaKit::rdma_shim::{linux_kernel_module, rust_kernel_linux_util};
+
 use rust_kernel_linux_util as log;
 use rust_kernel_linux_util::timer::RTimer;
 
@@ -19,7 +21,6 @@ use KRdmaKit::queue_pairs::endpoint::DatagramEndpointQuerier;
 
 use KRdmaKit::services::dc::DCTargetService;
 
-use KRdmaKit::rust_kernel_rdma_base::*;
 use KRdmaKit::KDriver;
 
 /// The error type of data plane operations

@@ -1,6 +1,5 @@
-use rust_kernel_rdma_base::*;
-
 use super::GenerateConnectionReply;
+use rdma_shim::bindings::*;
 
 #[cfg(feature = "dct")]
 use super::dc::DynamicConnectedMeta;

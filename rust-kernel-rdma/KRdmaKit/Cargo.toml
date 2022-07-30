@@ -6,7 +6,6 @@ edition = "2018"
 
 [dependencies]
 rdma-shim = {path = "../../rdma-shim"} 
-rust-kernel-rdma-base = { path = "../rust-kernel-rdma-base" }
 no-std-net = { path = "../deps/no-std-net" }
 nostd_async = "0.3.1"
 futures-micro = "0.4"
@@ -17,7 +16,7 @@ thiserror-no-std = "2.0.2"
 delegate = "*"
 
 [features]
-dct = ["rust-kernel-rdma-base/dct", "rdma-shim/dct"]
+dct = ["rdma-shim/dct"]
 kernel = ["rdma-shim/kernel"]
 profile = []
 

@@ -1,5 +1,5 @@
-use linux_kernel_module::c_types;
-use rust_kernel_rdma_base::*;
+use rdma_shim::{log, ffi::c_types, Error};
+use rdma_shim::bindings::*;
 
 use alloc::string::String;
 use alloc::sync::{Arc, Weak};
@@ -7,7 +7,6 @@ use alloc::sync::{Arc, Weak};
 use core::ptr::NonNull;
 
 use crate::device::DeviceRef;
-use crate::log;
 
 pub use client::CMReplyer;
 pub use client::CMSender;
@@ -37,10 +36,10 @@ pub enum CMError {
     CallbackError(u32),
 
     #[error("CM send error")]
-    SendError(&'static str, linux_kernel_module::Error),
+    SendError(&'static str, Error),
 
     #[error("Create server error")]
-    ServerError(&'static str, linux_kernel_module::Error),
+    ServerError(&'static str, Error),
 
     #[error("Invalid arg on {0}: {1}")]
     InvalidArg(&'static str, String),

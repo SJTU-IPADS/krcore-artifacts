@@ -1,11 +1,10 @@
 //! Consts used in the whole KRdmaKit module
-use rust_kernel_rdma_base::*;
 
 pub const IB_PD_UNSAFE_GLOBAL_RKEY: usize = 0x01;
-pub const CONNECT_TIME_OUT_MS: linux_kernel_module::c_types::c_int = 5000; // connect time out. set 5 seconds
+pub const CONNECT_TIME_OUT_MS: rdma_shim::ffi::c_types::c_int = 5000; // connect time out. set 5 seconds
 
-pub const AF_INET: sa_family_t = 2;
-pub const AF_UNSPEC: sa_family_t = 0;
+//pub const AF_INET: sa_family_t = 2;
+//pub const AF_UNSPEC: sa_family_t = 0;
 
 pub const MAX_RD_ATOMIC: usize = 16;
 
