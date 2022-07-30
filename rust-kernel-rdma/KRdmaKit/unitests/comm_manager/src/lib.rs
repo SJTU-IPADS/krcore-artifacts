@@ -7,10 +7,10 @@ extern crate alloc;
 use alloc::sync::Arc;
 
 use KRdmaKit::rdma_shim::{rust_kernel_linux_util, linux_kernel_module};
+use KRdmaKit::rdma_shim::bindings::*;
+use KRdmaKit::rdma_shim::utils::completion;
 
 use KRdmaKit::comm_manager::*;
-use KRdmaKit::rust_kernel_rdma_base::rust_kernel_linux_util::bindings::completion;
-use KRdmaKit::rust_kernel_rdma_base::*;
 
 use rust_kernel_linux_util as log;
 
