@@ -1,5 +1,5 @@
 use rdma_shim::bindings::*;
-use rdma_shim::{log, println, Error};
+use rdma_shim::{log, Error};
 
 use alloc::{boxed::Box, sync::Arc};
 use core::ptr::NonNull;

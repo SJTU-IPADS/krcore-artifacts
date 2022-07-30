@@ -1,5 +1,5 @@
 use rdma_shim::bindings::*;
-use rdma_shim::{Error, log, println};
+use rdma_shim::{Error, log};
 
 use crate::comm_manager::{CMCallbacker, CMError, CMReplyer};
 use crate::queue_pairs::{QPType, QueuePair, QueuePairStatus};

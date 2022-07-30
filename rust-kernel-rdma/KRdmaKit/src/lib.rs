@@ -41,7 +41,7 @@ pub mod utils;
 pub mod random;
 
 pub use rdma_shim; 
-use rdma_shim::utils::{sleep, KTimer};
+use rdma_shim::utils::KTimer;
 use rdma_shim::bindings::*;
 use rdma_shim::ffi::c_types;
 pub(crate) use rdma_shim::{Error, println};

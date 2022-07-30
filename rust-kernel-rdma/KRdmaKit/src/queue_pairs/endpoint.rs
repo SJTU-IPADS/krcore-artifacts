@@ -4,7 +4,7 @@ use core::ptr::NonNull;
 
 use rdma_shim::utils::completion;
 use rdma_shim::bindings::*;
-use rdma_shim::{log, Error, println};
+use rdma_shim::{log, Error};
 
 use crate::comm_manager::{CMCallbacker, CMError, CMReplyer, CMSender};
 use crate::context::{AddressHandler, ContextRef};
