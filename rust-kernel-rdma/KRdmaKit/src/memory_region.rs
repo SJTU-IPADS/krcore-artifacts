@@ -34,9 +34,13 @@ impl MemoryRegion {
     /// Acquire an address that can be used for communication
     /// It is **unsafe** because if the MemoryRegion is destroyed,
     /// then the address will be invalid.
+    /// 
+    /// It is only used in the kernel: user-space has MR support, 
+    /// and can directly use the virtual address
+    #[cfg(feature = "kernel")]
     #[inline]
     pub unsafe fn get_rdma_addr(&self) -> u64 {
-        crate::rust_kernel_linux_util::bindings::bd_virt_to_phys(self.data.as_ptr() as _)
+        rdma_shim::rust_kernel_linux_util::bindings::bd_virt_to_phys(self.data.as_ptr() as _)
     }
 
     #[inline]

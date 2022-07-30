@@ -1,7 +1,6 @@
-use rust_kernel_rdma_base::linux_kernel_module::{self, KernelResult};
-use rust_kernel_rdma_base::*;
-
-use linux_kernel_module::Error;
+use rdma_shim::linux_kernel_module::KernelResult;
+use rdma_shim::bindings::*;
+use rdma_shim::Error;
 
 use alloc::sync::Arc;
 use core::option::Option;

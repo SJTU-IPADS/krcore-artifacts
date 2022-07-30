@@ -1,15 +1,11 @@
 #[allow(unused_imports)]
-use crate::{log, linux_kernel_module};
-
-use crate::linux_kernel_module::Error;
+use rdma_shim::{Error, println, log};
+use rdma_shim::bindings::*;
 
 use alloc::{boxed::Box, sync::Arc};
 use core::iter::TrustedRandomAccessNoCoerce;
 use core::ops::Range;
 use core::ptr::{null_mut, NonNull};
-
-use rust_kernel_rdma_base::bindings::*;
-use rust_kernel_rdma_base::ib_destroy_qp;
 
 use crate::memory_region::MemoryRegion;
 use crate::queue_pairs::endpoint::DatagramEndpoint;

@@ -1,8 +1,7 @@
 use alloc::sync::Arc;
 use core::ptr::NonNull;
-use rust_kernel_rdma_base::*;
-
-use linux_kernel_module::Error;
+use rdma_shim::bindings::*;
+use rdma_shim::Error;
 
 use crate::{device::DeviceRef, ControlpathError};
 

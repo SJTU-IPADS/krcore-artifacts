@@ -1,6 +1,9 @@
-use rust_kernel_rdma_base::*;
+use rdma_shim::bindings::*;
+use rdma_shim::Error;
+
 use alloc::sync::Arc;
 use core::ptr::{null_mut, NonNull};
+
 use crate::context::{Context, ContextRef};
 use crate::ControlpathError::CreationError;
 use crate::{ControlpathError, DatapathError};
@@ -47,7 +50,7 @@ impl CompletionQueue {
         };
 
         return if cq_raw_ptr.is_null() {
-            Err(CreationError("CQ", linux_kernel_module::Error::EINVAL))
+            Err(CreationError("CQ", Error::EINVAL))
         } else {
             Ok(Self {
                 _ctx: context.clone(),
@@ -70,7 +73,7 @@ impl CompletionQueue {
         };
         if n < 0 {
             Err(DatapathError::PollCQError(
-                linux_kernel_module::Error::EINVAL,
+                Error::EINVAL,
             ))
         } else {
             Ok(&mut completions[0..n as usize])
@@ -109,7 +112,7 @@ impl SharedReceiveQueue {
         };
 
         return if raw_ptr.is_null() {
-            Err(CreationError("SRQ", linux_kernel_module::Error::EINVAL))
+            Err(CreationError("SRQ", rdma_shim::Error::EINVAL))
         } else {
             Ok(Self {
                 _ctx: context.clone(),

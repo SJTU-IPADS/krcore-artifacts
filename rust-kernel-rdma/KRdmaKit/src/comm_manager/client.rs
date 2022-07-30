@@ -2,9 +2,10 @@ use core::mem::size_of;
 use core::ptr::{null_mut, NonNull};
 
 use super::{Arc, CMCallbacker, CMError, CMWrapper, DeviceRef};
-use linux_kernel_module::Error;
-use rust_kernel_rdma_base::bindings::*;
-use rust_kernel_rdma_base::*;
+
+use rdma_shim::Error;
+use rdma_shim::bindings::*;
+use rdma_shim::ffi::c_types;
 
 /// CM sender is used at the client to initiate
 /// communication with the server
@@ -83,7 +84,7 @@ impl CMReplyer {
         mut rep: ib_cm_sidr_rep_param,
         mut info: T,
     ) -> Result<(), CMError> {
-        rep.info = ((&mut info) as *mut T).cast::<linux_kernel_module::c_types::c_void>();
+        rep.info = ((&mut info) as *mut T).cast::<c_types::c_void>();
         rep.info_length = size_of::<T>() as u8;
 
         let err = unsafe { ib_send_cm_sidr_rep(self.inner.as_ptr(), &mut rep as *mut _) };
@@ -102,7 +103,7 @@ impl CMReplyer {
         mut private_data: T,
     ) -> Result<(), CMError> {
         rep.private_data =
-            ((&mut private_data) as *mut T).cast::<linux_kernel_module::c_types::c_void>();
+            ((&mut private_data) as *mut T).cast::<c_types::c_void>();
         rep.private_data_len = size_of::<T>() as u8;
         let err = unsafe { ib_send_cm_rep(self.inner.as_ptr(), &mut rep as *mut _) };
         return if err != 0 {
@@ -122,7 +123,7 @@ impl CMReplyer {
                 0,
                 null_mut(),
                 0 as u8,
-                ((&mut private_data) as *mut T).cast::<linux_kernel_module::c_types::c_void>(),
+                ((&mut private_data) as *mut T).cast::<c_types::c_void>(),
                 size_of::<T>() as u8,
             )
         };
@@ -141,7 +142,7 @@ impl CMReplyer {
         let err = unsafe {
             ib_send_cm_rtu(
                 inner_cm.as_ptr(),
-                ((&mut private_data) as *mut T).cast::<linux_kernel_module::c_types::c_void>(),
+                ((&mut private_data) as *mut T).cast::<c_types::c_void>(),
                 size_of::<T>() as u8,
             )
         };

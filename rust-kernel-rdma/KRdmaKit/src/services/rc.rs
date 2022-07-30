@@ -1,7 +1,5 @@
-use rust_kernel_rdma_base::bindings::*;
-
-use crate::linux_kernel_module::mutex::LinuxMutex;
-use crate::linux_kernel_module::sync::Mutex;
+use rdma_shim::{log, bindings::*};
+use rdma_shim::utils::{LinuxMutex, Mutex};
 
 use alloc::sync::Arc;
 use core::ptr::NonNull;
@@ -9,7 +7,6 @@ use hashbrown::HashMap;
 
 use crate::comm_manager::{CMCallbacker, CMError, CMReplyer};
 use crate::context::Context;
-use crate::log::*;
 use crate::queue_pairs::{QueuePair, QueuePairBuilder};
 
 /// RCConnectionData is used for remote QP to connect with it
@@ -146,7 +143,7 @@ impl CMCallbacker for ReliableConnectionServer {
         reply_cm: CMReplyer,
         _event: &ib_cm_event,
     ) -> Result<(), CMError> {
-        debug!("RC server handle dreq");
+        log::debug!("RC server handle dreq");
         let rc_key = Self::encode_rc_key_by_cm(reply_cm.raw_cm_id());
         self.registered_rc.lock_f(|rcs| rcs.remove(&rc_key));
         Ok(())

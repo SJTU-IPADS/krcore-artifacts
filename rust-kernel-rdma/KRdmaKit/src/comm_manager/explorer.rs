@@ -1,6 +1,7 @@
+/// This module should be only used in the kernel space
 use no_std_net::Guid;
-use rust_kernel_linux_util::bindings::completion;
-use rust_kernel_rdma_base::*;
+use rdma_shim::utils::completion;
+use rdma_shim::bindings::*;
 
 use alloc::boxed::Box;
 use core::option::Option;
@@ -11,7 +12,7 @@ use crate::{alloc::string::ToString, log};
 pub type SubnetAdminPathRecord = sa_path_rec;
 
 /// Explore time out. set 5 seconds
-pub const EXPLORE_TIMEOUT_MS: linux_kernel_module::c_types::c_int = 5000;
+pub const EXPLORE_TIMEOUT_MS: rdma_shim::ffi::c_types::c_int = 5000;
 
 /// # Assumption:
 /// The path explorer will rarely execute.
@@ -91,7 +92,7 @@ impl Explorer {
             path_rec_service_id() | path_rec_dgid() | path_rec_sgid() | path_rec_numb_path(),
             EXPLORE_TIMEOUT_MS as _,
             0,
-            linux_kernel_module::bindings::GFP_KERNEL,
+            rdma_shim::kernel::linux_kernel_module::bindings::GFP_KERNEL,
             Some(explore_complete_handler),
             (&mut self as *mut Self).cast::<c_types::c_void>(),
             &mut sa_query as *mut *mut ib_sa_query,
@@ -134,9 +135,9 @@ impl Drop for SAClient {
 }
 
 pub unsafe extern "C" fn explore_complete_handler(
-    status: linux_kernel_module::c_types::c_int,
+    status: rdma_shim::ffi::c_types::c_int,
     resp: *mut sa_path_rec,
-    context: *mut linux_kernel_module::c_types::c_void,
+    context: *mut rdma_shim::ffi::c_types::c_void,
 ) {
     let e = &mut *(context as *mut Explorer);
     e.result = if status != 0 {

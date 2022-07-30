@@ -1,10 +1,9 @@
-use rust_kernel_rdma_base::bindings::*;
-use rust_kernel_rdma_base::linux_kernel_module::Error;
+use rdma_shim::bindings::*;
+use rdma_shim::{Error, log};
 
 use crate::comm_manager::{CMCallbacker, CMError, CMReplyer};
 use crate::queue_pairs::{QPType, QueuePair, QueuePairStatus};
 use crate::services::rc::RCConnectionData;
-use crate::{linux_kernel_module, log};
 use crate::ControlpathError;
 
 impl CMCallbacker for QueuePair {

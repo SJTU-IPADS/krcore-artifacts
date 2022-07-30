@@ -27,6 +27,11 @@ Please refer to [install.md](docs/install.md) for the environment setup and [exp
 
 Since KRCore is a kernel-space solution with RDMA, we should first build KRCore from source at the machines involved in the evaluations. Afterward, we provide scripts so that all the evaluations can be done on a single controller machine. 
 
+## Roadmap 
+- [ ] support user-space RDMA programs with the same KRdmaKit crate 
+- [ ] revise system call layer to the new KRdmaKit API
+- [ ] support cross-communication between user and kernel 
+
 ## Getting Started Instructions
 
 **Overview of roles of machines involved in the evaluations**

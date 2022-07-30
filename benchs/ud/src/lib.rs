@@ -7,11 +7,9 @@ extern crate alloc;
 pub mod console_msgs;
 mod ud;
 
-
 use KRdmaKit::rust_kernel_rdma_base;
-// rust_kernel_rdma_base
-use rust_kernel_rdma_base::*;
-use rust_kernel_rdma_base::linux_kernel_module;
+use KRdmaKit::rdma_shim::linux_kernel_module;
+
 // linux_kernel_module
 use linux_kernel_module::{println, c_types};
 use KRdmaKit::device::{RNIC, RContext};

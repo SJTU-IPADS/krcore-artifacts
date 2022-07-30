@@ -1,17 +1,15 @@
-use rust_kernel_linux_util::bindings::*;
-use rust_kernel_rdma_base::*;
+use rdma_shim::bindings::*;
+use rdma_shim::{log, Error};
 
 use alloc::{boxed::Box, sync::Arc};
 use core::ptr::NonNull;
 
-use crate::bindings::ib_qp_cap;
+use crate::MAX_RD_ATOMIC;
 use crate::comm_manager::CMError;
 use crate::context::Context;
-use crate::linux_kernel_module::*;
 use crate::queue_pairs::rc_comm::RCCommStruct;
 use crate::queue_pairs::{QPType, QueuePair, QueuePairStatus};
 use crate::services::rc::RCConnectionData;
-use crate::{rust_kernel_linux_util as log, MAX_RD_ATOMIC};
 use crate::{CompletionQueue, ControlpathError};
 
 /// Builder for different kind of queue pairs (RCQP, UDQP ,etc.).
@@ -46,8 +44,6 @@ impl QueuePairBuilder {
     ///
     /// Set the builder's necessary fields and build the queue pair that's needed.
     pub fn new(ctx: &Arc<Context>) -> Self {
-        let mut qkey: [u8; 1] = [0x0; 1];
-        let _ = random::getrandom(&mut qkey);
         Self {
             ctx: ctx.clone(),
             max_send_wr: 128,
@@ -65,7 +61,7 @@ impl QueuePairBuilder {
             max_rd_atomic: MAX_RD_ATOMIC as u8,
             pkey_index: 0,
             port_num: 1,
-            qkey: qkey[0] as u32,
+            qkey: 73, // a magic number
         }
     }
 
@@ -670,7 +666,7 @@ impl PreparedQueuePair {
         if qp_status == QueuePairStatus::Init {
             // RTR
             let mut qp_attr: ib_qp_attr = Default::default();
-            let mut mask: linux_kernel_module::c_types::c_int = ib_qp_attr_mask::IB_QP_STATE;
+            let mut mask: rdma_shim::ffi::c_types::c_int = ib_qp_attr_mask::IB_QP_STATE;
 
             qp_attr.qp_state = ib_qp_state::IB_QPS_RTR;
 

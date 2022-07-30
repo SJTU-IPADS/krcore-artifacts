@@ -2,13 +2,13 @@ use alloc::sync::Arc;
 use core::fmt::{Debug, Formatter};
 use core::ptr::NonNull;
 
-use rust_kernel_rdma_base::rust_kernel_linux_util::bindings::completion;
-use rust_kernel_rdma_base::*;
+use rdma_shim::utils::completion;
+use rdma_shim::bindings::*;
+use rdma_shim::{log, Error};
 
 use crate::comm_manager::{CMCallbacker, CMError, CMReplyer, CMSender};
 use crate::context::{AddressHandler, ContextRef};
-use crate::linux_kernel_module::Error;
-use crate::{log, ControlpathError};
+use crate::ControlpathError;
 
 #[cfg(feature = "dct")]
 use crate::services::dc::DynamicConnectedMeta;

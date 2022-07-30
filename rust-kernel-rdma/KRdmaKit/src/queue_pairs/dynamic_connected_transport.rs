@@ -2,12 +2,11 @@ use alloc::boxed::Box;
 use alloc::sync::Arc;
 use core::ptr::NonNull;
 
-use linux_kernel_module::Error;
+use rdma_shim::Error;
+use rdma_shim::bindings::*;
 
-use crate::bindings::ib_qp_cap;
 use crate::comm_manager::CMError;
 use crate::context::Context;
-use crate::rust_kernel_rdma_base::*;
 use crate::{CompletionQueue, ControlpathError, SharedReceiveQueue};
 
 pub type DynamicConnectedTargetBuilder = super::builder::QueuePairBuilder;

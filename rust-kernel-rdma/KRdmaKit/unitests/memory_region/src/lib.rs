@@ -4,17 +4,14 @@
 #[warn(dead_code)]
 extern crate alloc;
 
-use alloc::sync::Arc;
-
+use KRdmaKit::rdma_shim::{linux_kernel_module, rust_kernel_linux_util};
 use KRdmaKit::memory_region::*;
-use KRdmaKit::rust_kernel_rdma_base::*;
 
 use rust_kernel_linux_util as log;
 
 use krdma_test::*;
 
 fn test_memory_region() {
-    // TODO
     log::info!("Start test whether memory region can work");
 
     let driver = unsafe { KRdmaKit::KDriver::create().unwrap() };
