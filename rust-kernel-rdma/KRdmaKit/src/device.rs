@@ -1,4 +1,4 @@
-use rdma_shim::linux_kernel_module::KernelResult;
+use rdma_shim::KernelResult;
 use rdma_shim::bindings::*;
 use rdma_shim::Error;
 
@@ -19,9 +19,11 @@ pub struct Device {
 
 pub type DeviceRef = Arc<Device>;
 
+#[cfg(feature = "kernel")]
 use crate::context::Context;
 
 impl Device {
+    #[cfg(feature = "kernel")]
     pub fn open_context(self: &DeviceRef) -> Result<Arc<Context>, crate::ControlpathError> {
         Context::new(self)
     }
@@ -55,6 +57,7 @@ impl Device {
         &mut *self.inner.as_ptr()
     }
 
+    #[cfg(feature = "kernel")]
     /// get device attr
     pub fn get_device_attr(&self) -> KernelResult<ib_device_attr> {
         let mut data: ib_udata = Default::default();
@@ -74,6 +77,7 @@ impl Device {
         Ok(dev_attr)
     }
 
+    #[cfg(feature = "kernel")]
     /// get the default port attr
     #[inline]
     pub fn get_port_attr(&self, port_id: u8) -> KernelResult<ib_port_attr> {
@@ -91,11 +95,13 @@ impl Device {
         Ok(port_attr)
     }
 
+    #[cfg(feature = "kernel")]
     /// check whether a given port is activate or not
     pub fn port_status(&self, port_id: u8) -> KernelResult<ib_port_state::Type> {
         Ok(self.get_port_attr(port_id)?.state)
     }
 
+    #[cfg(feature = "kernel")]
     /// query the gid of a specific port
     pub fn query_gid(&self, port_id: u8) -> KernelResult<ib_gid> {
         let mut gid: ib_gid = Default::default();
@@ -113,6 +119,7 @@ impl Device {
         Ok(gid)
     }
 
+    #[cfg(feature = "kernel")]
     /// find the first valid port given a range
     pub fn first_valid_port(&self, range: core::ops::Range<u8>) -> core::option::Option<u8> {
         for i in range {

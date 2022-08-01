@@ -34,7 +34,6 @@ pub mod queue_pairs;
 /// Abstraction for the memory regions
 pub mod memory_region;
 
-#[cfg(feature = "kernel")]
 /// Abstraction for the RDMA-capable devices (RNIC)
 pub mod device; // the new device implementation that will overwrite the old one
 
