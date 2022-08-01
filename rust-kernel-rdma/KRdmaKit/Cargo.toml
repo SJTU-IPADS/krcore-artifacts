@@ -18,6 +18,7 @@ delegate = "*"
 [features]
 dct = ["rdma-shim/dct"]
 kernel = ["rdma-shim/kernel"]
+user = ["rdma-shim/user"]
 profile = []
 
 ## IF enable `rpc_server`, the `poll_all` will busy polling the UD result. IF disabled, the application should

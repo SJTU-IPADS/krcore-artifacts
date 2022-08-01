@@ -1,54 +1,76 @@
 #![no_std]
-#![feature(get_mut_unchecked, new_uninit, allocator_api, trusted_random_access,stmt_expr_attributes)]
+#![feature(
+    get_mut_unchecked,
+    new_uninit,
+    allocator_api,
+    trusted_random_access,
+    stmt_expr_attributes
+)]
 #![cfg_attr(
     feature = "alloc_ref",
     feature(allocator_api, alloc_layout_extra, nonnull_slice_from_raw_parts)
 )]
 
+#[cfg(all(feature = "kernel", feature = "user"))]
+compile_error!("features `crate/kernel` and `crate/user` are mutually exclusive");
+
 extern crate alloc;
 
+#[cfg(feature = "kernel")]
 pub use completion_queue::{CompletionQueue, SharedReceiveQueue};
 
 /// Configuration operations
 pub mod consts;
 
+#[cfg(feature = "kernel")]
+/// Abstraction for the completion queues
+pub mod completion_queue;
+
+#[cfg(feature = "kernel")]
+/// Abstraction for the QPs, including UD, RC and DC.
+pub mod queue_pairs;
+
+#[cfg(feature = "kernel")]
+/// Abstraction for the memory regions
+pub mod memory_region;
+
+#[cfg(feature = "kernel")]
 /// Abstraction for the RDMA-capable devices (RNIC)
 pub mod device; // the new device implementation that will overwrite the old one
 
+#[cfg(feature = "kernel")]
 /// Communication manager (CM) abstracts the CM implementation
 /// This module is used to bootstrap RDMA connection
 pub mod comm_manager;
 
+/// Services abstract necessary remote end to facialiate QP bring up
+#[cfg(feature = "kernel")]
+pub mod services;
+
+#[cfg(feature = "kernel")]
 /// Analogy ib_context in the ibverbs.
 /// Provides a high-level context abstraction but further
 /// abstracts MR and PD in it.
 pub mod context;
 
 #[cfg(feature = "kernel")]
-pub mod kdriver; 
+pub mod kdriver;
+
+#[cfg(feature = "user")]
+pub mod udriver;
+
+#[cfg(feature = "user")]
+pub use udriver::{KDriverRef, UDriver};
 
 #[cfg(feature = "kernel")]
 pub use kdriver::{KDriver, KDriverRef};
 
-/// Services abstract necessary remote end to facialiate QP bring up
-#[cfg(feature = "kernel")]
-pub mod services;
-
-/// Abstraction for the completion queues 
-pub mod completion_queue;
-
-/// Abstraction for the QPs, including UD, RC and DC. 
-pub mod queue_pairs;
-
-/// Abstraction for the memory regions
-pub mod memory_region;
-
-pub mod utils;
 pub mod random;
+pub mod utils;
 
-pub use rdma_shim; 
-pub(crate) use rdma_shim::{Error, println};
+pub use rdma_shim;
 use rdma_shim::utils::KTimer;
+pub(crate) use rdma_shim::Error;
 
 use consts::*;
 
@@ -145,10 +167,13 @@ impl Profile {
     pub fn report(&self, tick_num: usize) {
         for i in 0..tick_num {
             let latency = self.total_time_usec[i] as f64 / self.total_op as f64;
-            println!(
+            log::info!(
                 "Profile[tick:{}] information: total time {} us, total op {}, \
         latency: {:.5} us/op",
-                i, self.total_time_usec[i], self.total_op, latency
+                i,
+                self.total_time_usec[i],
+                self.total_op,
+                latency
             );
         }
     }
@@ -167,4 +192,3 @@ impl Default for Profile {
 unsafe impl Sync for Profile {}
 
 unsafe impl Send for Profile {}
-

@@ -1,5 +1,7 @@
 pub mod bindings;
 
+pub mod ffi;
+
 #[cfg(test)]
 mod tests {
     #[test]
