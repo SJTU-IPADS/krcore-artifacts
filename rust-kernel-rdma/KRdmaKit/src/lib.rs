@@ -72,6 +72,7 @@ pub use rdma_shim;
 use rdma_shim::utils::KTimer;
 pub(crate) use rdma_shim::Error;
 
+#[allow(unused_imports)]
 use consts::*;
 
 #[macro_export]

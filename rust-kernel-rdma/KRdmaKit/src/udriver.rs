@@ -7,7 +7,7 @@ use alloc::sync::Arc;
 pub struct UDriver {
 }
 
-pub type KDriverRef = Arc<KDriver>;
+pub type KDriverRef = Arc<UDriver>;
 
 #[cfg(test)]
 mod tests {
