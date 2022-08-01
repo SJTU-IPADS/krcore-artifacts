@@ -4,6 +4,9 @@ use std::env;
 use std::path::Path;
 
 fn main() {
+    println!("cargo:rustc-link-lib=ibverbs");
+    println!("cargo:rustc-link-lib=pthread");
+    
     let mut include_paths: Vec<String> = Vec::new();
 
     {
@@ -24,23 +27,6 @@ fn main() {
         .whitelist_type("rdma_.*")
         .whitelist_type("verbs_.*")
         .whitelist_type("ib_uverbs_access_flags")
-        .blacklist_type("in6_addr")
-        .blacklist_type("pthread_.*")
-        .blacklist_type("sockaddr.*")
-        .blacklist_type("timespec")
-        .blacklist_type("ibv_ah_attr")
-        .blacklist_type("ibv_async_event")
-        .blacklist_type("ibv_flow_spec")
-        .blacklist_type("ibv_gid")
-        .blacklist_type("ibv_global_route")
-        .blacklist_type("ibv_mw_bind_info")
-        .blacklist_type("ibv_ops_wr")
-        .blacklist_type("ibv_send_wr")
-        .blacklist_type("ibv_wc")
-        .blacklist_type("rdma_addr")
-        .blacklist_type("rdma_cm_event")
-        .blacklist_type("rdma_ib_addr")
-        .blacklist_type("rdma_ud_param")
         // Following ENUM will used with bitwise-or
         // including flags, mask, caps, bits, fields, size
         .bitfield_enum("ibv_device_cap_flags")
