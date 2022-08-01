@@ -14,6 +14,4 @@ kernel = ["rust-kernel-rdma-base"]
 dct = ["rust-kernel-rdma-base/dct"]
 user = ["rust-user-rdma"]
 
-default = ["user"]
-
 

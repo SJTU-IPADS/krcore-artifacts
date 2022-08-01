@@ -6,7 +6,6 @@
 )]
 
 extern crate alloc;
-use alloc::sync::Arc;
 
 pub use completion_queue::{CompletionQueue, SharedReceiveQueue};
 
@@ -25,6 +24,12 @@ pub mod comm_manager;
 /// abstracts MR and PD in it.
 pub mod context;
 
+#[cfg(feature = "kernel")]
+pub mod kdriver; 
+
+#[cfg(feature = "kernel")]
+pub use kdriver::{KDriver, KDriverRef};
+
 /// Services abstract necessary remote end to facialiate QP bring up
 #[cfg(feature = "kernel")]
 pub mod services;
@@ -42,10 +47,8 @@ pub mod utils;
 pub mod random;
 
 pub use rdma_shim; 
-use rdma_shim::utils::KTimer;
-use rdma_shim::bindings::*;
-use rdma_shim::ffi::c_types;
 pub(crate) use rdma_shim::{Error, println};
+use rdma_shim::utils::KTimer;
 
 use consts::*;
 
@@ -56,96 +59,7 @@ macro_rules! to_ptr {
     };
 }
 
-use alloc::vec::Vec;
-
-pub struct KDriver {
-    client: ib_client,
-    rnics: Vec<device::DeviceRef>,
-}
-
-pub type KDriverRef = Arc<KDriver>;
-
 pub use rdma_shim::log;
-
-impl KDriver {
-    pub fn devices(&self) -> &Vec<device::DeviceRef> {
-        &self.rnics
-    }
-
-    /// ! warning: this function is **not** thread safe
-    pub unsafe fn create() -> Option<Arc<Self>> {
-        let mut temp = Arc::new(KDriver {
-            client: core::mem::MaybeUninit::zeroed().assume_init(),
-            rnics: Vec::new(),
-        });
-
-        // First, we query all the ib_devices
-        {
-            let temp_inner = Arc::get_mut_unchecked(&mut temp);
-
-            _NICS = Some(Vec::new());
-
-            temp_inner.client.name = b"kRdmaKit\0".as_ptr() as *mut c_types::c_char;
-            temp_inner.client.add = Some(KDriver_add_one);
-            temp_inner.client.remove = Some(_KRdiver_remove_one);
-
-            let err = ib_register_client((&mut temp_inner.client) as _);
-            if err != 0 {
-                return None;
-            }
-        }
-
-        // next, weconstruct the nics
-        // we need to do this to avoid move out temp upon constructing the devices
-        let rnics = get_temp_rnics()
-            .into_iter()
-            .map(|dev| {
-                device::Device::new(*dev, &temp)
-                    .expect("Query ib_device pointers should never fail")
-            })
-            .collect();
-
-        // modify the temp again
-        {
-            let temp_inner = Arc::get_mut_unchecked(&mut temp);
-            temp_inner.rnics = rnics;
-            _NICS.take();
-        }
-
-        log::debug!("KRdmaKit driver initialization done. ");
-
-        Some(temp)
-    }
-}
-
-impl Drop for KDriver {
-    fn drop(&mut self) {
-        unsafe { ib_unregister_client(&mut self.client) };
-    }
-}
-
-/* helper functions & parameters for bootstrap */
-static mut _NICS: Option<Vec<*mut ib_device>> = None;
-
-unsafe fn get_temp_rnics() -> &'static mut Vec<*mut ib_device> {
-    match _NICS {
-        Some(ref mut x) => &mut *x,
-        None => panic!(),
-    }
-}
-
-#[allow(non_snake_case)]
-unsafe extern "C" fn _KRdiver_add_one(dev: *mut ib_device) {
-    //    let nic = crate::device::RNIC::create(dev, 1);
-    //    get_temp_rnics().push(nic.ok().unwrap());
-    get_temp_rnics().push(dev);
-}
-rdma_shim::gen_add_dev_func!(_KRdiver_add_one, KDriver_add_one);
-
-#[allow(non_snake_case)]
-unsafe extern "C" fn _KRdiver_remove_one(dev: *mut ib_device, _client_data: *mut c_types::c_void) {
-    log::info!("remove one dev {:?}", dev);
-}
 
 /// The error type of control plane operations
 #[derive(thiserror_no_std::Error, Debug)]
@@ -254,10 +168,3 @@ unsafe impl Sync for Profile {}
 
 unsafe impl Send for Profile {}
 
-impl core::fmt::Debug for KDriver {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.debug_struct("KDriver")
-            .field("num_device", &self.rnics.len())
-            .finish()
-    }
-}
