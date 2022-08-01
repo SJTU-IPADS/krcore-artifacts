@@ -140,7 +140,7 @@ fn test_cm() {
 
     // we use the server_gid for the server & client,
     // since the unittest run on the same machine
-    let server_gid = client_ctx.get_dev_ref().query_gid(valid_port).unwrap(); // should never fail
+    let server_gid = client_ctx.get_dev_ref().query_gid(valid_port, 0).unwrap(); // should never fail
 
     let path_res = unsafe { explore.resolve_inner(12, valid_port as _, server_gid) };
     log::info!(

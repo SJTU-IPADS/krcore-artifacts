@@ -55,7 +55,8 @@ impl DynamicConnectedTarget {
         let gid = self
             .ctx()
             .get_dev_ref()
-            .query_gid(self.port_num)
+            // FIXME: what if gid_index != 0?
+            .query_gid(self.port_num, 0)
             .map_err(|err| CMError::Creation(err.to_kernel_errno()))?;
 
         let lid = port_attr.lid as u16;

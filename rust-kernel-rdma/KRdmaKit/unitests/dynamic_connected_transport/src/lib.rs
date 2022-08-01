@@ -164,7 +164,7 @@ fn test_dct_query() -> Result<(), TestError> {
 
     let gid = server_ctx
         .get_dev_ref()
-        .query_gid(dct_target.port_num())
+        .query_gid(dct_target.port_num(), 0)
         .unwrap();
     let explorer = Explorer::new(server_ctx.get_dev_ref());
     let path = unsafe { explorer.resolve_inner(server_service_id, dc_qp.port_num(), gid) }

@@ -19,11 +19,9 @@ pub struct Device {
 
 pub type DeviceRef = Arc<Device>;
 
-#[cfg(feature = "kernel")]
 use crate::context::Context;
 
 impl Device {
-    #[cfg(feature = "kernel")]
     pub fn open_context(self: &DeviceRef) -> Result<Arc<Context>, crate::ControlpathError> {
         Context::new(self)
     }
@@ -103,13 +101,13 @@ impl Device {
 
     #[cfg(feature = "kernel")]
     /// query the gid of a specific port
-    pub fn query_gid(&self, port_id: u8) -> KernelResult<ib_gid> {
+    pub fn query_gid(&self, port_id: u8, gid_idx : usize) -> KernelResult<ib_gid> {
         let mut gid: ib_gid = Default::default();
         let err = unsafe {
             self.get_mut_self().query_gid(
                 self.inner.as_ptr(),
                 port_id as u8,
-                0,
+                gid_idx as _, // index
                 &mut gid as *mut ib_gid,
             )
         };
@@ -127,7 +125,7 @@ impl Device {
                 if status != ib_port_state::IB_PORT_ACTIVE {
                     continue;
                 }
-                if let Ok(_gid) = self.query_gid(i as _) {
+                if let Ok(_gid) = self.query_gid(i as _, 0) {
                     return Some(i);
                 }
             }
@@ -149,7 +147,8 @@ mod tests {
         log::error!("{}", dev_ref.name());
 
         for i in 0..udriver.iter().len() { 
-            udriver.get_dev(i).unwrap();            
+            let dev = udriver.get_dev(i).unwrap();            
+            dev.open_context().unwrap();
         }
     }
 }

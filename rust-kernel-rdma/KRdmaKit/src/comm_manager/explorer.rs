@@ -75,7 +75,8 @@ impl Explorer {
 
         let mut path_request = SubnetAdminPathRecord {
             dgid: dst_gid,
-            sgid: self.inner_dev.query_gid(source_port_id).map_err(|_| {
+            // FIXME: what if gid_index != 0?
+            sgid: self.inner_dev.query_gid(source_port_id, 0).map_err(|_| {
                 CMError::InvalidArg("Source port number", source_port_id.to_string())
             })?,
             numb_path: 1, // FIXME

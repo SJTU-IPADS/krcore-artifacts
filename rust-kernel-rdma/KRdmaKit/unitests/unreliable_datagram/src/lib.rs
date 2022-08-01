@@ -142,7 +142,7 @@ fn test_ud_query() -> Result<(), TestError> {
 
     // GID related to the server's
     let client_port: u8 = 1;
-    let gid = server_ctx.get_dev_ref().query_gid(server_port).unwrap();
+    let gid = server_ctx.get_dev_ref().query_gid(server_port, 0).unwrap();
     let explorer = Explorer::new(client_ctx.get_dev_ref());
     let path =
         unsafe { explorer.resolve_inner(server_service_id, client_port, gid) }.map_err(|_| {

@@ -47,8 +47,7 @@ pub mod comm_manager;
 #[cfg(feature = "kernel")]
 pub mod services;
 
-#[cfg(feature = "kernel")]
-/// Analogy ib_context in the ibverbs.
+/// Analogy ibv_context in the ibverbs.
 /// Provides a high-level context abstraction but further
 /// abstracts MR and PD in it.
 pub mod context;

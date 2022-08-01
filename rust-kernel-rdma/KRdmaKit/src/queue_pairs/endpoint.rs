@@ -2,8 +2,8 @@ use alloc::sync::Arc;
 use core::fmt::{Debug, Formatter};
 use core::ptr::NonNull;
 
-use rdma_shim::utils::completion;
 use rdma_shim::bindings::*;
+use rdma_shim::utils::completion;
 use rdma_shim::{log, Error};
 
 use crate::comm_manager::{CMCallbacker, CMError, CMReplyer, CMSender};
@@ -24,7 +24,7 @@ use crate::services::DatagramMeta;
 /// Note:
 /// - when dct is enabled, the qkey & qpn fields are meaningless if the remote end is UD.
 /// - when dct is enabled, the dct_num & dc_key fields are meaningless if the remote end is DCT.
-/// 
+///
 /// Warn:
 /// - The behavior is **undefined** if you query a DCT endpoint, while remote is listening UD queries (and vice verse).
 ///
@@ -83,7 +83,8 @@ impl DatagramEndpoint {
         #[cfg(feature = "dct")] dct_num: u32,
         #[cfg(feature = "dct")] dc_key: u64,
     ) -> Result<Self, ControlpathError> {
-        let ah = ctx.create_address_handler(local_port_num, lid, gid)?;
+        // FIXME: what if gid_index != 0?
+        let ah = ctx.create_address_handler(local_port_num, 0, lid, gid)?;
 
         #[cfg(not(feature = "dct"))]
         return Ok(Self {
@@ -136,17 +137,17 @@ impl DatagramEndpoint {
         self.gid
     }
 
-    #[cfg(feature = "dct")]    
+    #[cfg(feature = "dct")]
     #[inline]
-    pub fn dc_key(&self) -> u64 { 
+    pub fn dc_key(&self) -> u64 {
         self.dc_key
     }
 
-    #[cfg(feature = "dct")]    
+    #[cfg(feature = "dct")]
     #[inline]
-    pub fn dct_num(&self) -> u32 { 
+    pub fn dct_num(&self) -> u32 {
         self.dct_num
-    }    
+    }
 }
 
 /// This querier serves you a quick way to get the endpoint information from
@@ -261,7 +262,7 @@ impl CMCallbacker for DatagramQuerierInner {
                 rep_param.status
             );
         } else {
-           #[cfg(not(feature = "dct"))]
+            #[cfg(not(feature = "dct"))]
             let reply = unsafe { *(rep_param.info as *mut DatagramMeta) };
 
             #[cfg(feature = "dct")]

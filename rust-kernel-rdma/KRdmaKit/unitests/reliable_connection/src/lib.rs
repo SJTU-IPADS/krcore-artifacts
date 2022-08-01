@@ -80,7 +80,7 @@ fn test_rc_handshake() -> Result<(), TestError> {
     })?;
 
     // GID related to the server's
-    let gid = server_ctx.get_dev_ref().query_gid(server_port).unwrap();
+    let gid = server_ctx.get_dev_ref().query_gid(server_port, 0).unwrap();
     let explorer = Explorer::new(client_ctx.get_dev_ref());
     let path =
         unsafe { explorer.resolve_inner(server_service_id, client_port, gid) }.map_err(|_| {
@@ -140,7 +140,7 @@ fn test_rc_duplicate_handshake() -> Result<(), TestError> {
     );
 
     let client_port: u8 = 1;
-    let gid = server_ctx.get_dev_ref().query_gid(server_port).unwrap();
+    let gid = server_ctx.get_dev_ref().query_gid(server_port, 0).unwrap();
     let explorer = Explorer::new(client_ctx.get_dev_ref());
     let path =
         unsafe { explorer.resolve_inner(server_service_id, client_port, gid) }.map_err(|_| {
@@ -225,7 +225,7 @@ fn test_rc_read_write() -> Result<(), TestError> {
     })?;
 
     // GID related to the server's
-    let gid = server_ctx.get_dev_ref().query_gid(server_port).unwrap();
+    let gid = server_ctx.get_dev_ref().query_gid(server_port,0).unwrap();
     let explorer = Explorer::new(client_ctx.get_dev_ref());
     let path =
         unsafe { explorer.resolve_inner(server_service_id, client_port, gid) }.map_err(|_| {
@@ -363,7 +363,7 @@ fn test_rc_with_wrong_key() -> Result<(), TestError> {
     })?;
 
     // GID related to the server's
-    let gid = server_ctx.get_dev_ref().query_gid(server_port).unwrap();
+    let gid = server_ctx.get_dev_ref().query_gid(server_port, 0).unwrap();
     let explorer = Explorer::new(client_ctx.get_dev_ref());
     let path =
         unsafe { explorer.resolve_inner(server_service_id, client_port, gid) }.map_err(|_| {

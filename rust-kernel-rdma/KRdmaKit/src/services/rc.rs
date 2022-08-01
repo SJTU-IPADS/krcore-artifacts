@@ -31,7 +31,7 @@ impl RCConnectionData {
         let gid = qp
             .ctx()
             .get_dev_ref()
-            .query_gid(port_num)
+            .query_gid(port_num, 0) // FIXME: what if gid_index != 0?
             .map_err(|err| CMError::Creation(err.to_kernel_errno()))?;
 
 
