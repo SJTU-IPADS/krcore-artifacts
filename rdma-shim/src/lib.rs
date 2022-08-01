@@ -1,4 +1,5 @@
 #![no_std]
+
 #[cfg(all(feature = "kernel", feature = "user"))]
 compile_error!("features `crate/kernel` and `crate/user` are mutually exclusive");
 

@@ -135,3 +135,21 @@ impl Device {
         None
     }
 }
+
+#[cfg(feature = "user")]
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rdma_shim::log;
+
+    #[test]
+    fn test_device_name() {
+        let udriver = crate::UDriver::create().unwrap();
+        let dev_ref = udriver.get_dev(0).unwrap();
+        log::error!("{}", dev_ref.name());
+
+        for i in 0..udriver.iter().len() { 
+            udriver.get_dev(i).unwrap();            
+        }
+    }
+}

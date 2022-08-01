@@ -30,10 +30,33 @@ impl UDriver {
             slice::from_raw_parts_mut(devices, n as usize)
         };
 
-        Some(Arc::new(Self {
+        let mut ret = Arc::new(Self {
             rnics: Default::default(),
             raw_devices: devices,
-        }))
+        });
+
+        let mut rnics = Vec::new();
+        for i in 0..ret.raw_devices.len() {
+            rnics.push(crate::device::Device::new(ret.raw_devices[i], &ret)?);
+        }
+
+        // modify the ret temp again
+        {
+            let temp_inner = unsafe { Arc::get_mut_unchecked(&mut ret) };
+            temp_inner.rnics = rnics;
+        }
+
+        Some(ret)
+    }
+
+    /// return the overall wrapped devices
+    pub fn iter(&self) -> core::slice::Iter<'_, crate::device::DeviceRef> {
+        self.rnics.iter()
+    }
+
+    /// get a specific device accroding to the index of the device list
+    pub fn get_dev(&self, index: usize) -> Option<&crate::device::DeviceRef> {
+        self.rnics.get(index)
     }
 }
 
@@ -46,7 +69,7 @@ impl Drop for UDriver {
 impl core::fmt::Debug for UDriver {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("User-space RDMA device list")
-            .field("num_devices", &1)
+            .field("num_devices", &self.rnics.len())
             .finish()
     }
 }
@@ -64,9 +87,11 @@ mod tests {
         assert!(!devices.is_null());
     }
 
-    #[test] 
-    fn check_device_num() { 
+    #[test]
+    fn check_device_num() {
         let d = UDriver::create();
         assert!(d.is_some());
+        let d = d.unwrap();
+        assert_eq!(d.rnics.len(), d.raw_devices.len());
     }
 }
