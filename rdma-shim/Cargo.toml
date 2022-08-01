@@ -7,11 +7,12 @@ edition = "2021"
 
 [dependencies]
 rust-kernel-rdma-base = { path = "../rust-kernel-rdma/rust-kernel-rdma-base", optional = true}
+rust-user-rdma = {path = "../rust-user-rdma", optional = true}
 
 [features]
 kernel = ["rust-kernel-rdma-base"]
 dct = ["rust-kernel-rdma-base/dct"]
-user = ["rdma-sys"]
+user = ["rust-user-rdma"]
 
 default = ["user"]
 
