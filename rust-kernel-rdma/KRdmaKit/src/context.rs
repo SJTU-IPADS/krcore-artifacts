@@ -7,6 +7,7 @@ use crate::{device::DeviceRef, ControlpathError};
 
 /// Context abstract the protection domain and memory registeration
 /// in the kernel space
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct Context {
     inner_device: DeviceRef,

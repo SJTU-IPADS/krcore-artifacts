@@ -19,24 +19,25 @@ mod wrapper_types {
     /// functions
 
     #[inline(always)]
-    pub fn ib_dealloc_pd(pd: *mut ib_pd) {
-        unsafe { ibv_dealloc_pd(pd) };
+    pub unsafe fn ib_dealloc_pd(pd: *mut ib_pd) {
+        ibv_dealloc_pd(pd);
     }
 
     #[inline(always)]
-    pub fn rdma_create_ah_wrapper(pd: *mut ib_pd, attr: *mut ib_ah_attr) -> *mut ib_ah {
-        unsafe { ibv_create_ah(pd, attr) }
+    pub unsafe fn rdma_create_ah_wrapper(pd: *mut ib_pd, attr: *mut ib_ah_attr) -> *mut ib_ah {
+        ibv_create_ah(pd, attr)
     }
 
     #[inline(always)]
-    pub fn rdma_destroy_ah(ah: *mut ib_ah) {
-        unsafe { ibv_destroy_ah(ah) };
+    pub unsafe fn rdma_destroy_ah(ah: *mut ib_ah) {
+        ibv_destroy_ah(ah);
     }
 }
 
 pub use wrapper_types::*;
 
-pub fn ptr_is_err<T>(ptr: *mut T) -> super::ffi::c_types::c_int {
+#[allow(unused_unsafe)]
+pub unsafe fn ptr_is_err<T>(ptr: *mut T) -> super::ffi::c_types::c_int {
     if ptr.is_null() {
         1
     } else {
