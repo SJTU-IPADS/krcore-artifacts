@@ -24,7 +24,6 @@ pub use completion_queue::{CompletionQueue, SharedReceiveQueue};
 /// Configuration operations
 pub mod consts;
 
-#[cfg(feature = "kernel")]
 /// Abstraction for the completion queues
 pub mod completion_queue;
 

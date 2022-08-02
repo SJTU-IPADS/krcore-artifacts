@@ -50,6 +50,11 @@ impl Context {
         }
     }
 
+    #[cfg(feature = "user")]
+    pub fn raw_ptr(&self) -> &NonNull<ibv_context> { 
+        self.ctx
+    }
+
     #[allow(unused_variables)]
     pub fn new_from_flags(dev: &DeviceRef, mr_flags: i32) -> Result<ContextRef, ControlpathError> {
         #[cfg(feature = "kernel")]
