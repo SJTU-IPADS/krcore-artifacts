@@ -8,6 +8,7 @@ mod wrapper_types {
     /// types:
     pub type ib_device = ibv_device;
     pub type ib_device_attr = ibv_device_attr;
+    pub type ib_port_attr = ibv_port_attr;
 
     pub type ib_pd = ibv_pd;
     pub type ib_ah = ibv_ah;

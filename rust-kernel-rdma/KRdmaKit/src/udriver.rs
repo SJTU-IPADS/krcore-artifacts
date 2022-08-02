@@ -13,6 +13,10 @@ pub struct UDriver {
 pub type KDriverRef = Arc<UDriver>;
 
 impl UDriver {
+    pub fn devices(&self) -> &Vec<crate::device::DeviceRef> {
+        &self.rnics
+    }
+
     /// Query the device lists on this machine, and recorded in the UDriver
     ///
     /// FIXME: replace Option with some kind of error

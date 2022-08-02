@@ -104,20 +104,20 @@ impl Context {
     pub fn get_pd(&self) -> &NonNull<ib_pd> {
         &self.pd
     }
-    
+
     /// Create an address handler of this context
-    /// 
+    ///
     /// - port_num: local port number
     /// - gid_idx : local gid index
-    /// 
+    ///
     /// - lid : remote lid
     /// - gid : remote gid
-    /// 
-    #[allow(unused_variables)]    // gid_idx may not be used in the kernel
+    ///
+    #[allow(unused_variables)] // gid_idx may not be used in the kernel
     pub fn create_address_handler(
         self: &Arc<Self>,
-        port_num: u8, 
-        gid_idx : usize,
+        port_num: u8,
+        gid_idx: usize,
         lid: u32,
         gid: ib_gid,
     ) -> Result<AddressHandler, ControlpathError> {
@@ -181,7 +181,51 @@ impl Context {
 
         #[cfg(feature = "user")]
         {
-            unimplemented!()
+            let mut dev_attr: ib_device_attr = Default::default();
+            let err = unsafe { ibv_query_device(self.ctx.as_ptr(), &mut dev_attr as _) };
+
+            if err != 0 {
+                return Err(Error::from_kernel_errno(err));
+            }
+            Ok(dev_attr)
+        }
+    }
+
+    #[inline]
+    pub fn get_port_attr(&self, port_id: u8) -> KernelResult<ib_port_attr> {
+        #[cfg(feature = "kernel")]
+        {
+            self.inner_device.get_port_attr(port_id)
+        }
+
+        #[cfg(feature = "user")]
+        {
+            let mut port_attr: ib_port_attr = Default::default();
+            let err = unsafe { ibv_query_port(self.ctx.as_ptr(), port_id, &mut port_attr as _) };
+
+            if err != 0 {
+                return Err(Error::from_kernel_errno(err));
+            }
+            Ok(port_attr)
+        }
+    }
+
+    /// query the gid of a specific port
+    pub fn query_gid(&self, port_id: u8, gid_idx: usize) -> KernelResult<ib_gid> {
+        #[cfg(feature = "kernel")]
+        {
+            self.inner_device.query_gid(port_id)
+        }
+
+        #[cfg(feature = "user")]
+        {
+            let mut gid: ib_gid = Default::default();
+            let err =
+                unsafe { ibv_query_gid(self.ctx.as_ptr(), port_id, gid_idx as _, &mut gid as _) };
+            if err != 0 {
+                return Err(Error::from_kernel_errno(err));
+            }
+            Ok(gid)
         }
     }
 }

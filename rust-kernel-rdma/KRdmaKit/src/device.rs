@@ -1,6 +1,9 @@
+#[cfg(feature = "kernel")]
 use rdma_shim::KernelResult;
-use rdma_shim::bindings::*;
+#[cfg(feature = "kernel")]
 use rdma_shim::Error;
+
+use rdma_shim::bindings::*;
 
 use alloc::sync::Arc;
 use core::option::Option;
