@@ -2,7 +2,7 @@ use rdma_shim::bindings::*;
 use rdma_shim::Error;
 
 use alloc::sync::Arc;
-use core::ptr::{null_mut, NonNull};
+use core::ptr::NonNull;
 
 use crate::context::{Context, ContextRef};
 use crate::ControlpathError::CreationError;
@@ -13,6 +13,12 @@ use crate::{ControlpathError, DatapathError};
 pub struct CompletionQueue {
     _ctx: Arc<Context>,
     cq: NonNull<ib_cq>,
+
+    poll_cq_op: unsafe extern "C" fn(
+        cq: *mut ib_cq,
+        num_entries: rdma_shim::ffi::c_types::c_int,
+        wc: *mut ib_wc,
+    ) -> rdma_shim::ffi::c_types::c_int,
 }
 
 /// An abstraction shared receive queue (SRQ)
@@ -58,9 +64,9 @@ impl CompletionQueue {
             unsafe {
                 ibv_create_cq(
                     context.raw_ptr().as_ptr(),
-                    max_cq_entries,
-                    core::null_mut(),
-                    core::null_mut(),
+                    max_cq_entries as _,
+                    core::ptr::null_mut(),
+                    core::ptr::null_mut(),
                     0,
                 )
             }
@@ -68,10 +74,12 @@ impl CompletionQueue {
 
         return if cq_raw_ptr.is_null() {
             Err(CreationError("CQ", Error::EINVAL))
-        } else { 
+        } else {
+            let poll_cq_op = unsafe { context.raw_ptr().as_ref().ops.poll_cq.unwrap() }; // should never happen
             Ok(Self {
                 _ctx: context.clone(),
                 cq: unsafe { NonNull::new_unchecked(cq_raw_ptr) },
+                poll_cq_op: poll_cq_op,
             })
         };
     }
@@ -82,7 +90,7 @@ impl CompletionQueue {
     #[inline]
     pub fn poll<'c>(&self, completions: &'c mut [ib_wc]) -> Result<&'c mut [ib_wc], DatapathError> {
         let n: i32 = unsafe {
-            bd_ib_poll_cq(
+            (self.poll_cq_op)(
                 self.cq.as_ptr(),
                 completions.len() as i32,
                 completions.as_mut_ptr() as _,
@@ -169,6 +177,8 @@ mod tests {
             .expect("no rdma device available")
             .open_context()
             .expect("failed to create RDMA context");
-        unimplemented!();
+            
+        let cq = super::CompletionQueue::create(&ctx, 32);
+        assert!(cq.is_ok());
     }
 }

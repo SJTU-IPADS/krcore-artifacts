@@ -32,6 +32,12 @@ impl Default for ibv_gid {
     }
 }
 
+impl Default for ibv_srq_init_attr { 
+    fn default() -> Self {
+        unsafe { core::mem::zeroed() }
+    }
+}
+
 impl core::fmt::Debug for ibv_device_attr {
     /// print the device attr, the detailed fields can be found at:
     /// https://www.rdmamojo.com/2012/07/13/ibv_query_device/

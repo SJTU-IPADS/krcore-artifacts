@@ -52,8 +52,13 @@ impl Context {
 
     #[cfg(feature = "user")]
     pub fn raw_ptr(&self) -> &NonNull<ibv_context> { 
-        self.ctx
+        &self.ctx
     }
+
+    #[cfg(feature = "kernel")]
+    pub fn raw_ptr(&self) -> &NonNull<ib_device> { 
+        self.get_dev_ref().raw_ptr()
+    }    
 
     #[allow(unused_variables)]
     pub fn new_from_flags(dev: &DeviceRef, mr_flags: i32) -> Result<ContextRef, ControlpathError> {
@@ -220,7 +225,7 @@ impl Context {
     pub fn query_gid(&self, port_id: u8, gid_idx: usize) -> KernelResult<ib_gid> {
         #[cfg(feature = "kernel")]
         {
-            self.inner_device.query_gid(port_id)
+            self.inner_device.query_gid(port_id, gid_idx)
         }
 
         #[cfg(feature = "user")]

@@ -18,7 +18,6 @@ compile_error!("features `crate/kernel` and `crate/user` are mutually exclusive"
 
 extern crate alloc;
 
-#[cfg(feature = "kernel")]
 pub use completion_queue::{CompletionQueue, SharedReceiveQueue};
 
 /// Configuration operations

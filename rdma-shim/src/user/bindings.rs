@@ -2,7 +2,8 @@ pub use rust_user_rdma::*;
 
 #[allow(non_camel_case_types)]
 mod wrapper_types {
-    use crate::ffi::c_types::c_int;
+    #[allow(unused_imports)]
+    use crate::ffi::c_types::*;
     use super::*;
 
     /// We follow the convention of the kernel to rename the user-space verbs types
