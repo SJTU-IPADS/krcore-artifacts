@@ -1,4 +1,5 @@
 #![no_std]
+#![allow(non_snake_case)]
 
 #![feature(
     get_mut_unchecked,

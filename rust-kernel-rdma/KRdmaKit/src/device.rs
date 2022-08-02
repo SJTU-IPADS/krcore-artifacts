@@ -51,6 +51,7 @@ impl Device {
 impl Device {
     /// Wrap myself as a mutable reference
     /// This function should only be used for internal usage  
+    #[allow(dead_code)]
     unsafe fn get_mut_self(&self) -> &mut ib_device {
         // note that here we change the mutablity
         // it is safe to do so here, because the ib_driver will
@@ -140,7 +141,6 @@ impl Device {
 #[cfg(feature = "user")]
 #[cfg(test)]
 mod tests {
-    use super::*;
     use rdma_shim::log;
 
     #[test]

@@ -30,6 +30,7 @@ pub struct AddressHandler {
     inner: NonNull<ib_ah>,
 }
 
+#[cfg(feature = "kernel")]
 const IB_PD_UNSAFE_GLOBAL_RKEY: u32 = 0x01;
 
 impl Context {
@@ -258,10 +259,22 @@ impl Drop for Context {
 #[cfg(feature = "user")]
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn device_attr() {
-        unimplemented!();
+        let ctx = crate::UDriver::create()
+            .expect("failed to query device")
+            .devices()
+            .into_iter()
+            .next()
+            .expect("no rdma device available")
+            .open_context()
+            .expect("failed to create RDMA context");
+
+        ctx.get_device_attr().unwrap();
+        let port_lid = ctx.get_port_attr(1).unwrap().lid;
+        let gid = ctx.query_gid(1, 0).unwrap();
+
+        ctx.create_address_handler(1, 0, port_lid as _, gid)
+            .unwrap();
     }
 }

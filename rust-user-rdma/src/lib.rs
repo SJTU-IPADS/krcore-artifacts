@@ -4,6 +4,8 @@
 #[allow(unused_imports)]
 use libc::*;
 
+use no_std_net::Guid;
+
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
 impl Default for ibv_ah_attr {
@@ -57,10 +59,9 @@ impl core::fmt::Debug for ibv_port_attr {
 impl core::fmt::Debug for ibv_gid {
     /// print the gid, refer to 
     /// https://www.rdmamojo.com/2012/08/02/ibv_query_gid/
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.debug_struct("ibv_gid")
-            .field("max_qp_rd_atom", &self.max_qp_rd_atom)
-            .finish() // TODO: more fields to be added
+    fn fmt(&self, fmt: &mut ::core::fmt::Formatter) -> core::fmt::Result {
+        let guid = Guid::new_u8(unsafe { &self.raw.as_ref() });
+        write!(fmt, "{}", guid)
     }
 }
 

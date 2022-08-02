@@ -1,6 +1,6 @@
-//! Consts used in the whole KRdmaKit module
+#![allow(unused)] 
 
-#[allow(dead_code)]
+//! Consts used in the whole KRdmaKit module
 mod inner {
     pub const IB_PD_UNSAFE_GLOBAL_RKEY: usize = 0x01;
     pub const CONNECT_TIME_OUT_MS: rdma_shim::ffi::c_types::c_int = 5000; // connect time out. set 5 seconds

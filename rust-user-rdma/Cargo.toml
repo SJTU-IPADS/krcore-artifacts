@@ -7,6 +7,8 @@ edition = "2021"
 
 [dependencies]
 libc = "0.2"
+no-std-net = {path = "../rust-kernel-rdma/deps/no-std-net"}
+
 
 [build-dependencies]
 bindgen = "0.54.0" ## FIXME: update
