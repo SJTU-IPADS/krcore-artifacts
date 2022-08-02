@@ -48,6 +48,7 @@ impl Context {
         }
     }
 
+    #[allow(unused_variables)]
     pub fn new_from_flags(dev: &DeviceRef, mr_flags: i32) -> Result<ContextRef, ControlpathError> {
         #[cfg(feature = "kernel")]
         {
