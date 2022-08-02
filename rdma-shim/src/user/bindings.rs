@@ -11,12 +11,35 @@ mod wrapper_types {
 
     pub type ib_pd = ibv_pd;
     pub type ib_ah = ibv_ah;
+    pub type ib_ah_attr = ibv_ah_attr;
     pub type ib_gid = ibv_gid;
 
     pub type rdma_ah_attr = ibv_ah_attr;
 
     /// functions
-    pub type rdma_create_ah_wrapper = ibv_create_ah;
+
+    #[inline(always)]
+    pub fn ib_dealloc_pd(pd: *mut ib_pd) {
+        unsafe { ibv_dealloc_pd(pd) };
+    }
+
+    #[inline(always)]
+    pub fn rdma_create_ah_wrapper(pd: *mut ib_pd, attr: *mut ib_ah_attr) -> *mut ib_ah {
+        unsafe { ibv_create_ah(pd, attr) }
+    }
+
+    #[inline(always)]
+    pub fn rdma_destroy_ah(ah: *mut ib_ah) {
+        unsafe { ibv_destroy_ah(ah) };
+    }
 }
 
 pub use wrapper_types::*;
+
+pub fn ptr_is_err<T>(ptr: *mut T) -> super::ffi::c_types::c_int {
+    if ptr.is_null() {
+        1
+    } else {
+        0
+    }
+}

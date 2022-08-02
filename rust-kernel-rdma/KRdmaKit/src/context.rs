@@ -70,7 +70,7 @@ impl Context {
 
         #[cfg(feature = "user")]
         {
-            let ctx = NonNull::new(unsafe { ibv_open_device(dev.raw_ptr()) })
+            let ctx = NonNull::new(unsafe { ibv_open_device(dev.raw_ptr().as_ptr()) })
                 .ok_or(ControlpathError::ContextError("ibv_context", Error::EAGAIN))?;
 
             let pd = NonNull::new(unsafe { ibv_alloc_pd(ctx.as_ptr()) })
@@ -142,15 +142,14 @@ impl Context {
         {
             ah_attr.port_num = port_num;
             ah_attr.is_global = 1;
-            ah_attr.dlid = lid;
+            ah_attr.dlid = lid as _;
             ah_attr.sl = 0;
             ah_attr.src_path_bits = 0;
 
-            ah_attr.grh.dgid.global.subnet_prefix = gid.global.subnet_prefix;
-            ah_attr.grh.dgid.global.interface_id = attr.addr.interface_id;
+            ah_attr.grh.dgid = gid;
             ah_attr.grh.flow_label = 0;
             ah_attr.grh.hop_limit = 255;
-            ah_attr.grh.sgid_index = gid_idx;
+            ah_attr.grh.sgid_index = gid_idx as _;
         }
 
         let ptr = unsafe { rdma_create_ah_wrapper(self.get_pd().as_ptr(), &mut ah_attr as _) };
