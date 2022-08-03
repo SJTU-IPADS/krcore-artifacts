@@ -129,6 +129,11 @@ impl MemoryRegion {
         rdma_shim::rust_kernel_linux_util::bindings::bd_virt_to_phys(self.data as _)
     }
 
+    pub fn get_virt_addr(&self) -> u64 {
+        self.data as u64
+    }
+
+
     #[inline]
     pub fn rkey(&self) -> RemoteKey {
         #[cfg(feature = "kernel")]
