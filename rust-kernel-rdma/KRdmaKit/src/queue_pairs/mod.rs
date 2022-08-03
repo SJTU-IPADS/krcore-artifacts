@@ -1,6 +1,9 @@
 #[allow(unused_imports)]
-use rdma_shim::{Error, println, log};
+use rdma_shim::{Error, log};
 use rdma_shim::bindings::*;
+
+#[allow(unused_imports)]
+use rdma_shim::ffi::c_types;
 
 use alloc::{boxed::Box, sync::Arc};
 use core::iter::TrustedRandomAccessNoCoerce;
@@ -8,18 +11,28 @@ use core::ops::Range;
 use core::ptr::{null_mut, NonNull};
 
 use crate::memory_region::MemoryRegion;
-use crate::queue_pairs::endpoint::DatagramEndpoint;
 use crate::{context::Context, CompletionQueue, DatapathError, SharedReceiveQueue};
-use crate::comm_manager::CMError;
 
-/// UD queue pair builder to simplify UD creation
+#[cfg(feature = "kernel")]
+use crate::queue_pairs::endpoint::DatagramEndpoint;
+
+#[allow(unused_imports)]
+use crate::CMError;
+
+/// Queue pair builders
+#[cfg(feature = "kernel")]
 pub mod builder;
+#[cfg(feature = "kernel")]
 pub use builder::{PreparedQueuePair, QueuePairBuilder};
 
+#[cfg(feature = "kernel")]
 mod callbacks;
+
+#[cfg(feature = "kernel")]
 /// UD endpoint and queriers
 pub mod endpoint;
 
+#[cfg(feature = "kernel")]
 /// Abstract the communication manager related data structures
 /// related to reliable QP connections
 mod rc_comm;
@@ -59,6 +72,7 @@ pub struct QueuePair {
 
     /// data structures related to remote connections
     /// is only need for RC, so it is an Option
+    #[cfg(feature = "kernel")]
     rc_comm: Option<Box<rc_comm::RCCommStruct<Self>>>,
 
     /// the send_cq must be exclusively used by a QP
@@ -73,6 +87,13 @@ pub struct QueuePair {
     srq: Option<Box<SharedReceiveQueue>>,
 
     mode: QPType,
+
+    #[cfg(feature = "user")]
+    post_send_op :  unsafe extern "C" fn(
+            qp: *mut ib_qp,
+            wr: *mut ib_send_wr,
+            bad_wr: *mut *mut ib_send_wr,
+        ) -> c_types::c_int,
 
     /// sidr request handler need this field
     port_num: u8,
@@ -151,6 +172,7 @@ impl QueuePair {
         &self._ctx
     }
 
+    #[cfg(feature = "kernel")]
     /// get the datagram related data, namely:
     /// - gid
     /// - lid
@@ -293,13 +315,24 @@ impl QueuePair {
         wr.wr.sg_list = &mut sge as *mut _;
         wr.wr.num_sge = 1;
         wr.wr.__bindgen_anon_1.wr_id = wr_id;
+
+        #[cfg(feature = "user")]
+        let err = unsafe {
+            (self.post_send_op)(
+                self.inner_qp.as_ptr(),
+                &mut wr.wr as *mut _,
+                &mut bad_wr as *mut _,
+            )
+        };
+
+        #[cfg(feature = "kernel")]
         let err = unsafe {
             bd_ib_post_send(
                 self.inner_qp.as_ptr(),
                 &mut wr.wr as *mut _,
                 &mut bad_wr as *mut _,
             )
-        };
+        };        
         if err != 0 {
             Err(DatapathError::PostSendError(Error::from_kernel_errno(err)))
         } else {
@@ -438,14 +471,27 @@ impl QueuePair {
         wr.wr.sg_list = &mut sge as *mut _;
         wr.remote_addr = raddr;
         wr.rkey = rkey;
+
         let mut bad_wr: *mut ib_send_wr = null_mut();
+
+        #[cfg(feature = "user")]
+        let err = unsafe {
+            (self.post_send_op)(
+                self.inner_qp.as_ptr(),
+                &mut wr.wr as *mut _,
+                &mut bad_wr as *mut _,
+            )
+        };
+
+        #[cfg(feature = "kernel")]
         let err = unsafe {
             bd_ib_post_send(
                 self.inner_qp.as_ptr(),
                 &mut wr.wr as *mut _,
                 &mut bad_wr as *mut _,
             )
-        };
+        }; 
+
         if err != 0 {
             Err(DatapathError::PostSendError(Error::from_kernel_errno(err)))
         } else {
@@ -556,13 +602,25 @@ impl QueuePair {
         wr.dct_number = endpoint.dct_num();
 
         let mut bad_wr: *mut ib_send_wr = null_mut();
+
+        #[cfg(feature = "user")]
+        let err = unsafe {
+            (self.post_send_op)(
+                self.inner_qp.as_ptr(),
+                &mut wr.wr as *mut _,
+                &mut bad_wr as *mut _,
+            )
+        };
+
+        #[cfg(feature = "kernel")]
         let err = unsafe {
             bd_ib_post_send(
                 self.inner_qp.as_ptr(),
                 &mut wr.wr as *mut _,
                 &mut bad_wr as *mut _,
             )
-        };
+        };  
+
         if err != 0 {
             Err(DatapathError::PostSendError(Error::from_kernel_errno(err)))
         } else {

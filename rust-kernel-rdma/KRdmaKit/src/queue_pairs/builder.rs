@@ -4,12 +4,12 @@ use rdma_shim::{log, Error};
 use alloc::{boxed::Box, sync::Arc};
 use core::ptr::NonNull;
 
-use crate::MAX_RD_ATOMIC;
 use crate::comm_manager::CMError;
 use crate::context::Context;
 use crate::queue_pairs::rc_comm::RCCommStruct;
 use crate::queue_pairs::{QPType, QueuePair, QueuePairStatus};
 use crate::services::rc::RCConnectionData;
+use crate::MAX_RD_ATOMIC;
 use crate::{CompletionQueue, ControlpathError};
 
 /// Builder for different kind of queue pairs (RCQP, UDQP ,etc.).
@@ -369,16 +369,26 @@ impl QueuePairBuilder {
         qp_type: QPType,
         srq: Option<Box<crate::SharedReceiveQueue>>,
     ) -> Result<PreparedQueuePair, ControlpathError> {
+        
+        #[cfg(feature = "user")]                
+        let post_send_op = unsafe { send.get_ctx().raw_ptr().as_ref().ops.post_send.unwrap() };
+
         Ok(PreparedQueuePair {
             inner: QueuePair {
                 _ctx: self.ctx,
                 inner_qp: NonNull::new(qp_ptr)
                     .ok_or(ControlpathError::CreationError("QP", Error::EAGAIN))?,
+
+                #[cfg(feature = "kernel")]
                 rc_comm: None,
+
                 send_cq: send,
                 recv_cq: recv,
                 srq: srq,
                 mode: qp_type,
+
+                #[cfg(feature = "user")]                
+                post_send_op: post_send_op,
 
                 // the following is just borrowed from the builder
                 // as the QP may require them during connections

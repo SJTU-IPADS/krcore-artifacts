@@ -29,9 +29,11 @@ mod wrapper_types {
     pub type ib_access_flags = ibv_access_flags;
 
     // QP related types
+    pub type ib_qp_state = ibv_qp_state;
+    pub type ib_qp = ibv_qp;
+    pub type ib_send_wr = ibv_send_wr;
 
     /// functions
-
     #[inline(always)]
     pub unsafe fn ib_dealloc_pd(pd: *mut ib_pd) {
         ibv_dealloc_pd(pd);

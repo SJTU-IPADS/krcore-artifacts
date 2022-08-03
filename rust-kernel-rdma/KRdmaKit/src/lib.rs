@@ -23,11 +23,8 @@ pub use completion_queue::{CompletionQueue, SharedReceiveQueue};
 /// Configuration operations
 pub mod consts;
 
-/// Abstraction for the completion queues
+/// Abstraction for the completion queues & queue pairs
 pub mod completion_queue;
-
-#[cfg(feature = "kernel")]
-/// Abstraction for the QPs, including UD, RC and DC.
 pub mod queue_pairs;
 
 /// Abstraction for the memory regions
@@ -82,7 +79,8 @@ macro_rules! to_ptr {
 
 pub use rdma_shim::log;
 
-/// The error type of control plane operations
+/// The error type of control plane operations.
+/// These mainly include error of creating QPs, MRs, etc. 
 #[derive(thiserror_no_std::Error, Debug)]
 pub enum ControlpathError {
     #[error("create context {0} error: {1}")]
@@ -117,6 +115,32 @@ pub enum DatapathError {
 
     #[error("qp type error")]
     QPTypeError,
+}
+
+/// The error type of communication manager related.
+/// This captures errors carried on during handshake processes. 
+#[derive(thiserror_no_std::Error, Debug)]
+pub enum CMError {
+    #[error("Timeout")]
+    Timeout,
+
+    #[error("Creation error with errorno: {0}")]
+    Creation(i32),
+
+    #[error("Failed to handle callback: {0}")]
+    CallbackError(u32),
+
+    #[error("CM send error")]
+    SendError(&'static str, Error),
+
+    #[error("Create server error")]
+    ServerError(&'static str, Error),
+
+    #[error("Invalid arg on {0}: {1}")]
+    InvalidArg(&'static str, alloc::string::String),
+
+    #[error("Unknown error")]
+    Unknown,
 }
 
 /// profile for the network operations

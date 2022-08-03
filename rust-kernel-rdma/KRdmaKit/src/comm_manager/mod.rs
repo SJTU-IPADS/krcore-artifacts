@@ -13,6 +13,8 @@ pub use client::CMSender;
 pub use explorer::Explorer;
 pub use server::CMServer;
 
+pub use crate::CMError;
+
 mod client;
 /// implementations of the send methods of the CM
 mod send;
@@ -22,31 +24,6 @@ mod server;
 
 /// implementation fo explore the `sa_path_rec`
 mod explorer;
-
-/// The error type of CM.
-#[derive(thiserror_no_std::Error, Debug)]
-pub enum CMError {
-    #[error("Timeout")]
-    Timeout,
-
-    #[error("Creation error with errorno: {0}")]
-    Creation(i32),
-
-    #[error("Failed to handle callback: {0}")]
-    CallbackError(u32),
-
-    #[error("CM send error")]
-    SendError(&'static str, Error),
-
-    #[error("Create server error")]
-    ServerError(&'static str, Error),
-
-    #[error("Invalid arg on {0}: {1}")]
-    InvalidArg(&'static str, String),
-
-    #[error("Unknown error")]
-    Unknown,
-}
 
 /// The CMCallback implements various task after receiving CM messages
 /// Typically, a CM endpoint will only need to handle partial events
