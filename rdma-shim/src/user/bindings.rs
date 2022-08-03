@@ -25,6 +25,9 @@ mod wrapper_types {
     pub type ib_wc = ibv_wc;
     pub type ib_srq_init_attr = ibv_srq_init_attr;
 
+    // MR related types 
+    pub type ib_access_flags = ibv_access_flags;
+
     // QP related types
 
     /// functions

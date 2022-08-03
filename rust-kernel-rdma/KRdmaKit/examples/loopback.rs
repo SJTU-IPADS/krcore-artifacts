@@ -41,6 +41,10 @@ fn main() {
     // check we can create the cq
     let cq = CompletionQueue::create(&ctx, 128).expect("fail to create cq");
     println!("check CQ creation {:?}", cq);
-    
+
+    // create a sample MR 
+    let mr = MemoryRegion::new(ctx.clone(), 1024).expect("failed to allocate MR");
+    println!("check MR rkey and lkey: {:?} {:?}", mr.rkey(), mr.lkey());
+
     unimplemented!();
 }

@@ -1,10 +1,11 @@
 #[allow(unused_imports)]
 use rdma_shim::bindings::*;
 
+use core::ffi::c_void;
 use core::ptr::NonNull;
 
+use alloc::boxed::Box;
 use alloc::sync::Arc;
-use alloc::vec::Vec;
 
 use crate::context::Context;
 
@@ -18,8 +19,11 @@ pub const MAX_CAPACITY: usize = 4 * 1024 * 1024; // 4MB
 #[allow(dead_code)]
 pub struct MemoryRegion {
     ctx: Arc<Context>,
-    data: Vec<i8>,
-    raw_ptr: bool,
+
+    data: *mut c_void,
+    capacity: usize,
+
+    is_raw_ptr: bool,
 
     #[cfg(feature = "user")]
     mr: NonNull<ibv_mr>,
@@ -31,6 +35,12 @@ pub struct LocalKey(pub u32);
 pub struct RemoteKey(pub u32);
 
 impl MemoryRegion {
+    /// Kernel part:
+    ///
+    ///
+    /// User part:
+    ///
+    ///
     pub fn new(context: Arc<Context>, capacity: usize) -> Result<Self, crate::ControlpathError> {
         // kernel malloc has a max capacity
         // not a problem for the user-space applications
@@ -39,29 +49,69 @@ impl MemoryRegion {
             return Err(crate::ControlpathError::InvalidArg("MR size"));
         }
 
-        #[cfg(feature = "user")]
-        let mr = NonNull::new(core::ptr::null_mut()).ok_or(
-            crate::ControlpathError::CreationError("Failed to create MR", rdma_shim::Error::EFAULT),
-        )?;
+        let mut data: Box<[core::mem::MaybeUninit<i8>]> = Box::new_uninit_slice(capacity);
 
-       let mut data = Vec::with_capacity(capacity);
-        data.resize(capacity, 0); // FIXME: do we really need this resize? 
+        #[cfg(feature = "user")]
+        let mr = NonNull::new(unsafe {
+            rdma_shim::bindings::ibv_reg_mr(
+                context.get_pd().as_ptr(),
+                data.as_mut_ptr() as *mut _,
+                capacity,
+                // FIXME: maybe we should enable different permissions
+                (rdma_shim::bindings::ib_access_flags::IBV_ACCESS_LOCAL_WRITE
+                    | ib_access_flags::IBV_ACCESS_REMOTE_READ
+                    | ib_access_flags::IBV_ACCESS_REMOTE_WRITE
+                    | ib_access_flags::IBV_ACCESS_REMOTE_ATOMIC)
+                    .0 as _,
+            )
+        })
+        .ok_or(crate::ControlpathError::CreationError(
+            "Failed to create MR",
+            rdma_shim::Error::EFAULT,
+        ))?;
 
         Ok(Self {
             ctx: context,
-            data : data,
-            raw_ptr: false,
+            data: Box::into_raw(data) as _,
+            capacity: capacity,
+            is_raw_ptr: false,
             #[cfg(feature = "user")]
             mr: mr,
         })
     }
 
+    /// New from a raw pointer provided by the user
+    /// Note:
+    /// - This function is highly unsafe, because:
+    /// 1) we don't check the integrity of the pointer
+    /// 2) we don't check the lifecycle of a good pointer
+    /// User should be able to ensure the correctness of the above two factors
+    ///
+    #[cfg(feature = "user")]
     pub unsafe fn new_from_raw(
         context: Arc<Context>,
         ptr: *mut rdma_shim::ffi::c_types::c_void,
         capacity: usize,
+        mr_flags: u32,
     ) -> Result<Self, crate::ControlpathError> {
-        unimplemented!();
+        let mr = NonNull::new(rdma_shim::bindings::ibv_reg_mr(
+            context.get_pd().as_ptr(),
+            ptr,
+            capacity,
+            mr_flags as _,
+        ))
+        .ok_or(crate::ControlpathError::CreationError(
+            "Failed to create MR",
+            rdma_shim::Error::EFAULT,
+        ))?;
+
+        Ok(Self {
+            ctx: context,
+            data: ptr,
+            capacity: capacity,
+            is_raw_ptr: true,
+            mr: mr,
+        })
     }
 
     /// Acquire an address that can be used for communication
@@ -81,7 +131,8 @@ impl MemoryRegion {
         #[cfg(feature = "kernel")]
         return RemoteKey(self.ctx.rkey());
 
-        unimplemented!()
+        #[cfg(feature = "user")]
+        return RemoteKey(unsafe { self.mr.as_ref().rkey });
     }
 
     #[inline]
@@ -89,16 +140,28 @@ impl MemoryRegion {
         #[cfg(feature = "kernel")]
         return LocalKey(self.ctx.lkey());
 
-        unimplemented!()
+        #[cfg(feature = "user")]
+        return LocalKey(unsafe { self.mr.as_ref().lkey });
+    }
+
+    /// Total size of the memory region
+    pub fn capacity(&self) -> usize {
+        self.capacity
     }
 }
 
 impl Drop for MemoryRegion {
     fn drop(&mut self) {
+
         #[cfg(feature = "user")]
-        if self.raw_ptr {
-            let old_data = core::mem::take(&mut self.data);
-            core::mem::forget(old_data);
+        unsafe { ibv_dereg_mr(self.mr.as_ptr()) };
+
+
+        if self.is_raw_ptr {
+            // do nothing
+        } else {
+            // will just free it
+            unsafe { Box::from_raw(self.data) };
         }
     }
 }
@@ -106,8 +169,6 @@ impl Drop for MemoryRegion {
 #[cfg(feature = "user")]
 #[cfg(test)]
 mod tests {
-    use rdma_shim::log;
-
     #[test]
     fn test_mr_basic() {
         let ctx = crate::UDriver::create()
@@ -121,5 +182,38 @@ mod tests {
 
         let mr = super::MemoryRegion::new(ctx.clone(), 1024);
         assert!(mr.is_ok());
+        assert_eq!(mr.unwrap().capacity(), 1024);
+    }
+
+    #[test]
+    fn test_mr_raw() {
+        let ctx = crate::UDriver::create()
+            .expect("failed to query device")
+            .devices()
+            .into_iter()
+            .next()
+            .expect("no rdma device available")
+            .open_context()
+            .expect("failed to create RDMA context");
+
+        use rdma_shim::bindings::ib_access_flags;
+
+        let mut test_buf: alloc::vec::Vec<u64> = alloc::vec![1, 2, 3, 4];
+        
+        let mr = unsafe {
+            super::MemoryRegion::new_from_raw(
+                ctx.clone(),
+                test_buf.as_mut_ptr() as _,
+                test_buf.len() * core::mem::size_of::<u64>(),
+                (rdma_shim::bindings::ib_access_flags::IBV_ACCESS_LOCAL_WRITE
+                    | ib_access_flags::IBV_ACCESS_REMOTE_READ
+                    | ib_access_flags::IBV_ACCESS_REMOTE_WRITE
+                    | ib_access_flags::IBV_ACCESS_REMOTE_ATOMIC)
+                    .0 as _,
+            )
+        }; 
+
+        assert!(mr.is_ok());
+
     }
 }

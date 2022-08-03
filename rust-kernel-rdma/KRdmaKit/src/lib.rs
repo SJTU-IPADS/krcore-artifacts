@@ -1,12 +1,12 @@
 #![no_std]
 #![allow(non_snake_case)]
-
 #![feature(
     get_mut_unchecked,
     new_uninit,
     allocator_api,
     trusted_random_access,
-    stmt_expr_attributes
+    stmt_expr_attributes, 
+    vec_into_raw_parts
 )]
 #![cfg_attr(
     feature = "alloc_ref",
@@ -32,6 +32,7 @@ pub mod queue_pairs;
 
 /// Abstraction for the memory regions
 pub mod memory_region;
+pub use memory_region::MemoryRegion;
 
 /// Abstraction for the RDMA-capable devices (RNIC)
 pub mod device; // the new device implementation that will overwrite the old one
