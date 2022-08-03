@@ -215,5 +215,19 @@ mod tests {
 
         assert!(mr.is_ok());
 
+        let mr = unsafe {
+            super::MemoryRegion::new_from_raw(
+                ctx.clone(),
+                test_buf.as_mut_ptr() as _,
+                1024 * 1024 * 1024,
+                (rdma_shim::bindings::ib_access_flags::IBV_ACCESS_LOCAL_WRITE
+                    | ib_access_flags::IBV_ACCESS_REMOTE_READ
+                    | ib_access_flags::IBV_ACCESS_REMOTE_WRITE
+                    | ib_access_flags::IBV_ACCESS_REMOTE_ATOMIC)
+                    .0 as _,
+            )
+        };         
+        assert!(mr.is_err());
+
     }
 }
