@@ -30,7 +30,6 @@ pub mod completion_queue;
 /// Abstraction for the QPs, including UD, RC and DC.
 pub mod queue_pairs;
 
-#[cfg(feature = "kernel")]
 /// Abstraction for the memory regions
 pub mod memory_region;
 
