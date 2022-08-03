@@ -18,6 +18,47 @@ use crate::context::Context;
 pub const MAX_CAPACITY: usize = 4 * 1024 * 1024; // 4MB
 
 /// A memory region that abstracts the memory used by RDMA
+/// 
+/// # Examples
+/// 
+/// - To allocate a memory region (1KB) and register it to RDMA:
+/// 
+/// ``` text,ignore
+///         let ctx = crate::UDriver::create()
+///            .expect("failed to query device")
+///            .devices()
+///            .into_iter()
+///            .next()
+///            .expect("no rdma device available")
+///            .open_context()
+///            .expect("failed to create RDMA context");
+///
+///        let mr = super::MemoryRegion::new(ctx.clone(), 1024);
+/// ```
+/// 
+/// - The user can further pass a raw pointer to the memory region. 
+/// However, it is highly unnsafe and the user should take care to manage the 
+/// lifecycles of the memory region pointed by the raw pointer:
+/// 
+/// ```text,ignore
+/// 
+///        let mut test_buf: alloc::vec::Vec<u64> = alloc::vec![1, 2, 3, 4];
+///        
+///        let mr = unsafe {
+///            super::MemoryRegion::new_from_raw(
+///                ctx.clone(),
+///                test_buf.as_mut_ptr() as _,
+///                test_buf.len() * core::mem::size_of::<u64>(),
+///                (rdma_shim::bindings::ib_access_flags::IBV_ACCESS_LOCAL_WRITE
+///                    | ib_access_flags::IBV_ACCESS_REMOTE_READ
+///                    | ib_access_flags::IBV_ACCESS_REMOTE_WRITE
+///                    | ib_access_flags::IBV_ACCESS_REMOTE_ATOMIC)
+///                    .0 as _,
+///            )
+///        }; 
+///        // if the test_buf is deallocated later, the `mr` may still be used
+/// ```
+/// 
 #[allow(dead_code)]
 pub struct MemoryRegion {
     ctx: Arc<Context>,
