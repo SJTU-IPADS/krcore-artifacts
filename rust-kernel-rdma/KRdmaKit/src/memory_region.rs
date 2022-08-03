@@ -2,6 +2,8 @@
 use rdma_shim::bindings::*;
 
 use core::ffi::c_void;
+
+#[allow(unused_imports)]
 use core::ptr::NonNull;
 
 use alloc::boxed::Box;
@@ -49,6 +51,7 @@ impl MemoryRegion {
             return Err(crate::ControlpathError::InvalidArg("MR size"));
         }
 
+        #[allow(unused_mut)]        
         let mut data: Box<[core::mem::MaybeUninit<i8>]> = Box::new_uninit_slice(capacity);
 
         #[cfg(feature = "user")]
@@ -123,7 +126,7 @@ impl MemoryRegion {
     #[cfg(feature = "kernel")]
     #[inline]
     pub unsafe fn get_rdma_addr(&self) -> u64 {
-        rdma_shim::rust_kernel_linux_util::bindings::bd_virt_to_phys(self.data.as_ptr() as _)
+        rdma_shim::rust_kernel_linux_util::bindings::bd_virt_to_phys(self.data as _)
     }
 
     #[inline]
@@ -152,13 +155,11 @@ impl MemoryRegion {
 
 impl Drop for MemoryRegion {
     fn drop(&mut self) {
-
         #[cfg(feature = "user")]
         unsafe { ibv_dereg_mr(self.mr.as_ptr()) };
 
-
         if self.is_raw_ptr {
-            // do nothing
+            // user-passed raw pointer, do nothing
         } else {
             // will just free it
             unsafe { Box::from_raw(self.data) };

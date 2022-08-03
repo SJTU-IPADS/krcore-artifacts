@@ -52,7 +52,7 @@ impl CompletionQueue {
                     context.get_dev_ref().raw_ptr().as_ptr(),
                     None, // comp_handler not supported yet
                     None,
-                    null_mut(),
+                    core::ptr::null_mut(),
                     &mut cq_attr as _,
                 )
             }
