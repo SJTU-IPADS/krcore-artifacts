@@ -26,7 +26,7 @@ pub mod consts;
 /// Abstraction for the completion queues & queue pairs
 pub mod completion_queue;
 pub mod queue_pairs;
-pub use queue_pairs::{QueuePair, QueuePairBuilder, QueuePairStatus};
+pub use queue_pairs::{QueuePair, QueuePairBuilder, QueuePairStatus, DatagramEndpoint};
 
 /// Abstraction for the memory regions
 pub mod memory_region;

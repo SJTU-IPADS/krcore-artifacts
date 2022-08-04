@@ -1,6 +1,6 @@
 use rdma_shim::bindings::*;
 #[allow(unused_imports)]
-use rdma_shim::{log, Error};
+use rdma_shim::{log, Error, KernelResult};
 
 #[allow(unused_imports)]
 use rdma_shim::ffi::c_types;
@@ -13,7 +13,7 @@ use core::ptr::{null_mut, NonNull};
 use crate::memory_region::MemoryRegion;
 use crate::{context::Context, CompletionQueue, DatapathError, SharedReceiveQueue};
 
-use crate::queue_pairs::endpoint::DatagramEndpoint;
+pub use crate::queue_pairs::endpoint::DatagramEndpoint;
 
 #[allow(unused_imports)]
 use crate::CMError;
@@ -189,6 +189,17 @@ impl QueuePair {
         &self._ctx
     }
 
+    #[inline]
+    pub fn lid(&self) -> KernelResult<u32> {
+        Ok(self.ctx().get_port_attr(self.port_num)?.lid as _)
+    }
+
+    #[inline]
+    pub fn gid(&self) -> KernelResult<ib_gid> {
+        // FIXME: what if gid index is not 0?
+        Ok(self.ctx().query_gid(self.port_num, 0)?)
+    }
+
     #[cfg(feature = "kernel")]
     /// get the datagram related data, namely:
     /// - gid
@@ -304,3 +315,7 @@ impl Drop for QueuePair {
 // post-send operation implementations in the kernel space
 #[cfg(feature = "kernel")]
 include!("./operations_kernel.rs");
+
+// post-send operation implementations in the user space
+#[cfg(feature = "user")]
+include!("./operations_user.rs");

@@ -39,10 +39,10 @@ impl Debug for DatagramEndpoint {
         #[cfg(not(feature = "dct"))]
         {
             f.debug_struct("EndPoint")
-                .field("qpn", &self.qpn)
-                .field("qkey", &self.qkey)
-                .field("lid", &self.lid)
-                .field("gid", &self.gid)
+                .field("remote qpn", &self.qpn)
+                .field("remote qkey", &self.qkey)
+                .field("remote lid", &self.lid)
+                .field("remote gid", &self.gid)
                 .field("address handler", &self.address_handler)
                 .finish()
         }
@@ -51,10 +51,10 @@ impl Debug for DatagramEndpoint {
         #[cfg(feature = "dct")]
         {
             f.debug_struct("EndPoint")
-                .field("qpn", &self.qpn)
-                .field("qkey", &self.qkey)
-                .field("lid", &self.lid)
-                .field("gid", &self.gid)
+                .field("remote qpn", &self.qpn)
+                .field("remote qkey", &self.qkey)
+                .field("remote lid", &self.lid)
+                .field("remote gid", &self.gid)
                 .field("address handler", &self.address_handler)
                 .field("dct_num", &self.dct_num)
                 .field("dc_key", &self.dc_key)
@@ -64,6 +64,14 @@ impl Debug for DatagramEndpoint {
 }
 
 impl DatagramEndpoint {
+
+    /// Create a datagram endpoint given the remote information
+    /// Note, the following parameters must be queried from the remote:
+    /// - lid
+    /// - gid
+    /// - qpn
+    /// - qkey
+    /// 
     pub fn new(
         ctx: &ContextRef,
         local_port_num: u8,
