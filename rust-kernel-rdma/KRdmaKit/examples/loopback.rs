@@ -37,14 +37,25 @@ fn main() {
         .create_address_handler(1, 0, port_attr.lid as _, gid)
         .expect("Failed to create address handler");
     println!("check the address handler {:?}", address_handler);
-    
+
     // check we can create the cq
     let cq = CompletionQueue::create(&ctx, 128).expect("fail to create cq");
     println!("check CQ creation {:?}", cq);
 
-    // create a sample MR 
+    // create a sample MR
     let mr = MemoryRegion::new(ctx.clone(), 1024).expect("failed to allocate MR");
     println!("check MR rkey and lkey: {:?} {:?}", mr.rkey(), mr.lkey());
+
+    // main test body: create the server-side QP
+    {
+        let builder = QueuePairBuilder::new(&ctx);
+        let server_qp = builder
+            .build_ud()
+            .expect("failed to build UD QP")
+            .bring_up_ud()
+            .expect("failed to bring up UD QP");
+        println!("check the QP status: {:?}", server_qp.status());
+    }
 
     unimplemented!();
 }

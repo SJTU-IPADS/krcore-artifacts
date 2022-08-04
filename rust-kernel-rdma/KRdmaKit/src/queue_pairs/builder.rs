@@ -674,7 +674,7 @@ include!("./handshake_kernel.rs");
 #[cfg(test)]
 mod tests {
     #[test]
-    fn create_qp() {
+    fn create_ud() {
         let ctx = crate::UDriver::create()
             .expect("failed to query device")
             .devices()
@@ -683,5 +683,14 @@ mod tests {
             .expect("no rdma device available")
             .open_context()
             .expect("failed to create RDMA context");
-    }
+
+        let builder = super::QueuePairBuilder::new(&ctx);
+        let qp = builder.build_ud();    
+        assert!(qp.is_ok());
+
+        let qp = qp.unwrap().bring_up_ud();
+        assert!(qp.is_ok());
+
+        assert_eq!(qp.unwrap().status().unwrap(), crate::QueuePairStatus::ReadyToSend);
+    }   
 }

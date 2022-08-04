@@ -5,7 +5,7 @@
     new_uninit,
     allocator_api,
     trusted_random_access,
-    stmt_expr_attributes, 
+    stmt_expr_attributes,
     vec_into_raw_parts
 )]
 #![cfg_attr(
@@ -26,6 +26,7 @@ pub mod consts;
 /// Abstraction for the completion queues & queue pairs
 pub mod completion_queue;
 pub mod queue_pairs;
+pub use queue_pairs::{QueuePair, QueuePairBuilder, QueuePairStatus};
 
 /// Abstraction for the memory regions
 pub mod memory_region;
@@ -80,7 +81,7 @@ macro_rules! to_ptr {
 pub use rdma_shim::log;
 
 /// The error type of control plane operations.
-/// These mainly include error of creating QPs, MRs, etc. 
+/// These mainly include error of creating QPs, MRs, etc.
 #[derive(thiserror_no_std::Error, Debug)]
 pub enum ControlpathError {
     #[error("create context {0} error: {1}")]
@@ -118,7 +119,7 @@ pub enum DatapathError {
 }
 
 /// The error type of communication manager related.
-/// This captures errors carried on during handshake processes. 
+/// This captures errors carried on during handshake processes.
 #[derive(thiserror_no_std::Error, Debug)]
 pub enum CMError {
     #[error("Timeout")]
