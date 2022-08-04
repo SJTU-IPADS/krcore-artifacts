@@ -170,6 +170,13 @@ impl MemoryRegion {
         rdma_shim::rust_kernel_linux_util::bindings::bd_virt_to_phys(self.data as _)
     }
 
+    #[cfg(feature = "user")]
+    #[inline]
+    pub unsafe fn get_rdma_addr(&self) -> u64 {
+        self.get_virt_addr()
+    }    
+
+    #[inline]
     pub fn get_virt_addr(&self) -> u64 {
         self.data as u64
     }

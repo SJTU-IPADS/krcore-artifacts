@@ -3,18 +3,10 @@ use core::fmt::{Debug, Formatter};
 use core::ptr::NonNull;
 
 use rdma_shim::bindings::*;
-use rdma_shim::utils::completion;
 use rdma_shim::{log, Error};
 
-use crate::comm_manager::{CMCallbacker, CMError, CMReplyer, CMSender};
 use crate::context::{AddressHandler, ContextRef};
 use crate::ControlpathError;
-
-#[cfg(feature = "dct")]
-use crate::services::dc::DynamicConnectedMeta;
-
-#[cfg(not(feature = "dct"))]
-use crate::services::DatagramMeta;
 
 /// The datagram endpoint
 /// that a client QP can use to communicate with a server.
@@ -150,153 +142,172 @@ impl DatagramEndpoint {
     }
 }
 
-/// This querier serves you a quick way to get the endpoint information from
-/// the server side (see `services/mod.rs`).
-pub struct DatagramEndpointQuerier {
-    sender: CMSender<DatagramQuerierInner>,
-    inner: Arc<DatagramQuerierInner>,
-}
+#[cfg(feature = "kernel")]
+pub use kernel_querier::*;
 
-impl DatagramEndpointQuerier {
-    /// Create an DatagramEndpointQuerier.
-    ///
-    /// The `port_num` should be consistent with local queue pair's port_num you are going to build
-    pub fn create(ctx: &ContextRef, local_port_num: u8) -> Result<Self, ControlpathError> {
-        let mut querier_inner = DatagramQuerierInner::create(ctx, local_port_num);
-        let sender = CMSender::new(&querier_inner, ctx.get_dev_ref()).map_err(|err| match err {
-            CMError::Creation(i) => {
-                ControlpathError::CreationError("UD Querier", Error::from_kernel_errno(i))
-            }
-            _ => ControlpathError::CreationError("UD Querier unknown error", Error::EAGAIN),
-        })?;
+#[cfg(feature = "kernel")]
+mod kernel_querier {
 
-        let querier_inner_ref = unsafe { Arc::get_mut_unchecked(&mut querier_inner) };
-        querier_inner_ref.completion.init();
-        Ok(Self {
-            sender,
-            inner: querier_inner,
-        })
+    use super::*;
+    use crate::comm_manager::{CMCallbacker, CMError, CMReplyer, CMSender};
+    use rdma_shim::utils::completion;
+
+    #[cfg(feature = "dct")]
+    use crate::services::dc::DynamicConnectedMeta;
+
+    #[cfg(not(feature = "dct"))]
+    use crate::services::DatagramMeta;    
+
+    /// This querier serves you a quick way to get the endpoint information from
+    /// the server side (see `services/mod.rs`).
+    pub struct DatagramEndpointQuerier {
+        sender: CMSender<DatagramQuerierInner>,
+        inner: Arc<DatagramQuerierInner>,
     }
 
-    /// Core method of the querier. Return an Endpoint if success and ControlPathError otherwise.
-    ///
-    /// Input:
-    /// - `remote_service_id` : Predefined service id that you want to query
-    /// - `qd_hint`: Query remote UD information with qd_hint enables the server to have more than one UD qp server on one service id
-    /// - `sa_path_rec` : path resolved by `Explorer`, attention that the resolved path must be consistent with the remote_service_id
-    pub fn query(
-        mut self,
-        remote_service_id: u64,
-        qd_hint: usize,
-        path: sa_path_rec,
-    ) -> Result<DatagramEndpoint, ControlpathError> {
-        let mut querier_inner = self.inner;
-        let querier_inner_ref = unsafe { Arc::get_mut_unchecked(&mut querier_inner) };
-        let req = ib_cm_sidr_req_param {
-            path: &path as *const _ as _,
-            service_id: remote_service_id,
-            timeout_ms: 20,
-            max_cm_retries: 3,
-            ..Default::default()
-        };
-        let _ = self
-            .sender
-            .send_sidr(req, qd_hint as usize)
-            .map_err(|err| match err {
-                CMError::Creation(i) => {
-                    ControlpathError::QueryError("", Error::from_kernel_errno(i))
-                }
-                _ => ControlpathError::QueryError("", Error::EAGAIN),
-            })?;
+    #[cfg(feature = "kernel")]
+    impl DatagramEndpointQuerier {
+        /// Create an DatagramEndpointQuerier.
+        ///
+        /// The `port_num` should be consistent with local queue pair's port_num you are going to build
+        pub fn create(ctx: &ContextRef, local_port_num: u8) -> Result<Self, ControlpathError> {
+            let mut querier_inner = DatagramQuerierInner::create(ctx, local_port_num);
+            let sender =
+                CMSender::new(&querier_inner, ctx.get_dev_ref()).map_err(|err| match err {
+                    CMError::Creation(i) => {
+                        ControlpathError::CreationError("UD Querier", Error::from_kernel_errno(i))
+                    }
+                    _ => ControlpathError::CreationError("UD Querier unknown error", Error::EAGAIN),
+                })?;
 
-        querier_inner_ref
-            .completion
-            .wait(1000)
-            .map_err(|err: Error| ControlpathError::QueryError("Datagram Endpoint", err))?;
-        querier_inner_ref
-            .take_endpoint()
-            .ok_or(ControlpathError::QueryError(
-                "Failed to get the endpoint",
-                Error::EAGAIN,
-            ))
-    }
-}
-
-/// Wrap it in CMSender which already implements callback function to establish UD sidr connection
-pub struct DatagramQuerierInner {
-    completion: completion,
-    ctx: ContextRef,
-    endpoint: Option<DatagramEndpoint>,
-    port_num: u8,
-}
-
-impl DatagramQuerierInner {
-    fn create(ctx: &ContextRef, port_num: u8) -> Arc<DatagramQuerierInner> {
-        let mut querier_inner = Arc::new(DatagramQuerierInner {
-            completion: Default::default(),
-            ctx: ctx.clone(),
-            endpoint: None,
-            port_num,
-        });
-        let ud_ref = unsafe { Arc::get_mut_unchecked(&mut querier_inner) };
-        ud_ref.completion.init();
-        querier_inner
-    }
-
-    fn take_endpoint(&mut self) -> Option<DatagramEndpoint> {
-        self.endpoint.take()
-    }
-}
-
-impl CMCallbacker for DatagramQuerierInner {
-    /// Called on receiving SIDR_REP from server side
-    fn handle_sidr_rep(
-        self: &mut Self,
-        mut _reply_cm: CMReplyer,
-        event: &ib_cm_event,
-    ) -> Result<(), CMError> {
-        let rep_param = unsafe { event.param.sidr_rep_rcvd };
-        if rep_param.status != ib_cm_sidr_status::IB_SIDR_SUCCESS {
-            log::error!(
-                "Failed to send SIDR connection with status {:?}",
-                rep_param.status
-            );
-        } else {
-            #[cfg(not(feature = "dct"))]
-            let reply = unsafe { *(rep_param.info as *mut DatagramMeta) };
-
-            #[cfg(feature = "dct")]
-            let reply = unsafe { *(rep_param.info as *mut DynamicConnectedMeta) };
-
-            #[cfg(feature = "dct")]
-            {
-                self.endpoint = DatagramEndpoint::new(
-                    &self.ctx,
-                    self.port_num,
-                    reply.datagram_addr.lid as u32,
-                    reply.datagram_addr.gid,
-                    rep_param.qpn,
-                    rep_param.qkey,
-                    reply.dct_num,
-                    reply.dc_key,
-                )
-                .ok();
-            }
-
-            #[cfg(not(feature = "dct"))]
-            {
-                self.endpoint = DatagramEndpoint::new(
-                    &self.ctx,
-                    self.port_num,
-                    reply.lid as u32,
-                    reply.gid,
-                    rep_param.qpn,
-                    rep_param.qkey,
-                )
-                .ok();
-            }
+            let querier_inner_ref = unsafe { Arc::get_mut_unchecked(&mut querier_inner) };
+            querier_inner_ref.completion.init();
+            Ok(Self {
+                sender,
+                inner: querier_inner,
+            })
         }
-        self.completion.done();
-        Ok(())
+
+        /// Core method of the querier. Return an Endpoint if success and ControlPathError otherwise.
+        ///
+        /// Input:
+        /// - `remote_service_id` : Predefined service id that you want to query
+        /// - `qd_hint`: Query remote UD information with qd_hint enables the server to have more than one UD qp server on one service id
+        /// - `sa_path_rec` : path resolved by `Explorer`, attention that the resolved path must be consistent with the remote_service_id
+        pub fn query(
+            mut self,
+            remote_service_id: u64,
+            qd_hint: usize,
+            path: sa_path_rec,
+        ) -> Result<DatagramEndpoint, ControlpathError> {
+            let mut querier_inner = self.inner;
+            let querier_inner_ref = unsafe { Arc::get_mut_unchecked(&mut querier_inner) };
+            let req = ib_cm_sidr_req_param {
+                path: &path as *const _ as _,
+                service_id: remote_service_id,
+                timeout_ms: 20,
+                max_cm_retries: 3,
+                ..Default::default()
+            };
+            let _ = self
+                .sender
+                .send_sidr(req, qd_hint as usize)
+                .map_err(|err| match err {
+                    CMError::Creation(i) => {
+                        ControlpathError::QueryError("", Error::from_kernel_errno(i))
+                    }
+                    _ => ControlpathError::QueryError("", Error::EAGAIN),
+                })?;
+
+            querier_inner_ref
+                .completion
+                .wait(1000)
+                .map_err(|err: Error| ControlpathError::QueryError("Datagram Endpoint", err))?;
+            querier_inner_ref
+                .take_endpoint()
+                .ok_or(ControlpathError::QueryError(
+                    "Failed to get the endpoint",
+                    Error::EAGAIN,
+                ))
+        }
+    }
+
+    /// Wrap it in CMSender which already implements callback function to establish UD sidr connection
+    pub struct DatagramQuerierInner {
+        completion: completion,
+        ctx: ContextRef,
+        endpoint: Option<DatagramEndpoint>,
+        port_num: u8,
+    }
+
+    impl DatagramQuerierInner {
+        fn create(ctx: &ContextRef, port_num: u8) -> Arc<DatagramQuerierInner> {
+            let mut querier_inner = Arc::new(DatagramQuerierInner {
+                completion: Default::default(),
+                ctx: ctx.clone(),
+                endpoint: None,
+                port_num,
+            });
+            let ud_ref = unsafe { Arc::get_mut_unchecked(&mut querier_inner) };
+            ud_ref.completion.init();
+            querier_inner
+        }
+
+        fn take_endpoint(&mut self) -> Option<DatagramEndpoint> {
+            self.endpoint.take()
+        }
+    }
+
+    impl CMCallbacker for DatagramQuerierInner {
+        /// Called on receiving SIDR_REP from server side
+        fn handle_sidr_rep(
+            self: &mut Self,
+            mut _reply_cm: CMReplyer,
+            event: &ib_cm_event,
+        ) -> Result<(), CMError> {
+            let rep_param = unsafe { event.param.sidr_rep_rcvd };
+            if rep_param.status != ib_cm_sidr_status::IB_SIDR_SUCCESS {
+                log::error!(
+                    "Failed to send SIDR connection with status {:?}",
+                    rep_param.status
+                );
+            } else {
+                #[cfg(not(feature = "dct"))]
+                let reply = unsafe { *(rep_param.info as *mut DatagramMeta) };
+
+                #[cfg(feature = "dct")]
+                let reply = unsafe { *(rep_param.info as *mut DynamicConnectedMeta) };
+
+                #[cfg(feature = "dct")]
+                {
+                    self.endpoint = DatagramEndpoint::new(
+                        &self.ctx,
+                        self.port_num,
+                        reply.datagram_addr.lid as u32,
+                        reply.datagram_addr.gid,
+                        rep_param.qpn,
+                        rep_param.qkey,
+                        reply.dct_num,
+                        reply.dc_key,
+                    )
+                    .ok();
+                }
+
+                #[cfg(not(feature = "dct"))]
+                {
+                    self.endpoint = DatagramEndpoint::new(
+                        &self.ctx,
+                        self.port_num,
+                        reply.lid as u32,
+                        reply.gid,
+                        rep_param.qpn,
+                        rep_param.qkey,
+                    )
+                    .ok();
+                }
+            }
+            self.completion.done();
+            Ok(())
+        }
     }
 }

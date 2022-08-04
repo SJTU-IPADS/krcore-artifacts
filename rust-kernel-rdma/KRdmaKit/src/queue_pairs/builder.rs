@@ -369,9 +369,12 @@ impl QueuePairBuilder {
         qp_type: QPType,
         srq: Option<Box<crate::SharedReceiveQueue>>,
     ) -> Result<PreparedQueuePair, ControlpathError> {
-        
-        #[cfg(feature = "user")]                
+
+        #[cfg(feature = "user")]
         let post_send_op = unsafe { send.get_ctx().raw_ptr().as_ref().ops.post_send.unwrap() };
+
+        #[cfg(feature = "user")]
+        let post_recv_op = unsafe { send.get_ctx().raw_ptr().as_ref().ops.post_recv.unwrap() };
 
         Ok(PreparedQueuePair {
             inner: QueuePair {
@@ -387,8 +390,11 @@ impl QueuePairBuilder {
                 srq: srq,
                 mode: qp_type,
 
-                #[cfg(feature = "user")]                
+                #[cfg(feature = "user")]
                 post_send_op: post_send_op,
+
+                #[cfg(feature = "user")]
+                post_recv_op: post_recv_op,
 
                 // the following is just borrowed from the builder
                 // as the QP may require them during connections

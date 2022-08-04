@@ -1,10 +1,16 @@
 pub use rust_user_rdma::*;
 
+/// Warn!!!!: these bindings currently work with Mellanox OFED 4_9
+/// will include other bindings later
+///
+/// In the future, we will avoid adding these bindings
+/// by re-bind the interfaces from the kernel space to the user-space ones
+///
 #[allow(non_camel_case_types)]
 mod wrapper_types {
+    use super::*;
     #[allow(unused_imports)]
     use crate::ffi::c_types::*;
-    use super::*;
 
     /// We follow the convention of the kernel to rename the user-space verbs types
     /// types:
@@ -25,13 +31,41 @@ mod wrapper_types {
     pub type ib_wc = ibv_wc;
     pub type ib_srq_init_attr = ibv_srq_init_attr;
 
-    // MR related types 
+    // MR related types
     pub type ib_access_flags = ibv_access_flags;
 
     // QP related types
-    pub type ib_qp_state = ibv_qp_state;
     pub type ib_qp = ibv_qp;
+    pub mod ib_qp_state {
+        pub use super::ibv_qp_state::*;
+
+        pub const IB_QPS_RESET: Type = IBV_QPS_RESET;
+        pub const IB_QPS_INIT: Type = IBV_QPS_INIT;
+        pub const IB_QPS_RTR: Type = IBV_QPS_RTR;
+        pub const IB_QPS_RTS: Type = IBV_QPS_RTS;
+        pub const IB_QPS_SQD: Type = IBV_QPS_SQD;
+        pub const IB_QPS_SQE: Type = IBV_QPS_SQE;
+        pub const IB_QPS_ERR: Type = IBV_QPS_ERR;
+        pub const IB_QPS_UNKNOWN: Type = IBV_QPS_UNKNOWN;
+    }
+
+    pub mod ib_mtu {
+        pub use super::ibv_mtu::*;
+        pub const IB_MTU_256: Type = IBV_MTU_256;
+        pub const IB_MTU_512: Type = IBV_MTU_512;
+        pub const IB_MTU_1024: Type = IBV_MTU_1024;
+        pub const IB_MTU_2048: Type = IBV_MTU_2048;
+        pub const IB_MTU_4096: Type = IBV_MTU_4096;
+    }
+
     pub type ib_send_wr = ibv_send_wr;
+    pub type ib_rdma_wr = ibv_send_wr;
+    pub type ib_ud_wr = ibv_send_wr;
+    pub type ib_sge = ibv_sge;
+    pub type ib_recv_wr = ibv_recv_wr;
+    pub type ib_qp_attr = ibv_qp_attr;
+    pub type ib_qp_init_attr = ibv_qp_init_attr;
+    pub type ib_qp_attr_mask = ibv_qp_attr_mask;
 
     /// functions
     #[inline(always)]
@@ -62,6 +96,21 @@ mod wrapper_types {
     #[inline(always)]
     pub unsafe fn ib_create_srq(pd: *mut ib_pd, attr: *mut ib_srq_init_attr) -> *mut ib_srq {
         ibv_create_srq(pd, attr)
+    }
+
+    #[inline(always)]
+    pub unsafe fn ib_destroy_qp(qp: *mut ib_qp) -> c_int {
+        ibv_destroy_qp(qp)
+    }
+
+    #[inline(always)]
+    pub unsafe fn ib_query_qp(
+        qp: *mut ib_qp,
+        attr: *mut ib_qp_attr,
+        attr_mask: c_int,
+        init_attr: *mut ib_qp_init_attr,
+    ) -> c_int {
+        ibv_query_qp(qp, attr, attr_mask, init_attr)
     }
 }
 

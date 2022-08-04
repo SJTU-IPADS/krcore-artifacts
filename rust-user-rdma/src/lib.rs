@@ -8,6 +8,30 @@ use no_std_net::Guid;
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
+impl Default for ibv_qp_init_attr { 
+    fn default() -> Self {
+        unsafe { core::mem::zeroed() }
+    }    
+}
+
+impl Default for ibv_qp_attr { 
+    fn default() -> Self {
+        unsafe { core::mem::zeroed() }
+    }    
+}
+
+impl Default for ibv_send_wr { 
+    fn default() -> Self {
+        unsafe { core::mem::zeroed() }
+    }    
+}
+
+impl Default for ibv_recv_wr { 
+    fn default() -> Self {
+        unsafe { core::mem::zeroed() }
+    }    
+}
+
 impl Default for ibv_ah_attr {
     fn default() -> Self {
         unsafe { core::mem::zeroed() }

@@ -1,4 +1,4 @@
-use rdma_shim::{log, ffi::c_types, Error};
+use rdma_shim::{log, ffi::c_types};
 use rdma_shim::bindings::*;
 
 use alloc::string::String;
