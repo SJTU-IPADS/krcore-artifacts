@@ -54,7 +54,7 @@ fn main() {
         .bitfield_enum("ibv_qp_create_flags")
         .bitfield_enum("ibv_qp_create_send_ops_flags")
         .bitfield_enum("ibv_qp_open_attr_mask")
-        .bitfield_enum("ibv_qp_attr_mask")
+        .constified_enum_module("ibv_qp_attr_mask")
         .bitfield_enum("ibv_send_flags")
         .bitfield_enum("ibv_ops_flags")
         .bitfield_enum("ibv_cq_attr_mask")

@@ -32,7 +32,20 @@ mod wrapper_types {
     pub type ib_srq_init_attr = ibv_srq_init_attr;
 
     // MR related types
-    pub type ib_access_flags = ibv_access_flags;
+    pub mod ib_access_flags {
+        use super::ibv_access_flags;
+
+        // FIXME: hard-coded support is ok?
+        pub type Type = u32;
+
+        pub const IB_ACCESS_LOCAL_WRITE: Type = ibv_access_flags::IBV_ACCESS_LOCAL_WRITE.0;
+        pub const IB_ACCESS_REMOTE_WRITE: Type = ibv_access_flags::IBV_ACCESS_REMOTE_WRITE.0;
+        pub const IB_ACCESS_REMOTE_READ: Type = ibv_access_flags::IBV_ACCESS_REMOTE_READ.0;
+        pub const IB_ACCESS_REMOTE_ATOMIC: Type = ibv_access_flags::IBV_ACCESS_REMOTE_ATOMIC.0;
+        pub const IB_ACCESS_MW_BIND: Type = ibv_access_flags::IBV_ACCESS_MW_BIND.0;
+        pub const IB_ACCESS_ZERO_BASED: Type = ibv_access_flags::IBV_ACCESS_ZERO_BASED.0;
+        pub const IB_ACCESS_ON_DEMAND: Type = ibv_access_flags::IBV_ACCESS_ON_DEMAND.0;
+    }
 
     // QP related types
     pub type ib_qp = ibv_qp;
@@ -58,6 +71,47 @@ mod wrapper_types {
         pub const IB_MTU_4096: Type = IBV_MTU_4096;
     }
 
+    pub mod ib_qp_type {
+        pub use super::ibv_qp_type::*;
+
+        pub const IB_QPT_RC: Type = IBV_QPT_RC;
+        pub const IB_QPT_UC: Type = IBV_QPT_UC;
+        pub const IB_QPT_UD: Type = IBV_QPT_UD;
+        pub const IB_QPT_XRC: Type = IBV_QPT_XRC;
+        pub const IB_QPT_RAW_PACKET: Type = IBV_QPT_RAW_PACKET;
+        pub const IB_QPT_RAW_ETH: Type = IBV_QPT_RAW_ETH;
+        pub const IB_QPT_XRC_SEND: Type = IBV_QPT_XRC_SEND;
+        pub const IB_QPT_XRC_RECV: Type = IBV_QPT_XRC_RECV;
+        pub const IB_EXP_QP_TYPE_START: Type = IBV_EXP_QP_TYPE_START;
+        pub const IB_EXP_QPT_DC_INI: Type = IBV_EXP_QPT_DC_INI;
+    }
+
+    pub mod ib_qp_attr_mask {
+        pub use super::ibv_qp_attr_mask::*;
+
+        pub const IB_QP_STATE: Type = IBV_QP_STATE;
+        pub const IB_QP_CUR_STATE: Type = IBV_QP_CUR_STATE;
+        pub const IB_QP_EN_SQD_ASYNC_NOTIFY: Type = IBV_QP_EN_SQD_ASYNC_NOTIFY;
+        pub const IB_QP_ACCESS_FLAGS: Type = IBV_QP_ACCESS_FLAGS;
+        pub const IB_QP_PKEY_INDEX: Type = IBV_QP_PKEY_INDEX;
+        pub const IB_QP_PORT: Type = IBV_QP_PORT;
+        pub const IB_QP_QKEY: Type = IBV_QP_QKEY;
+        pub const IB_QP_AV: Type = IBV_QP_AV;
+        pub const IB_QP_PATH_MTU: Type = IBV_QP_PATH_MTU;
+        pub const IB_QP_TIMEOUT: Type = IBV_QP_TIMEOUT;
+        pub const IB_QP_RETRY_CNT: Type = IBV_QP_RETRY_CNT;
+        pub const IB_QP_RNR_RETRY: Type = IBV_QP_RNR_RETRY;
+        pub const IB_QP_RQ_PSN: Type = IBV_QP_RQ_PSN;
+        pub const IB_QP_MAX_QP_RD_ATOMIC: Type = IBV_QP_MAX_QP_RD_ATOMIC;
+        pub const IB_QP_ALT_PATH: Type = IBV_QP_ALT_PATH;
+        pub const IB_QP_MIN_RNR_TIMER: Type = IBV_QP_MIN_RNR_TIMER;
+        pub const IB_QP_SQ_PSN: Type = IBV_QP_SQ_PSN;
+        pub const IB_QP_MAX_DEST_RD_ATOMIC: Type = IBV_QP_MAX_DEST_RD_ATOMIC;
+        pub const IB_QP_PATH_MIG_STATE: Type = IBV_QP_PATH_MIG_STATE;
+        pub const IB_QP_CAP: Type = IBV_QP_CAP;
+        pub const IB_QP_DEST_QPN: Type = IBV_QP_DEST_QPN;
+    }
+
     pub type ib_send_wr = ibv_send_wr;
     pub type ib_rdma_wr = ibv_send_wr;
     pub type ib_ud_wr = ibv_send_wr;
@@ -65,7 +119,7 @@ mod wrapper_types {
     pub type ib_recv_wr = ibv_recv_wr;
     pub type ib_qp_attr = ibv_qp_attr;
     pub type ib_qp_init_attr = ibv_qp_init_attr;
-    pub type ib_qp_attr_mask = ibv_qp_attr_mask;
+    pub type ib_qp_cap = ibv_qp_cap;
 
     /// functions
     #[inline(always)]
@@ -111,6 +165,16 @@ mod wrapper_types {
         init_attr: *mut ib_qp_init_attr,
     ) -> c_int {
         ibv_query_qp(qp, attr, attr_mask, init_attr)
+    }
+
+    #[inline(always)]
+    pub unsafe fn ib_modify_qp(qp: *mut ib_qp, attr: *mut ib_qp_attr, attr_mask: c_int) -> c_int {
+        ibv_modify_qp(qp, attr, attr_mask)
+    }
+
+    #[inline(always)]
+    pub unsafe fn ib_create_qp(pd: *mut ib_pd, qp_init_attr: *mut ib_qp_init_attr) -> *mut ib_qp {
+        ibv_create_qp(pd, qp_init_attr)
     }
 }
 

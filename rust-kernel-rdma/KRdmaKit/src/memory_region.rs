@@ -102,11 +102,10 @@ impl MemoryRegion {
                 data.as_mut_ptr() as *mut _,
                 capacity,
                 // FIXME: maybe we should enable different permissions
-                (rdma_shim::bindings::ib_access_flags::IBV_ACCESS_LOCAL_WRITE
-                    | ib_access_flags::IBV_ACCESS_REMOTE_READ
-                    | ib_access_flags::IBV_ACCESS_REMOTE_WRITE
-                    | ib_access_flags::IBV_ACCESS_REMOTE_ATOMIC)
-                    .0 as _,
+                (rdma_shim::bindings::ib_access_flags::IB_ACCESS_LOCAL_WRITE
+                    | ib_access_flags::IB_ACCESS_REMOTE_READ
+                    | ib_access_flags::IB_ACCESS_REMOTE_WRITE
+                    | ib_access_flags::IB_ACCESS_REMOTE_ATOMIC) as _
             )
         })
         .ok_or(crate::ControlpathError::CreationError(
@@ -259,11 +258,10 @@ mod tests {
                 ctx.clone(),
                 test_buf.as_mut_ptr() as _,
                 test_buf.len() * core::mem::size_of::<u64>(),
-                (rdma_shim::bindings::ib_access_flags::IBV_ACCESS_LOCAL_WRITE
-                    | ib_access_flags::IBV_ACCESS_REMOTE_READ
-                    | ib_access_flags::IBV_ACCESS_REMOTE_WRITE
-                    | ib_access_flags::IBV_ACCESS_REMOTE_ATOMIC)
-                    .0 as _,
+                (rdma_shim::bindings::ib_access_flags::IB_ACCESS_LOCAL_WRITE
+                    | ib_access_flags::IB_ACCESS_REMOTE_READ
+                    | ib_access_flags::IB_ACCESS_REMOTE_WRITE
+                    | ib_access_flags::IB_ACCESS_REMOTE_ATOMIC) as _
             )
         }; 
 
@@ -274,11 +272,10 @@ mod tests {
                 ctx.clone(),
                 test_buf.as_mut_ptr() as _,
                 1024 * 1024 * 1024,
-                (rdma_shim::bindings::ib_access_flags::IBV_ACCESS_LOCAL_WRITE
-                    | ib_access_flags::IBV_ACCESS_REMOTE_READ
-                    | ib_access_flags::IBV_ACCESS_REMOTE_WRITE
-                    | ib_access_flags::IBV_ACCESS_REMOTE_ATOMIC)
-                    .0 as _,
+                (rdma_shim::bindings::ib_access_flags::IB_ACCESS_LOCAL_WRITE
+                    | ib_access_flags::IB_ACCESS_REMOTE_READ
+                    | ib_access_flags::IB_ACCESS_REMOTE_WRITE
+                    | ib_access_flags::IB_ACCESS_REMOTE_ATOMIC) as _
             )
         };         
         assert!(mr.is_err());

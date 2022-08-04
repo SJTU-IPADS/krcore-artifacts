@@ -19,9 +19,7 @@ use crate::queue_pairs::endpoint::DatagramEndpoint;
 use crate::CMError;
 
 /// Queue pair builders
-#[cfg(feature = "kernel")]
 pub mod builder;
-#[cfg(feature = "kernel")]
 pub use builder::{PreparedQueuePair, QueuePairBuilder};
 
 #[cfg(feature = "kernel")]
@@ -104,11 +102,7 @@ pub struct QueuePair {
     port_num: u8,
     qkey: u32,
 
-    #[cfg(feature = "kernel")]
     access: ib_access_flags::Type,
-
-    #[cfg(feature = "user")]
-    access: ibv_access_flags,
 
     timeout: u8,
     retry_count: u8,
@@ -131,7 +125,6 @@ impl QueuePair {
                 self.inner_qp.as_ptr(),
                 &mut attr as *mut ib_qp_attr,
                 ib_qp_attr_mask::IB_QP_STATE,
-
                 &mut init_attr as *mut ib_qp_init_attr,
             )
         };
@@ -141,8 +134,7 @@ impl QueuePair {
             ib_query_qp(
                 self.inner_qp.as_ptr(),
                 &mut attr as *mut ib_qp_attr,
-                ib_qp_attr_mask::IBV_QP_STATE.0 as _,
-
+                ib_qp_attr_mask::IBV_QP_STATE as _,
                 &mut init_attr as *mut ib_qp_init_attr,
             )
         };
@@ -254,7 +246,8 @@ impl QueuePair {
             bd_set_recv_wr_id(&mut wr, wr_id)
         };
 
-        #[cfg(feature = "user")] {
+        #[cfg(feature = "user")]
+        {
             wr.wr_id = wr_id;
         }
 
@@ -265,7 +258,7 @@ impl QueuePair {
                 &mut wr as *mut _,
                 &mut bad_wr as *mut _,
             )
-        }; 
+        };
 
         #[cfg(feature = "user")]
         let err =
@@ -301,7 +294,7 @@ impl Drop for QueuePair {
     fn drop(&mut self) {
         unsafe {
             ib_destroy_qp(self.inner_qp.as_ptr());
-            
+
             #[cfg(feature = "kernel")]
             self.rc_comm.as_mut().map(|c| c.explicit_drop());
         }
