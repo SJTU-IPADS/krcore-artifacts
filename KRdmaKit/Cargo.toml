@@ -5,8 +5,8 @@ authors = ["Xingda Wei <wxdwfc@gmail.com>", "Fangming Lu", "Haotian Wang"]
 edition = "2018"
 
 [dependencies]
-rdma-shim = {path = "../../rdma-shim"} 
-no-std-net = { path = "../deps/no-std-net" }
+rdma-shim = {path = "../rdma-shim"} 
+no-std-net = { path = "../rust-kernel-rdma/deps/no-std-net" }
 nostd_async = "0.3.1"
 futures-micro = "0.4"
 ## spinlock

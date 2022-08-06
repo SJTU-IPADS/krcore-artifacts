@@ -10,6 +10,7 @@ for machine in ${target[*]}
 do
   rsync -i -rtuv \
         $PWD/deps \
+        $PWD/KRdmaKit \
         $PWD/KRdmaKit-syscall \
         $PWD/krdmakit-macros \
         $PWD/rdma-shim \

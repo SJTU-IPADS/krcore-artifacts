@@ -1,9 +1,9 @@
 [workspace]
 
 [package]
-name = "reliable_connection_tests"
+name = "memory_region_tests"
 version = "0.1.0"
-authors = ["wxd","Haotian Wang"]
+authors = ["wxd","fangming"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -15,11 +15,10 @@ test = false
 default = ["KRdmaKit", "rust-kernel-linux-util","krdma-test"]
 
 [dependencies]
-KRdmaKit = { path = "../../../KRdmaKit", optional = true, features=["dct", "kernel"] }
-rust-kernel-linux-util = {path = "../../../rust-kernel-linux-util",optional = true, features=["static_log_check","max_level_info"]}
-krdma-test = {path = "../../../krdma-test",optional = true}
+KRdmaKit = { path = "../../../KRdmaKit", optional = true, features=["kernel"] }
+rust-kernel-linux-util = {path = "../../../rust-kernel-rdma/rust-kernel-linux-util",optional = true, features=["static_log_check","max_level_info"]}
+krdma-test = {path = "../../../rust-kernel-rdma/krdma-test/",optional = true}
 hashbrown = "0.9"
-thiserror-no-std = "2.0.2"
 
 ## lazy static
 [dependencies.lazy_static]

@@ -1,8 +1,10 @@
 use rdma_shim::bindings::*;
-use rdma_shim::{Error, log};
+
+#[allow(unused_imports)]
+use rdma_shim::{log, Error};
 
 use crate::comm_manager::{CMCallbacker, CMError, CMReplyer};
-use crate::queue_pairs::{QPType, QueuePair, QueuePairStatus};
+use crate::queue_pairs::QueuePair;
 use crate::services::rc::RCConnectionData;
 
 impl CMCallbacker for QueuePair {
@@ -42,4 +44,3 @@ impl CMCallbacker for QueuePair {
         Ok(())
     }
 }
-
