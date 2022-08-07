@@ -38,4 +38,21 @@ fn main() {
     let connected_qp = client_qp.bring_up_rc(port_attr.lid as _, gid, inner_qpn, 0).expect("failed to bring up RC");
 
     println!("RC connection passes {:?}", connected_qp.status() );
+
+    // now sending a value using the connected QP    
+    let mr = MemoryRegion::new(ctx.clone(), 4096).expect("failed to allocate MR");
+ 
+
+    let remote_addr  = 1024;
+    let test_buf = (mr.get_virt_addr() + remote_addr) as *mut [u8; 11];    
+    unsafe {
+        (*test_buf).clone_from_slice("Hello world".as_bytes());
+    };       
+
+    // sending the RDMA request 
+    
+
+    
+
+
 }        

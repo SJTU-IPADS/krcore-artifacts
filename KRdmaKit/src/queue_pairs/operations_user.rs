@@ -85,6 +85,97 @@ impl QueuePair {
     }
 }
 
+// reliable connection post send requests 
+impl QueuePair {     
+
+    /// Post a one-sided RDMA write work request to the send queue.
+    ///
+    /// Param:
+    /// - `mr`: Reference to MemoryRegion to store written data from the remote side.
+    /// - `range`: Specify which range of mr you want to store the written data. Index the mr in byte dimension.
+    /// - `signaled`: Whether signaled while post send write
+    /// - `raddr`: Beginning address of remote side to write. Physical address in kernel mode
+    /// - `rkey`: Remote memory region key
+    #[inline]
+    pub fn post_send_write(
+        &self,
+        mr: &MemoryRegion,
+        range: Range<u64>,
+        signaled: bool,
+        raddr: u64,
+        rkey: u32,
+    ) -> Result<(), DatapathError> {
+        if self.mode != QPType::RC {
+            return Err(DatapathError::QPTypeError);
+        }
+        let send_flag = if signaled {
+            ibv_send_flags::IBV_SEND_SIGNALED
+        } else {
+            0
+        };
+        self.post_send_inner(
+            ibv_wr_opcode::IBV_WR_RDMA_WRITE,
+            unsafe { mr.get_rdma_addr() } + range.start,
+            raddr,
+            mr.lkey().0,
+            rkey,
+            range.size() as u32,
+            0,
+            send_flag as _,
+        )
+    }
+
+    #[inline]
+    fn post_send_inner(
+        &self,
+        op: u32,
+        laddr: u64, // virtual addr
+        raddr: u64, // virtual addr
+        lkey: u32,
+        rkey: u32,
+        size: u32,      // size in bytes
+        imm_data: u32,  // immediate data
+        send_flag: i32, // send flags, see `ib_send_flags`
+    ) -> Result<(), DatapathError> {
+        let mut sge = ib_sge {
+            addr: laddr,
+            length: size,
+            lkey,
+        };
+
+        let mut wr: ibv_send_wr = Default::default();
+
+        wr.opcode = op;
+        wr.send_flags = send_flag;
+        wr.imm_data = imm_data;
+        wr.num_sge = 1;
+        wr.sg_list = &mut sge as *mut _;
+
+        // rdma related requests
+        unsafe { 
+            wr.wr.rdma.as_mut().remote_addr = raddr;
+            wr.wr.rdma.as_mut().rkey = rkey;  
+        };
+
+
+        let mut bad_wr: *mut ib_send_wr = null_mut();
+
+        let err = unsafe {
+            (self.post_send_op)(
+                self.inner_qp.as_ptr(),
+                &mut wr as *mut _,
+                &mut bad_wr as *mut _,
+            )
+        };
+
+        if err != 0 {
+            Err(DatapathError::PostSendError(Error::from_kernel_errno(err)))
+        } else {
+            Ok(())
+        }
+    }    
+}
+
 // reliable connection bringups
 impl QueuePair {
     /// Bring ip rc inner method, used in PreparedQueuePair and RC Server.
