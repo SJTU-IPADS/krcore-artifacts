@@ -87,6 +87,43 @@ impl QueuePair {
 
 // reliable connection post send requests 
 impl QueuePair {     
+    /// Post a one-sided RDMA read work request to the send queue.
+    ///
+    /// Param:
+    /// - `mr`: Reference to MemoryRegion to store written data from the remote side.
+    /// - `range`: Specify which range of mr you want to store the written data. Index the mr in byte dimension.
+    /// - `signaled`: Whether signaled while post send write
+    /// - `raddr`: Beginning address of remote side to write. Physical address in kernel mode
+    /// - `rkey`: Remote memory region key
+    #[inline]
+    pub fn post_send_read(
+        &self,
+        mr: &MemoryRegion,
+        range: Range<u64>,
+        signaled: bool,
+        raddr: u64,
+        rkey: u32,
+    ) -> Result<(), DatapathError> {
+        if self.mode != QPType::RC {
+            return Err(DatapathError::QPTypeError);
+        }
+
+        let send_flag = if signaled {
+            ibv_send_flags::IBV_SEND_SIGNALED
+        } else {
+            0
+        };
+        self.post_send_inner(
+            ibv_wr_opcode::IBV_WR_RDMA_READ,
+            unsafe { mr.get_rdma_addr() } + range.start,
+            raddr,
+            mr.lkey().0,
+            rkey,
+            range.size() as u32,
+            0,
+            send_flag as _,
+        )
+    }    
 
     /// Post a one-sided RDMA write work request to the send queue.
     ///
@@ -137,6 +174,7 @@ impl QueuePair {
         imm_data: u32,  // immediate data
         send_flag: i32, // send flags, see `ib_send_flags`
     ) -> Result<(), DatapathError> {
+
         let mut sge = ib_sge {
             addr: laddr,
             length: size,
@@ -186,7 +224,7 @@ impl QueuePair {
         lid: u32,
         gid: ib_gid,
         remote_qpn: u32,
-        rq_psn: u32,
+        _rq_psn: u32,
     ) -> Result<(), ControlpathError> {
         if self.mode != QPType::RC {
             log::error!("Bring up rc inner, type check error");
@@ -195,6 +233,7 @@ impl QueuePair {
                 Error::from_kernel_errno(0),
             ));
         }
+
         let qp_status = self.status()?;
         if qp_status == QueuePairStatus::Reset {
             // INIT
@@ -233,7 +272,7 @@ impl QueuePair {
                 qp_state: ib_qp_state::IB_QPS_RTR,
                 path_mtu: self.path_mtu,
                 dest_qp_num: remote_qpn,
-                rq_psn: rq_psn,
+                rq_psn: remote_qpn,
                 max_dest_rd_atomic: self.max_rd_atomic,
                 min_rnr_timer: self.min_rnr_timer,
                 ah_attr : ibv_ah_attr { 
@@ -243,6 +282,8 @@ impl QueuePair {
                     grh : ibv_global_route { 
                         dgid : gid, 
                         hop_limit : 255, 
+                        flow_label : 0,
+                        sgid_index : 0,
                         ..Default::default()
                     }, 
                     ..Default::default()
@@ -266,6 +307,7 @@ impl QueuePair {
                 | ib_qp_attr_mask::IB_QP_RNR_RETRY
                 | ib_qp_attr_mask::IB_QP_SQ_PSN
                 | ib_qp_attr_mask::IB_QP_MAX_QP_RD_ATOMIC;
+
             let mut rts_attr = ib_qp_attr {
                 qp_state: ib_qp_state::IB_QPS_RTS,
                 timeout: self.timeout,
@@ -273,6 +315,7 @@ impl QueuePair {
                 rnr_retry: self.rnr_retry,
                 sq_psn: self.qp_num(),
                 max_rd_atomic: self.max_rd_atomic,
+                max_dest_rd_atomic : self.max_rd_atomic,
                 ..Default::default()
             };
             let ret =

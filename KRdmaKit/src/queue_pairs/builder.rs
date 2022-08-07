@@ -52,7 +52,7 @@ impl QueuePairBuilder {
             max_inline_data: 64,
             access: ib_access_flags::IB_ACCESS_LOCAL_WRITE,
             path_mtu: ib_mtu::IB_MTU_512,
-            timeout: 4,
+            timeout: 10,
             retry_count: 5,
             rnr_retry: 5,
             min_rnr_timer: 16,
@@ -421,6 +421,7 @@ impl QueuePairBuilder {
     }
 }
 
+#[allow(dead_code)]
 /// A PrepareQueuePair is used to create a queue pair
 pub struct PreparedQueuePair {
     inner: QueuePair,

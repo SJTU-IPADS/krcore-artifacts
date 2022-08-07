@@ -80,6 +80,16 @@ impl Default for ibv_srq_init_attr {
     }
 }
 
+impl core::fmt::Debug for ibv_wc {
+
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("ibv_wc")
+            .field("status", &self.status)
+            .field("byte_len", &self.byte_len)
+            .finish() // TODO: more fields to be added
+    }
+}
+
 impl core::fmt::Debug for ibv_device_attr {
     /// print the device attr, the detailed fields can be found at:
     /// https://www.rdmamojo.com/2012/07/13/ibv_query_device/
