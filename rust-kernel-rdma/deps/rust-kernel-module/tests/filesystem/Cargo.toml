@@ -13,6 +13,7 @@ default = ["linux-kernel-module"]
 
 [dependencies]
 linux-kernel-module = { path = "../..", optional = true }
+no-std-net = {path = "../deps/no-std-net"}
 
 [dev-dependencies]
 kernel-module-testlib = { path = "../../testlib" }

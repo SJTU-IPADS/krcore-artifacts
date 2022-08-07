@@ -39,3 +39,4 @@ pub use rust_kernel_rdma_base::rust_kernel_linux_util as log;
 
 pub use rust_kernel_rdma_base::gen_add_dev_func;
 pub use rust_kernel_rdma_base::linux_kernel_module::Error;
+pub use rust_kernel_rdma_base::linux_kernel_module::KernelResult;

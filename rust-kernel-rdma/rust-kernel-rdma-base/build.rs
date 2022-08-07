@@ -4,7 +4,7 @@ use std::path::PathBuf;
 // types from customized syscalls
 const INCLUDED_TYPES: &[&str] = &["LibSwapCmd"];
 
-// enums from kernel
+// enums from kernel 
 const INCLUDED_KERNEL_ENUMS: &[&str] = &[
     "ib_qp_type",
     "ib_access_flags",
@@ -22,7 +22,7 @@ const INCLUDED_KERNEL_ENUMS: &[&str] = &[
     "ib_wc_status",    
     "rdma_ah_attr_type",
     "ib_cm_state",    
-];
+]; 
 
 // types from kernel
 const INCLUDED_KERNEL_TYPES: &[&str] = &[
@@ -68,100 +68,18 @@ const INCLUDED_KERNEL_TYPES: &[&str] = &[
     // DCT related
     "ib_dct",
 ];
-
 const INCLUDED_KERNEL_FUNCS: &[&str] = &[
-    // context related
-    "ib_register_client",
-    "ib_unregister_client",
-    "__ib_alloc_pd",
-    "ib_dealloc_pd",
-    "ib_dealloc_pd_user",
-
-    // device related
-    "ib_query_port",
-    // mr related
-    "ib_dereg_mr",
-    "ib_dereg_mr_user",
-    "ib_alloc_mr",
-    "ib_alloc_mr_user",
-    "ib_get_dma_mr",
-    "bd_ib_dma_map_sg",
-    "ib_map_mr_sg",
-    "sg_init_table",
-    "bd_virt_to_page",
-    "bd_alloc_pages",
-    "bd_free_pages",
-    "bd_put_page",
-    "get_free_page",
-    "get_user_pages",
-    "bd_sg_set_page",
-    "bd_page_address",
+    "ib_.*",
+    "bd_.*", 
+    "rdma_.*", 
     "vmalloc_to_page",
-    "bd_get_page",
-    "gfp_highuser",
+    "sg_.*", 
+    "*.alloc_pd", 
     "page_size",
-    "dma_from_device",
-    // cq related
-    "ib_create_cq",
-    "bd_ib_create_cq",
-    "__ib_alloc_cq",
-    "ib_free_cq",
-    "ib_free_cq_user",
-    "bd_ib_poll_cq",
-    "bd_ib_post_send",
-    "bd_set_send_wr_imm",
-    "bd_ib_post_recv",
-    "bd_ib_post_srq_recv",
-    // qp related
-    "ib_create_qp",
-    "ib_create_qp_user",
-    "ib_query_qp",
-    "ib_modify_qp",
-    "ib_destroy_qp",
-    "ib_destroy_qp_user",
-    "rdma_destroy_ah",
-    "rdma_destroy_ah_user",
-
-    "bd_rdma_ah_set_dlid",
-    "bd_set_recv_wr_id",
-    "bd_get_recv_wr_id",
-    "bd_get_wc_wr_id",
-    "rdma_create_ah",
-    // cm related
-    "ib_create_cm_id",
-    "ib_destroy_cm_id",
-    "ib_cm_listen",
-    "ib_cm_init_qp_attr",
-    "ib_sa_path_rec_get",
-    "path_rec_service_id",
-    "path_rec_dgid",
-    "path_rec_sgid",
-    "path_rec_numb_path",
-    "ib_send_cm_rep",
-    "ib_send_cm_req",
-    "ib_send_cm_rej",
-    "ib_send_cm_dreq",
-    "ib_send_cm_drep",
-    "ib_send_cm_rtu",
-    "ib_send_cm_sidr_rep",
-    "ib_send_cm_sidr_req",
-    "ib_sa_register_client",
-    "ib_sa_unregister_client",
-    // DCT related
-    "ib_exp_create_dct",
-    "ib_exp_destroy_dct",
-    // "ib_exp_modify_dct",
-    // "ib_exp_modify_dct_qp_init",
-    // "ib_exp_modify_dct_qp_rtr",
-    // "ib_exp_modify_cq",
-    // "ib_exp_get_dct_qp",
-    "base_ib_create_qp_dct",
     "ptr_is_err",
-    "base_ib_create_qp",
-    "ib_create_srq",
-    "ib_create_srq_user",
-    "ib_destroy_srq",
-    "ib_destroy_srq_user",
+    "gfp_highuser",
+    "dma_from_device",
+    "path_.*"
 ];
 
 const INCLUDED_VARS: &[&str] = &[
@@ -258,7 +176,7 @@ fn main() {
 
     for t in INCLUDED_TYPES {
         builder = builder.whitelist_type(t);
-    }
+    }    
 
     for t in INCLUDED_KERNEL_ENUMS {
         builder = builder.whitelist_type(t);
