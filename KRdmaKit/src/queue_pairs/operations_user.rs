@@ -1,4 +1,5 @@
 use rdma_shim::ffi::c_types::c_int;
+use crate::ControlpathError;
 
 /// Unreliable Datagram
 impl QueuePair {
@@ -81,5 +82,119 @@ impl QueuePair {
         } else {
             Ok(())
         }
+    }
+}
+
+// reliable connection bringups
+impl QueuePair {
+    /// Bring ip rc inner method, used in PreparedQueuePair and RC Server.
+    ///
+    /// See `bring_up_rc` in PreparedQueuePair for more details about parameters.
+    pub fn bring_up_rc_inner(
+        &mut self,
+        lid: u32,
+        gid: ib_gid,
+        remote_qpn: u32,
+        rq_psn: u32,
+    ) -> Result<(), ControlpathError> {
+        if self.mode != QPType::RC {
+            log::error!("Bring up rc inner, type check error");
+            return Err(ControlpathError::CreationError(
+                "bring up type check log::error!",
+                Error::from_kernel_errno(0),
+            ));
+        }
+        let qp_status = self.status()?;
+        if qp_status == QueuePairStatus::Reset {
+            // INIT
+            let mask = ib_qp_attr_mask::IB_QP_STATE
+                | ib_qp_attr_mask::IB_QP_PKEY_INDEX
+                | ib_qp_attr_mask::IB_QP_PORT
+                | ib_qp_attr_mask::IB_QP_ACCESS_FLAGS;
+                
+            let mut init_attr = ib_qp_attr {
+                qp_state: ib_qp_state::IB_QPS_INIT,
+                pkey_index: self.pkey_index,
+                port_num: self.port_num,
+                qp_access_flags: self.access as _,
+                ..Default::default()
+            };
+            let ret =
+                unsafe { ib_modify_qp(self.inner_qp.as_ptr(), &mut init_attr as *mut _, mask as _) };
+            if ret != 0 {
+                log::error!("Bring up rc inner, reset=>init error");
+                return Err(ControlpathError::CreationError(
+                    "bringRC INIT error",
+                    Error::from_kernel_errno(ret),
+                ));
+            }
+
+            // RTR
+            let mask = ib_qp_attr_mask::IB_QP_STATE
+                | ib_qp_attr_mask::IB_QP_AV
+                | ib_qp_attr_mask::IB_QP_PATH_MTU
+                | ib_qp_attr_mask::IB_QP_DEST_QPN
+                | ib_qp_attr_mask::IB_QP_RQ_PSN
+                | ib_qp_attr_mask::IB_QP_MAX_DEST_RD_ATOMIC
+                | ib_qp_attr_mask::IB_QP_MIN_RNR_TIMER;
+
+            let mut rtr_attr = ib_qp_attr {
+                qp_state: ib_qp_state::IB_QPS_RTR,
+                path_mtu: self.path_mtu,
+                dest_qp_num: remote_qpn,
+                rq_psn: rq_psn,
+                max_dest_rd_atomic: self.max_rd_atomic,
+                min_rnr_timer: self.min_rnr_timer,
+                ah_attr : ibv_ah_attr { 
+                    port_num : self.port_num, 
+                    dlid : lid as _, 
+                    is_global : 1,
+                    grh : ibv_global_route { 
+                        dgid : gid, 
+                        hop_limit : 255, 
+                        ..Default::default()
+                    }, 
+                    ..Default::default()
+                }, 
+                ..Default::default()
+            };
+            let ret =
+                unsafe { ib_modify_qp(self.inner_qp.as_ptr(), &mut rtr_attr as *mut _, mask as _) };
+            if ret != 0 {
+                log::error!("Bring up rc inner, init=>rtr error");
+                return Err(ControlpathError::CreationError(
+                    "bring RC RTR error",
+                    Error::from_kernel_errno(ret),
+                ));
+            }
+
+            // RTS
+            let mask = ib_qp_attr_mask::IB_QP_STATE
+                | ib_qp_attr_mask::IB_QP_TIMEOUT
+                | ib_qp_attr_mask::IB_QP_RETRY_CNT
+                | ib_qp_attr_mask::IB_QP_RNR_RETRY
+                | ib_qp_attr_mask::IB_QP_SQ_PSN
+                | ib_qp_attr_mask::IB_QP_MAX_QP_RD_ATOMIC;
+            let mut rts_attr = ib_qp_attr {
+                qp_state: ib_qp_state::IB_QPS_RTS,
+                timeout: self.timeout,
+                retry_cnt: self.retry_count,
+                rnr_retry: self.rnr_retry,
+                sq_psn: self.qp_num(),
+                max_rd_atomic: self.max_rd_atomic,
+                ..Default::default()
+            };
+            let ret =
+                unsafe { ib_modify_qp(self.inner_qp.as_ptr(), &mut rts_attr as *mut _, mask as _) };
+            if ret != 0 {
+                log::error!("Bring up rc inner, rtr=>rts error");
+                return Err(ControlpathError::CreationError(
+                    "bring RC RTS error",
+                    Error::from_kernel_errno(ret),
+                ));
+            }
+        }
+        log::debug!("Bring up rc inner, return OK");
+        Ok(())
     }
 }

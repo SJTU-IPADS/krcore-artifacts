@@ -8,6 +8,12 @@ use no_std_net::Guid;
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
+impl Default for ibv_global_route { 
+    fn default() -> Self {
+        unsafe { core::mem::zeroed() }
+    }    
+}
+
 impl Default for ibv_wc { 
     fn default() -> Self {
         unsafe { core::mem::zeroed() }

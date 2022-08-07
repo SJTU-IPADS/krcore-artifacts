@@ -25,7 +25,6 @@ pub struct QueuePairBuilder {
     // carried along to handshake phase
     pub(super) access: ib_access_flags::Type,
 
-
     pub(super) path_mtu: ib_mtu::Type,
     pub(super) timeout: u8,
     pub(super) retry_count: u8,
@@ -435,6 +434,12 @@ pub struct PreparedQueuePair {
 }
 
 impl PreparedQueuePair {
+
+    #[inline]
+    pub fn inner_qp_num(&self) -> u32 {
+        self.inner.qp_num()
+    }
+
     /// Bring up UD by modifying attributes of a queue pair. The returned
     /// queue pair is able to be used for communication.
     ///
@@ -474,8 +479,9 @@ impl PreparedQueuePair {
                 | ib_qp_attr_mask::IB_QP_PORT
                 | ib_qp_attr_mask::IB_QP_QKEY;
 
-            let ret =
-                unsafe { ib_modify_qp(self.inner.inner_qp.as_ptr(), &mut attr as *mut _, mask as _) };
+            let ret = unsafe {
+                ib_modify_qp(self.inner.inner_qp.as_ptr(), &mut attr as *mut _, mask as _)
+            };
             if ret != 0 {
                 log::error!("bring UD INIT error!");
                 return Err(ControlpathError::CreationError(
@@ -492,8 +498,9 @@ impl PreparedQueuePair {
 
             let mask = ib_qp_attr_mask::IB_QP_STATE;
 
-            let ret =
-                unsafe { ib_modify_qp(self.inner.inner_qp.as_ptr(), &mut attr as *mut _, mask as _) };
+            let ret = unsafe {
+                ib_modify_qp(self.inner.inner_qp.as_ptr(), &mut attr as *mut _, mask as _)
+            };
             if ret != 0 {
                 log::error!("bring UD RTR error!");
                 return Err(ControlpathError::CreationError(
@@ -511,8 +518,9 @@ impl PreparedQueuePair {
 
             let mask = ib_qp_attr_mask::IB_QP_STATE | ib_qp_attr_mask::IB_QP_SQ_PSN;
 
-            let ret =
-                unsafe { ib_modify_qp(self.inner.inner_qp.as_ptr(), &mut attr as *mut _, mask as _) };
+            let ret = unsafe {
+                ib_modify_qp(self.inner.inner_qp.as_ptr(), &mut attr as *mut _, mask as _)
+            };
             if ret != 0 {
                 log::error!("bring UD RTS error!");
                 return Err(ControlpathError::CreationError(
@@ -537,21 +545,21 @@ impl PreparedQueuePair {
     /// Return an `Arc<QueuePair>` ready to send if all ok and control path error otherwise.
     ///
     #[inline]
-    pub(crate) fn bring_up_rc(
+    pub fn bring_up_rc(
         self,
         lid: u32,
         gid: ib_gid,
         remote_qpn: u32,
-        psn: u32,
+        rq_psn: u32,
     ) -> Result<Arc<QueuePair>, ControlpathError> {
         let mut qp = Arc::new(self.inner);
         let qp_ref = unsafe { Arc::get_mut_unchecked(&mut qp) };
 
         #[cfg(feature = "kernel")]
-        let _ = qp_ref.bring_up_rc_inner(lid, gid, remote_qpn, psn)?;
+        let _ = qp_ref.bring_up_rc_inner(lid, gid, remote_qpn, rq_psn)?;
 
         #[cfg(feature = "user")]
-        unimplemented!();
+        let _ = qp_ref.bring_up_rc_inner(lid, gid, remote_qpn, rq_psn)?;
 
         Ok(qp)
     }
@@ -685,12 +693,35 @@ mod tests {
             .expect("failed to create RDMA context");
 
         let builder = super::QueuePairBuilder::new(&ctx);
-        let qp = builder.build_ud();    
+        let qp = builder.build_ud();
         assert!(qp.is_ok());
 
         let qp = qp.unwrap().bring_up_ud();
         assert!(qp.is_ok());
 
-        assert_eq!(qp.unwrap().status().unwrap(), crate::QueuePairStatus::ReadyToSend);
-    }   
+        assert_eq!(
+            qp.unwrap().status().unwrap(),
+            crate::QueuePairStatus::ReadyToSend
+        );
+    }
+
+    #[test]
+    fn create_and_bringup_rc() {
+        let ctx = crate::UDriver::create()
+            .expect("failed to query device")
+            .devices()
+            .into_iter()
+            .next()
+            .expect("no rdma device available")
+            .open_context()
+            .expect("failed to create RDMA context");
+        let client_port: u8 = 1;
+        let mut builder = QueuePairBuilder::new(&ctx);
+        builder
+            .allow_remote_rw()
+            .allow_remote_atomic()
+            .set_port_num(client_port);
+
+        let client_qp = builder.build_rc().expect("failed to create the client QP");
+    }
 }

@@ -1,4 +1,6 @@
+#[allow(unused_imports)]
 use alloc::sync::Arc;
+
 use core::fmt::{Debug, Formatter};
 use core::ptr::NonNull;
 

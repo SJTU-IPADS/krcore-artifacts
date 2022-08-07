@@ -340,7 +340,7 @@ impl QueuePair {
         lid: u32,
         gid: ib_gid,
         remote_qpn: u32,
-        psn: u32,
+        rq_psn: u32,
     ) -> Result<(), ControlpathError> {
         if self.mode != QPType::RC {
             log::error!("Bring up rc inner, type check error");
@@ -399,7 +399,7 @@ impl QueuePair {
                 qp_state: ib_qp_state::IB_QPS_RTR,
                 path_mtu: self.path_mtu,
                 dest_qp_num: remote_qpn,
-                rq_psn: psn,
+                rq_psn: rq_psn,
                 max_dest_rd_atomic: self.max_rd_atomic,
                 min_rnr_timer: self.min_rnr_timer,
                 ah_attr,
