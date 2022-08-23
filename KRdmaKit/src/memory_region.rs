@@ -157,6 +157,27 @@ impl MemoryRegion {
         })
     }
 
+    /// New from a raw pointer in the kernel
+    /// Note:
+    /// - This function is highly unsafe, because:
+    /// 1) we don't check the integrity of the pointer
+    /// 2) we don't check the lifecycle of a good pointer
+    /// User should be able to ensure the correctness of the above two factors
+    ///
+    #[cfg(feature = "kernel")]
+    pub unsafe fn new_from_raw(
+        context: Arc<Context>,
+        ptr: *mut rdma_shim::ffi::c_types::c_void,
+        capacity: usize,
+    ) -> Result<Self, crate::ControlpathError> {
+        Ok(Self {
+            ctx: context,
+            data: ptr,
+            capacity: capacity,
+            is_raw_ptr: true,
+        })
+    }
+
     /// Acquire an address that can be used for communication
     /// It is **unsafe** because if the MemoryRegion is destroyed,
     /// then the address will be invalid.
