@@ -50,6 +50,13 @@ impl Explorer {
         Ok(res)
     }
 
+    /// Convert raw ib_gid to string
+    /// The string will be like: fe80:0000:0000:0000:ec0d:9a03:0078:6376
+    pub fn gid_to_string(gid: &ib_gid) -> String {
+        let gid: Guid = Guid::new_u8(unsafe { &gid.raw });
+        alloc::format!("{}", gid)
+    }
+
     /// Core resolve implementation
     pub unsafe fn resolve(
         self,
