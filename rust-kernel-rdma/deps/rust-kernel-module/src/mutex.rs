@@ -63,6 +63,14 @@ impl<T> LinuxMutex<T> {
     pub fn init(&self) {
         self.mutex.init();
     }
+
+    pub fn lock(&self) {
+        self.mutex.lock();
+    }
+
+    pub fn unlock(&self) {
+        self.mutex.unlock();
+    }
 }
 
 //------------------------------------------------------------------------------
