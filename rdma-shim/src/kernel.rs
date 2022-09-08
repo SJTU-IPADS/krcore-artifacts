@@ -26,6 +26,7 @@ pub mod ffi {
 }
 
 pub mod utils {
+    pub use rust_kernel_rdma_base::VmallocAllocator;
     pub use rust_kernel_rdma_base::rust_kernel_linux_util::bindings::completion;
     pub use rust_kernel_rdma_base::rust_kernel_linux_util::kthread::sleep;
     pub use rust_kernel_rdma_base::rust_kernel_linux_util::timer::KTimer;
