@@ -65,7 +65,7 @@ impl QueuePairBuilder {
 
     /// Set both `max_send_wr` for the new `QueuePair`
     ///
-    /// Default value is 2048
+    /// Default value is 128
     pub fn set_max_send_wr(&mut self, max_wr: u32) -> &mut Self {
         self.max_send_wr = max_wr;
         self
