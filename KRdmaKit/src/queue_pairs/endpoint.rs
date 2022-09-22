@@ -16,8 +16,8 @@ use crate::ControlpathError;
 /// If feature=dct is enabled, it further contains the dct_num and dc_key fields.
 ///
 /// Note:
-/// - when dct is enabled, the qkey & qpn fields are meaningless if the remote end is UD.
-/// - when dct is enabled, the dct_num & dc_key fields are meaningless if the remote end is DCT.
+/// - when dct is enabled, the qkey & qpn fields are meaningless if the remote end is DCT.
+/// - when dct is enabled, the dct_num & dc_key fields are meaningless if the remote end is UD.
 ///
 /// Warn:
 /// - The behavior is **undefined** if you query a DCT endpoint, while remote is listening UD queries (and vice verse).
