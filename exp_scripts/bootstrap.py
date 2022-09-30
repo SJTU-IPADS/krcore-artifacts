@@ -377,9 +377,9 @@ def main():
 
     for c in args.config:
         config = toml.load(c)
-        user = config.get("user","")
+        user = config.get("user",args.user)
 
-        pwd  = config.get("pwd","")
+        pwd  = config.get("pwd",args.pwd)
         passp = config.get("passphrase",None)
         global_configs = config.get("global_configs","")
 

@@ -2,7 +2,7 @@
 
 user="wxd"
 #target=("val12" "val14")
-target=("val01")
+target=("val02")
 
 path="./krdmakit"
 
@@ -19,6 +19,7 @@ do
         $PWD/testlib \
         $PWD/include \
         $PWD/exp  \
+        $PWD/exp_scripts \
         $user@$machine:/home/${user}/${path} \
         --exclude target \
         --exclude Cargo.lock
