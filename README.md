@@ -11,7 +11,7 @@ Crate location: `./rust-kernel-rdma/KRdmaKit`.
 The goals of this part is:
 1. Simplify building RDMA-based applications with rust
 2. Using rust to manage all the (local) lifecycles of RDMA resources (e.g., QP) in a safe and transparent way
-3. (**TODO**) A unified codebase to run applications both in the kernel-space and user-space. 
+3. A unified codebase to run applications both in the kernel-space and user-space. 
 
 User-space support is under development. 
 
@@ -28,7 +28,8 @@ Please refer to [install.md](docs/install.md) for the environment setup and [exp
 Since KRCore is a kernel-space solution with RDMA, we should first build KRCore from source at the machines involved in the evaluations. Afterward, we provide scripts so that all the evaluations can be done on a single controller machine. 
 
 ## Roadmap 
-- [ ] support user-space RDMA programs with the same KRdmaKit crate 
+- [x] support user-space RDMA programs with the same KRdmaKit crate 
+- [ ] build more utilities (e.g., reliable messaging over UD) atop of KRCore
 - [ ] revise system call layer to the new KRdmaKit API
 - [ ] support cross-communication between user and kernel 
 
