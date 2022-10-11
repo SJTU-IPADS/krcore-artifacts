@@ -141,6 +141,17 @@ where
     pub fn status(&self) -> ib_cm_state::Type {
         unsafe { self.inner.as_ref() }.state
     }
+
+    /// Whether the cm id has already been destroyed
+    /// Note: a non-zero return value from the user-defined cm handler will
+    /// cause the cm id to be destroyed.
+    /// We will set the context pointer to null before returning non-zero value
+    /// in the cm handler as a sign for a destroyed cm id.
+    pub fn cm_is_destroyed(&self) -> bool {
+        unsafe {
+            self.inner.as_ref()
+        }.context.is_null()
+    }
 }
 
 pub(super) unsafe fn create_raw_cm_id<T>(
@@ -167,38 +178,46 @@ where
 {
     let event = *env;
     let cm = CMReplyer::new(cm_id);
-    let ctx: &mut T = (cm_id.as_mut().unwrap().context as *mut T)
-        .as_mut()
-        .unwrap();
-    let res = match event.event {
-        ib_cm_event_type::IB_CM_REQ_RECEIVED => {
-            log::debug!("Handle REQ. CM addr 0x{:X}", cm_id as u64);
-            ctx.handle_req(cm, &event)
-        }
-        ib_cm_event_type::IB_CM_REP_RECEIVED => {
-            log::debug!("Handle REP. CM addr 0x{:X}", cm_id as u64);
-            ctx.handle_rep(cm, &event)
-        }
-        ib_cm_event_type::IB_CM_REJ_RECEIVED => {
-            log::debug!("Handle REJ. CM addr 0x{:X}", cm_id as u64);
-            ctx.handle_rej(cm, &event)
-        }
-        ib_cm_event_type::IB_CM_RTU_RECEIVED => {
-            log::debug!("Handle RTU. CM addr 0x{:X}", cm_id as u64);
-            ctx.handle_rtu(cm, &event)
-        }
-        ib_cm_event_type::IB_CM_DREQ_RECEIVED => {
-            log::debug!("Handle DREQ. CM addr 0x{:X}", cm_id as u64);
-            ctx.handle_dreq(cm, &event)
-        }
-        ib_cm_event_type::IB_CM_SIDR_REQ_RECEIVED => ctx.handle_sidr_req(cm, &event),
-        ib_cm_event_type::IB_CM_SIDR_REP_RECEIVED => ctx.handle_sidr_rep(cm, &event),
-        _ => Err(CMError::CallbackError(event.event)),
-    };
+    match (cm_id.as_mut().unwrap().context as *mut T).as_mut() {
+        Some(ctx) => {
+            // if `context` is a non-null pointer, we can safely call the handler functions here
+            let res = match event.event {
+                ib_cm_event_type::IB_CM_REQ_RECEIVED => {
+                    log::debug!("Handle REQ. CM addr 0x{:X}", cm_id as u64);
+                    ctx.handle_req(cm, &event)
+                }
+                ib_cm_event_type::IB_CM_REP_RECEIVED => {
+                    log::debug!("Handle REP. CM addr 0x{:X}", cm_id as u64);
+                    ctx.handle_rep(cm, &event)
+                }
+                ib_cm_event_type::IB_CM_REJ_RECEIVED => {
+                    log::debug!("Handle REJ. CM addr 0x{:X}", cm_id as u64);
+                    ctx.handle_rej(cm, &event)
+                }
+                ib_cm_event_type::IB_CM_RTU_RECEIVED => {
+                    log::debug!("Handle RTU. CM addr 0x{:X}", cm_id as u64);
+                    ctx.handle_rtu(cm, &event)
+                }
+                ib_cm_event_type::IB_CM_DREQ_RECEIVED => {
+                    log::debug!("Handle DREQ. CM addr 0x{:X}", cm_id as u64);
+                    ctx.handle_dreq(cm, &event)
+                }
+                ib_cm_event_type::IB_CM_SIDR_REQ_RECEIVED => ctx.handle_sidr_req(cm, &event),
+                ib_cm_event_type::IB_CM_SIDR_REP_RECEIVED => ctx.handle_sidr_rep(cm, &event),
+                _ => Err(CMError::CallbackError(event.event)),
+            };
 
-    if res.is_err() {
-        log::error!("{:?} 0x{:X}", res, cm_id as u64);
-        return -1;
+            if res.is_err() {
+                log::error!("{:?} 0x{:X}", res, cm_id as u64);
+                // a non-zero return value from this handler will cause the cm id to be destroyed
+                // we will set the `context` to null as a sign for this
+                cm_id.as_mut().unwrap().context = 0 as *mut _;
+                return -1;
+            }
+            return 0;
+        },
+        None => {
+            return 0;
+        },
     }
-    return 0;
 }

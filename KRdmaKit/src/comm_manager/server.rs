@@ -48,6 +48,8 @@ where
     T: CMCallbacker,
 {
     fn drop(&mut self) {
-        unsafe { ib_destroy_cm_id(self.inner.raw_ptr().as_ptr()) };
+        if !self.inner.cm_is_destroyed() {
+            unsafe { ib_destroy_cm_id(self.inner.raw_ptr().as_ptr()) };
+        }
     }
 }
