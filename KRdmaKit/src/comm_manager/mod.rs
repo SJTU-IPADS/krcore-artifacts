@@ -156,7 +156,6 @@ where
     /// The outer code should call this `explicit_drop` function to destroy the cm id here
     pub fn explicit_drop(&mut self) {
         if !self.cm_is_destroyed() {
-            log::info!("explicit drop: cm 0x{:X}", self.inner.as_ptr() as *mut _ as u64);
             unsafe {
                 self.inner.as_mut()
             }.context = core::ptr::null_mut();
