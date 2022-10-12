@@ -57,8 +57,6 @@ impl<T: CMCallbacker> RCCommStruct<T> {
     /// destroy the inner `ib_cm_id` before the context is destroyed. So the outer struct controlled
     /// by user must manually call the explicit drop method when the `ib_cm_id` should be destroyed.
     pub unsafe fn explicit_drop(&mut self) {
-        if !self.cm.cm_is_destroyed() {
-            ib_destroy_cm_id(self.cm.raw_ptr().as_ptr());
-        }
+        self.cm.explicit_drop();
     }
 }

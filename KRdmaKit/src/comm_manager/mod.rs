@@ -152,6 +152,17 @@ where
             self.inner.as_ref()
         }.context.is_null()
     }
+
+    /// The outer code should call this `explicit_drop` function to destroy the cm id here
+    pub fn explicit_drop(&mut self) {
+        if !self.cm_is_destroyed() {
+            log::info!("explicit drop: cm 0x{:X}", self.inner.as_ptr() as *mut _ as u64);
+            unsafe {
+                self.inner.as_mut()
+            }.context = core::ptr::null_mut();
+            unsafe { ib_destroy_cm_id(self.inner.as_ptr()) };
+        }
+    }
 }
 
 pub(super) unsafe fn create_raw_cm_id<T>(
@@ -211,7 +222,7 @@ where
                 log::error!("{:?} 0x{:X}", res, cm_id as u64);
                 // a non-zero return value from this handler will cause the cm id to be destroyed
                 // we will set the `context` to null as a sign for this
-                cm_id.as_mut().unwrap().context = 0 as *mut _;
+                cm_id.as_mut().unwrap().context = core::ptr::null_mut();
                 return -1;
             }
             return 0;
