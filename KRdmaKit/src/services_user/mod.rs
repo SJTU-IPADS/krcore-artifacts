@@ -22,6 +22,6 @@ mod tests {
             .expect("no rdma device available")
             .open_context()
             .expect("failed to create RDMA context");
-        let _ = ReliableConnectionServer::new(&ctx, 1); 
+        let _ = ConnectionManagerServer::new(&ctx, 1);
     }
 }
