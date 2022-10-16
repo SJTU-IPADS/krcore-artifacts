@@ -33,7 +33,7 @@ pub mod func {
     use std::str::from_utf8;
     use std::sync::{Arc, Mutex};
     use std::thread::JoinHandle;
-    use KRdmaKit::services_user::ReliableConnectionServer;
+    use KRdmaKit::services_user::ConnectionManagerServer;
     use KRdmaKit::{MemoryRegion, QueuePairBuilder, QueuePairStatus, UDriver};
 
     pub fn spawn_server_thread(
@@ -48,8 +48,8 @@ pub mod func {
             .expect("no rdma device available")
             .open_context()
             .expect("failed to create RDMA context");
-        let cm_server = ReliableConnectionServer::new(&ctx, 1);
-        let handle = cm_server.spawn_rc_server(addr);
+        let cm_server = ConnectionManagerServer::new(&ctx, 1);
+        let handle = cm_server.spawn_listener(addr);
         let server_mr =
             Arc::new(MemoryRegion::new(ctx.clone(), 128).expect("Failed to allocate MR"));
         let mr_metadata = MRMetadata {

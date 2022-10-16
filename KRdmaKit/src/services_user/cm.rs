@@ -4,6 +4,7 @@ extern crate serde_json;
 
 use crate::context::Context;
 use crate::{CMError, QueuePair, QueuePairBuilder};
+
 use hashbrown::HashMap;
 use rdma_shim::bindings::*;
 use rdma_shim::user::log;
@@ -11,6 +12,7 @@ use serde_derive::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::thread;
+
 use tokio::io;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::tcp::WriteHalf;
@@ -64,23 +66,23 @@ impl Into<ib_gid> for ibv_gid_wrapper {
     }
 }
 
-pub struct ReliableConnectionServer {
+pub struct ConnectionManagerServer {
     registered_rc: Arc<Mutex<HashMap<u64, Arc<QueuePair>>>>,
     port_num: u8,
     ctx: Arc<Context>,
 }
 
-unsafe impl Send for ReliableConnectionServer {}
-unsafe impl Sync for ReliableConnectionServer {}
+unsafe impl Send for ConnectionManagerServer {}
+unsafe impl Sync for ConnectionManagerServer {}
 
-/// ReliableConnectionServer in user-mode.
+/// ConnectionManagerServer in user-mode.
 ///
 /// The server basically handles connection-requests and stores the incoming RC-QPs.
 ///
 /// After receiving an RC-QP connection request,
 /// it will automatically create a new one and store it in its `registered_rc`.
-impl ReliableConnectionServer {
-    /// Create an ReliableConnectionServer that listens to connection request and handles registration
+impl ConnectionManagerServer {
+    /// Create an ConnectionManagerServer that listens to connection request and handles registration
     /// requests and de-registration request.
     ///
     /// Param `port_num` is the  RC-QP's port number to be created.
@@ -88,9 +90,9 @@ impl ReliableConnectionServer {
     /// Param `ctx` is corresponding to NIC you want to use.
     /// Pass different `ctx` created by `UDriver` to select a specific NIC to use or simultaneously use multiple-NICs
     ///
-    /// Return an `Arc<ReliableConnectionServer>` for communicating usage.
+    /// Return an `Arc<ConnectionManagerServer>` for communicating usage.
     ///
-    /// To make the server work, call `ReliableConnectionServer::spawn_rc_server`.
+    /// To make the server work, call `ConnectionManagerServer::spawn_rc_server`.
     pub fn new(ctx: &Arc<Context>, port_num: u8) -> Arc<Self> {
         Arc::new(Self {
             registered_rc: Arc::new(Default::default()),
@@ -105,7 +107,7 @@ impl ReliableConnectionServer {
     ///
     /// Return a `std::thread::JoinHandle<tokio::io::Result<()>>`
     /// The server thread will never exit unless something went wrong with the network IO (TCP stream).
-    pub fn spawn_rc_server(
+    pub fn spawn_listener(
         self: &Arc<Self>,
         addr: SocketAddr,
     ) -> thread::JoinHandle<io::Result<()>> {
@@ -115,23 +117,23 @@ impl ReliableConnectionServer {
                 .enable_all()
                 .build()
                 .unwrap()
-                .block_on(server.rc_server_inner(addr))
+                .block_on(server.listener_inner(addr))
         })
     }
 }
 
-impl ReliableConnectionServer {
-    async fn rc_server_inner(self: &Arc<Self>, addr: SocketAddr) -> io::Result<()> {
+impl ConnectionManagerServer {
+    async fn listener_inner(self: &Arc<Self>, addr: SocketAddr) -> io::Result<()> {
         let listener = TcpListener::bind(addr).await?;
         loop {
             let (stream, _) = listener.accept().await?;
             let server = self.clone();
-            let _handle = tokio::spawn(server.rc_server_handler(stream));
+            let _handle = tokio::spawn(server.service_handler(stream));
         }
     }
 
     // TODO : error handling
-    async fn rc_server_handler(self: Arc<Self>, mut stream: TcpStream) -> Result<(), CMError> {
+    async fn service_handler(self: Arc<Self>, mut stream: TcpStream) -> Result<(), CMError> {
         let mut buffer = [0; 1024];
         let (mut read, write) = stream.split();
 
