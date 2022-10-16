@@ -1,6 +1,7 @@
 use rdma_shim::ffi::c_types::c_int;
 use crate::ControlpathError;
 
+#[cfg(feature = "user")]
 /// Unreliable Datagram
 impl QueuePair {
     /// Post a work request (related to UD) to the send queue of the queue pair, add it to the tail of the send queue
@@ -85,7 +86,8 @@ impl QueuePair {
     }
 }
 
-// reliable connection post send requests 
+#[cfg(feature = "user")]
+/// reliable connection post send requests
 impl QueuePair {     
     /// Post a one-sided RDMA read work request to the send queue.
     ///
@@ -214,6 +216,7 @@ impl QueuePair {
     }    
 }
 
+#[cfg(feature = "user")]
 // reliable connection bringups
 impl QueuePair {
     /// Bring ip rc inner method, used in PreparedQueuePair and RC Server.
@@ -224,7 +227,7 @@ impl QueuePair {
         lid: u32,
         gid: ib_gid,
         remote_qpn: u32,
-        _rq_psn: u32,
+        rq_psn: u32,
     ) -> Result<(), ControlpathError> {
         if self.mode != QPType::RC {
             log::error!("Bring up rc inner, type check error");
@@ -272,7 +275,7 @@ impl QueuePair {
                 qp_state: ib_qp_state::IB_QPS_RTR,
                 path_mtu: self.path_mtu,
                 dest_qp_num: remote_qpn,
-                rq_psn: remote_qpn,
+                rq_psn: rq_psn,
                 max_dest_rd_atomic: self.max_rd_atomic,
                 min_rnr_timer: self.min_rnr_timer,
                 ah_attr : ibv_ah_attr { 

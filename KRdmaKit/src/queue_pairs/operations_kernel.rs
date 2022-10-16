@@ -1,6 +1,7 @@
 use crate::ControlpathError;
 
 
+#[cfg(feature = "kernel")]
 /// Unreliable Datagram
 impl QueuePair {
     /// Post a work request (related to UD) to the send queue of the queue pair, add it to the tail of the send queue
@@ -64,6 +65,7 @@ impl QueuePair {
     }
 }
 
+#[cfg(feature = "kernel")]
 /// Reliable Connection
 impl QueuePair {
     #[inline]
@@ -213,7 +215,7 @@ impl QueuePair {
     }
 }
 
-#[cfg(feature = "dct")]
+#[cfg(all(feature = "kernel", feature = "dct"))]
 impl QueuePair {
     /// Really similar to RCQP
     /// except that we need to additinal pass an endpoint argument
@@ -331,6 +333,7 @@ impl QueuePair {
     }
 }
 
+#[cfg(feature = "kernel")]
 impl QueuePair {
     /// Bring ip rc inner method, used in PreparedQueuePair and RC Server.
     ///

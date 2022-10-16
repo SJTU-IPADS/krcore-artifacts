@@ -41,7 +41,7 @@ impl RCConnectionData {
 
 /// The connection server basically stores the in-coming QPs 
 /// After receiving an RCQP connection request, 
-/// it will automatically create a new one and store it in its registered_c. 
+/// it will automatically create a new one and store it in its registered_rc.
 pub struct ReliableConnectionServer {
     ctx: Arc<Context>,
     port_num: u8,

@@ -36,6 +36,9 @@ pub struct QueuePairBuilder {
     pub(super) qkey: u32,
 }
 
+unsafe impl Send for QueuePairBuilder {}
+unsafe impl Sync for QueuePairBuilder {}
+
 impl QueuePairBuilder {
     /// Create a QueuePairBuilder with the given `Context` which stores the device,
     /// memory region and protection domain information.
@@ -387,6 +390,10 @@ impl QueuePairBuilder {
 
                 #[cfg(feature = "kernel")]
                 rc_comm: None,
+                #[cfg(feature = "user")]
+                addr: None,
+                #[cfg(feature = "user")]
+                rc_key: 0,
 
                 send_cq: send,
                 recv_cq: recv,
@@ -433,6 +440,9 @@ pub struct PreparedQueuePair {
     port_num: u8,
     qkey: u32,
 }
+
+unsafe impl Send for PreparedQueuePair {}
+unsafe impl Sync for PreparedQueuePair {}
 
 impl PreparedQueuePair {
     #[inline]
@@ -677,6 +687,9 @@ impl PreparedQueuePair {
 // post-send operation implementations in the kernel space
 #[cfg(feature = "kernel")]
 include!("./handshake_kernel.rs");
+
+#[cfg(feature = "user")]
+include!("./handshake_user.rs");
 
 #[cfg(feature = "user")]
 #[cfg(test)]
