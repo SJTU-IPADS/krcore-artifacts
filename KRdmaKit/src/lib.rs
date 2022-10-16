@@ -1,4 +1,4 @@
-#![no_std]
+#![cfg_attr(not(feature = "user"), no_std)]
 #![allow(non_snake_case)]
 #![feature(
     get_mut_unchecked,
@@ -26,7 +26,7 @@ pub mod consts;
 /// Abstraction for the completion queues & queue pairs
 pub mod completion_queue;
 pub mod queue_pairs;
-pub use queue_pairs::{QueuePair, QueuePairBuilder, QueuePairStatus, DatagramEndpoint};
+pub use queue_pairs::{DatagramEndpoint, QueuePair, QueuePairBuilder, QueuePairStatus};
 
 /// Abstraction for the memory regions
 pub mod memory_region;
@@ -43,6 +43,9 @@ pub mod comm_manager;
 /// Services abstract necessary remote end to facialiate QP bring up
 #[cfg(feature = "kernel")]
 pub mod services;
+
+#[cfg(feature = "user")]
+pub mod services_user;
 
 /// Analogy ibv_context in the ibverbs.
 /// Provides a high-level context abstraction but further

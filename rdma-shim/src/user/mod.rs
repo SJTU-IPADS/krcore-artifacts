@@ -10,7 +10,7 @@ use ffi::c_types::c_int;
 use ffi::c_types;
 
 #[derive(Debug)]
-pub struct Error(c_int);
+pub struct Error(pub c_int);
 
 impl Error {
     pub const EINVAL: Self = Error(-(libc::EINVAL as c_int));

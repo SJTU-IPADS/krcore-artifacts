@@ -2,6 +2,7 @@ use crate::queue_pairs::rc_comm::RCCommStruct;
 use crate::services::rc::RCConnectionData;
 use crate::comm_manager::CMError;
 
+#[cfg(feature = "kernel")]
 impl PreparedQueuePair { 
     /// The method `handshake` serves for RC control path, establishing communication between client
     /// and server. After the handshake phase, client side RC qp's `rc_comm` field will be filled. This

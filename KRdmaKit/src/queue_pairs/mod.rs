@@ -10,6 +10,9 @@ use core::iter::TrustedRandomAccessNoCoerce;
 use core::ops::Range;
 use core::ptr::{null_mut, NonNull};
 
+#[cfg(feature = "user")]
+use std::net::SocketAddr;
+
 use crate::memory_region::MemoryRegion;
 use crate::{context::Context, CompletionQueue, DatapathError, SharedReceiveQueue};
 
@@ -71,6 +74,12 @@ pub struct QueuePair {
     #[cfg(feature = "kernel")]
     rc_comm: Option<Box<rc_comm::RCCommStruct<Self>>>,
 
+    /// server address for user mode rc
+    #[cfg(feature = "user")]
+    addr: Option<SocketAddr>,
+    #[cfg(feature = "user")]
+    rc_key: u64,
+
     /// the send_cq must be exclusively used by a QP
     /// thus, it is an Box
     send_cq: Box<CompletionQueue>,
@@ -112,6 +121,9 @@ pub struct QueuePair {
     pkey_index: u16,
     path_mtu: ib_mtu::Type,
 }
+
+unsafe impl Send for QueuePair {}
+unsafe impl Sync for QueuePair {}
 
 impl QueuePair {
     /// query the current status of the QP
@@ -308,6 +320,9 @@ impl Drop for QueuePair {
 
             #[cfg(feature = "kernel")]
             self.rc_comm.as_mut().map(|c| c.explicit_drop());
+
+            #[cfg(feature = "user")]
+            self.dereg();
         }
     }
 }
