@@ -76,6 +76,7 @@ impl QueuePair {
         signaled: bool,
         raddr: u64,
         rkey: u32,
+        wr_id: u64
     ) -> Result<(), DatapathError> {
         if self.mode != QPType::RC {
             return Err(DatapathError::QPTypeError);
@@ -94,6 +95,7 @@ impl QueuePair {
             range.size() as u32,
             0,
             send_flag,
+            wr_id,
         )
     }
 
@@ -113,6 +115,7 @@ impl QueuePair {
         signaled: bool,
         raddr: u64,
         rkey: u32,
+        wr_id: u64,
     ) -> Result<(), DatapathError> {
         if self.mode != QPType::RC {
             return Err(DatapathError::QPTypeError);
@@ -131,6 +134,7 @@ impl QueuePair {
             range.size() as u32,
             0,
             send_flag,
+            wr_id,
         )
     }
 
@@ -150,6 +154,7 @@ impl QueuePair {
         signaled: bool,
         raddr: u64,
         rkey: u32,
+        wr_id: u64,
     ) -> Result<(), DatapathError> {
         if self.mode != QPType::RC {
             return Err(DatapathError::QPTypeError);
@@ -168,6 +173,7 @@ impl QueuePair {
             range.size() as u32,
             0,
             send_flag,
+            wr_id
         )
     }
 
@@ -182,6 +188,7 @@ impl QueuePair {
         size: u32,      // size in bytes
         imm_data: u32,  // immediate data
         send_flag: i32, // send flags, see `ib_send_flags`
+        wr_id: u64,
     ) -> Result<(), DatapathError> {
         let mut sge = ib_sge {
             addr: laddr,
@@ -189,6 +196,8 @@ impl QueuePair {
             lkey,
         };
         let mut wr: ib_rdma_wr = Default::default();
+
+        wr.wr.__bindgen_anon_1.wr_id = wr_id;
         wr.wr.opcode = op;
         wr.wr.send_flags = send_flag;
         wr.wr.ex.imm_data = imm_data;

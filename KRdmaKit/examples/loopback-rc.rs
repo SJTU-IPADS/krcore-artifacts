@@ -35,7 +35,7 @@ fn main() {
 
     let qpn = client_qp.inner_qp_num();
     let connected_qp = client_qp
-        .bring_up_rc(port_attr.lid as _, gid, qpn, 0)
+        .bring_up_rc(port_attr.lid as _, gid, qpn, qpn)
         .expect("failed to bring up RC");
 
     println!("RC connection passes {:?}", connected_qp.status());
@@ -57,6 +57,7 @@ fn main() {
             true,
             mr.get_virt_addr() + remote_addr,
             mr.rkey().0,
+            12345,
         )
         .expect("Failed to post send read request");
 
@@ -75,7 +76,7 @@ fn main() {
         }
     }
 
-    println!("sanity check ret {:?}", completions[0]);
+    println!("sanity check ret {:?} wr_id {}", completions[0], completions[0].wr_id);
 
     let test_msg = (mr.get_virt_addr()) as *mut [u8; 11];
     let test_msg =
