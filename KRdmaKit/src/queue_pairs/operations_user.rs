@@ -1,5 +1,5 @@
-use rdma_shim::ffi::c_types::c_int;
 use crate::ControlpathError;
+use rdma_shim::ffi::c_types::c_int;
 
 #[cfg(feature = "user")]
 /// Unreliable Datagram
@@ -15,7 +15,7 @@ impl QueuePair {
     ///
     /// If you need more information about post_send, please refer to
     /// [RDMAmojo](https://www.rdmamojo.com/2013/01/26/ibv_post_send/) for help.
-    /// 
+    ///
     pub fn post_datagram(
         &self,
         endpoint: &DatagramEndpoint,
@@ -88,7 +88,7 @@ impl QueuePair {
 
 #[cfg(feature = "user")]
 /// reliable connection post send requests
-impl QueuePair {     
+impl QueuePair {
     /// Post a one-sided RDMA read work request to the send queue.
     ///
     /// Param:
@@ -105,6 +105,7 @@ impl QueuePair {
         signaled: bool,
         raddr: u64,
         rkey: u32,
+        wr_id: u64,
     ) -> Result<(), DatapathError> {
         if self.mode != QPType::RC {
             return Err(DatapathError::QPTypeError);
@@ -124,8 +125,9 @@ impl QueuePair {
             range.size() as u32,
             0,
             send_flag as _,
+            wr_id,
         )
-    }    
+    }
 
     /// Post a one-sided RDMA write work request to the send queue.
     ///
@@ -143,6 +145,7 @@ impl QueuePair {
         signaled: bool,
         raddr: u64,
         rkey: u32,
+        wr_id: u64,
     ) -> Result<(), DatapathError> {
         if self.mode != QPType::RC {
             return Err(DatapathError::QPTypeError);
@@ -161,6 +164,7 @@ impl QueuePair {
             range.size() as u32,
             0,
             send_flag as _,
+            wr_id,
         )
     }
 
@@ -175,8 +179,8 @@ impl QueuePair {
         size: u32,      // size in bytes
         imm_data: u32,  // immediate data
         send_flag: i32, // send flags, see `ib_send_flags`
+        wr_id: u64,
     ) -> Result<(), DatapathError> {
-
         let mut sge = ib_sge {
             addr: laddr,
             length: size,
@@ -185,6 +189,7 @@ impl QueuePair {
 
         let mut wr: ibv_send_wr = Default::default();
 
+        wr.wr_id = wr_id;
         wr.opcode = op;
         wr.send_flags = send_flag;
         wr.imm_data = imm_data;
@@ -192,11 +197,10 @@ impl QueuePair {
         wr.sg_list = &mut sge as *mut _;
 
         // rdma related requests
-        unsafe { 
+        unsafe {
             wr.wr.rdma.as_mut().remote_addr = raddr;
-            wr.wr.rdma.as_mut().rkey = rkey;  
+            wr.wr.rdma.as_mut().rkey = rkey;
         };
-
 
         let mut bad_wr: *mut ib_send_wr = null_mut();
 
@@ -213,7 +217,7 @@ impl QueuePair {
         } else {
             Ok(())
         }
-    }    
+    }
 }
 
 #[cfg(feature = "user")]
@@ -244,7 +248,7 @@ impl QueuePair {
                 | ib_qp_attr_mask::IB_QP_PKEY_INDEX
                 | ib_qp_attr_mask::IB_QP_PORT
                 | ib_qp_attr_mask::IB_QP_ACCESS_FLAGS;
-                
+
             let mut init_attr = ib_qp_attr {
                 qp_state: ib_qp_state::IB_QPS_INIT,
                 pkey_index: self.pkey_index,
@@ -252,8 +256,9 @@ impl QueuePair {
                 qp_access_flags: self.access as _,
                 ..Default::default()
             };
-            let ret =
-                unsafe { ib_modify_qp(self.inner_qp.as_ptr(), &mut init_attr as *mut _, mask as _) };
+            let ret = unsafe {
+                ib_modify_qp(self.inner_qp.as_ptr(), &mut init_attr as *mut _, mask as _)
+            };
             if ret != 0 {
                 log::error!("Bring up rc inner, reset=>init error");
                 return Err(ControlpathError::CreationError(
@@ -278,19 +283,19 @@ impl QueuePair {
                 rq_psn: rq_psn,
                 max_dest_rd_atomic: self.max_rd_atomic,
                 min_rnr_timer: self.min_rnr_timer,
-                ah_attr : ibv_ah_attr { 
-                    port_num : self.port_num, 
-                    dlid : lid as _, 
-                    is_global : 1,
-                    grh : ibv_global_route { 
-                        dgid : gid, 
-                        hop_limit : 255, 
-                        flow_label : 0,
-                        sgid_index : 0,
+                ah_attr: ibv_ah_attr {
+                    port_num: self.port_num,
+                    dlid: lid as _,
+                    is_global: 1,
+                    grh: ibv_global_route {
+                        dgid: gid,
+                        hop_limit: 255,
+                        flow_label: 0,
+                        sgid_index: 0,
                         ..Default::default()
-                    }, 
+                    },
                     ..Default::default()
-                }, 
+                },
                 ..Default::default()
             };
             let ret =
@@ -318,7 +323,7 @@ impl QueuePair {
                 rnr_retry: self.rnr_retry,
                 sq_psn: self.qp_num(),
                 max_rd_atomic: self.max_rd_atomic,
-                max_dest_rd_atomic : self.max_rd_atomic,
+                max_dest_rd_atomic: self.max_rd_atomic,
                 ..Default::default()
             };
             let ret =

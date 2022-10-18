@@ -98,7 +98,14 @@ pub mod func {
 
         {
             println!("=================RDMA READ==================");
-            let _ = qp.post_send_read(&client_mr, 0..11, true, mr_metadata.raddr, mr_metadata.rkey);
+            let _ = qp.post_send_read(
+                &client_mr,
+                0..11,
+                true,
+                mr_metadata.raddr,
+                mr_metadata.rkey,
+                12345,
+            );
             std::thread::sleep(std::time::Duration::from_millis(1000));
             let mut completions = [Default::default()];
             loop {
@@ -109,7 +116,10 @@ pub mod func {
                     break;
                 }
             }
-            println!("sanity check ret {:?}", completions[0]);
+            println!(
+                "sanity check ret {:?} wr_id {}",
+                completions[0], completions[0].wr_id
+            );
             let buf = (client_mr.get_virt_addr()) as *mut [u8; 11];
             let msg = from_utf8(unsafe { &*buf }).expect("failed to decode received message");
             println!("Message received : {}", msg);
@@ -124,6 +134,7 @@ pub mod func {
                 true,
                 mr_metadata.raddr + 32,
                 mr_metadata.rkey,
+                54321,
             );
             std::thread::sleep(std::time::Duration::from_millis(1000));
             let mut completions = [Default::default()];
@@ -135,7 +146,10 @@ pub mod func {
                     break;
                 }
             }
-            println!("sanity check ret {:?}", completions[0]);
+            println!(
+                "sanity check ret {:?} wr_id {}",
+                completions[0], completions[0].wr_id
+            );
             let buf = (mr_metadata.mr.get_virt_addr() + 32) as *mut [u8; 11];
             let msg = from_utf8(unsafe { &*buf }).expect("failed to decode received message");
             println!("Message sent : {}", msg);

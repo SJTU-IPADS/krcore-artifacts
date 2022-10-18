@@ -7,17 +7,17 @@ extern crate alloc;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use krdma_test::*;
-use KRdmaKit::rdma_shim::log;
 use KRdmaKit::rdma_shim::linux_kernel_module;
+use KRdmaKit::rdma_shim::log;
 
 use rust_kernel_linux_util::timer::RTimer;
 
 use KRdmaKit::comm_manager::*;
 use KRdmaKit::memory_region::MemoryRegion;
 use KRdmaKit::queue_pairs::builder::QueuePairBuilder;
+use KRdmaKit::queue_pairs::QueuePair;
 use KRdmaKit::services::rc::ReliableConnectionServer;
 use KRdmaKit::KDriver;
-use KRdmaKit::queue_pairs::QueuePair;
 
 /// The error type of data plane operations
 #[derive(thiserror_no_std::Error, Debug)]
@@ -87,12 +87,10 @@ fn test_rc_handshake() -> Result<(), TestError> {
             log::error!("Error resolving path.");
             TestError::Error("Resolve path error.")
         })?;
-    let _client_qp = client_qp
-        .handshake(server_service_id, path)
-        .map_err(|_| {
-            log::error!("Handshake error.");
-            TestError::Error("Handshake error.")
-        })?;
+    let _client_qp = client_qp.handshake(server_service_id, path).map_err(|_| {
+        log::error!("Handshake error.");
+        TestError::Error("Handshake error.")
+    })?;
     log::info!("handshake succeeded");
     Ok(())
 }
@@ -149,7 +147,7 @@ fn test_rc_duplicate_handshake() -> Result<(), TestError> {
         })?;
 
     let mut vec = Vec::<Arc<QueuePair>>::new();
-    for _ in 0..10{
+    for _ in 0..10 {
         let mut builder = QueuePairBuilder::new(&client_ctx);
         builder
             .allow_remote_rw()
@@ -159,12 +157,10 @@ fn test_rc_duplicate_handshake() -> Result<(), TestError> {
             log::error!("Failed to build RC QP.");
             TestError::Error("Build RC error.")
         })?;
-        let client_qp = client_qp
-            .handshake(server_service_id, path)
-            .map_err(|_| {
-                log::error!("Handshake error.");
-                TestError::Error("Handshake error.")
-            })?;
+        let client_qp = client_qp.handshake(server_service_id, path).map_err(|_| {
+            log::error!("Handshake error.");
+            TestError::Error("Handshake error.")
+        })?;
         vec.push(client_qp);
     }
     log::info!("handshake succeeded");
@@ -225,19 +221,17 @@ fn test_rc_read_write() -> Result<(), TestError> {
     })?;
 
     // GID related to the server's
-    let gid = server_ctx.get_dev_ref().query_gid(server_port,0).unwrap();
+    let gid = server_ctx.get_dev_ref().query_gid(server_port, 0).unwrap();
     let explorer = Explorer::new(client_ctx.get_dev_ref());
     let path =
         unsafe { explorer.resolve_inner(server_service_id, client_port, gid) }.map_err(|_| {
             log::error!("Error resolving path.");
             TestError::Error("Resolve path error.")
         })?;
-    let client_qp = client_qp
-        .handshake(server_service_id, path)
-        .map_err(|_| {
-            log::error!("Handshake error.");
-            TestError::Error("Handshake error.")
-        })?;
+    let client_qp = client_qp.handshake(server_service_id, path).map_err(|_| {
+        log::error!("Handshake error.");
+        TestError::Error("Handshake error.")
+    })?;
     log::info!("handshake succeeded");
 
     // memory region
@@ -272,13 +266,13 @@ fn test_rc_read_write() -> Result<(), TestError> {
     let raddr = unsafe { server_mr.get_rdma_addr() };
     let rkey = server_mr.rkey().0;
     let _ = client_qp
-        .post_send_read(&client_mr, 0..8, false, raddr, rkey)
+        .post_send_read(&client_mr, 0..8, false, raddr, rkey, 12345)
         .map_err(|_| {
             log::error!("Failed to read remote mr");
             TestError::Error("RC read error.")
         })?;
     let _ = client_qp
-        .post_send_write(&client_mr, 8..16, true, raddr + 8, rkey)
+        .post_send_write(&client_mr, 8..16, true, raddr + 8, rkey, 54321)
         .map_err(|_| {
             log::error!("Failed to write remote mr");
             TestError::Error("RC read error.")
@@ -291,11 +285,14 @@ fn test_rc_read_write() -> Result<(), TestError> {
             .poll_send_cq(&mut completions)
             .map_err(|_| TestError::Error("Poll cq error"))?;
         if ret.len() > 0 {
+            for i in 0..(ret.len()) {
+                log::info!("Work Completions[{}] wr_id {}", i, unsafe {completions[i].__bindgen_anon_1.wr_id});
+            }
             break;
         }
         if timer.passed_as_msec() > 60.0 {
             log::error!("time out while poll send cq");
-            return Err(TestError::Error("Poll cq timeout"))
+            return Err(TestError::Error("Poll cq timeout"));
         }
     }
 
@@ -370,12 +367,10 @@ fn test_rc_with_wrong_key() -> Result<(), TestError> {
             log::error!("Error resolving path.");
             TestError::Error("Resolve path error.")
         })?;
-    let client_qp = client_qp
-        .handshake(server_service_id, path)
-        .map_err(|_| {
-            log::error!("Handshake error.");
-            TestError::Error("Handshake error.")
-        })?;
+    let client_qp = client_qp.handshake(server_service_id, path).map_err(|_| {
+        log::error!("Handshake error.");
+        TestError::Error("Handshake error.")
+    })?;
     log::info!("handshake succeeded");
 
     // memory region
@@ -391,7 +386,7 @@ fn test_rc_with_wrong_key() -> Result<(), TestError> {
     let raddr = unsafe { server_mr.get_rdma_addr() };
     let rkey = server_mr.rkey().0 + 1;
     let _ = client_qp
-        .post_send_read(&client_mr, 0..8, true, raddr, rkey)
+        .post_send_read(&client_mr, 0..8, true, raddr, rkey, 12345)
         .map_err(|_| {
             log::error!("Failed to read remote mr");
             TestError::Error("RC read error.")
@@ -408,13 +403,15 @@ fn test_rc_with_wrong_key() -> Result<(), TestError> {
         }
         if timer.passed_as_msec() > 60.0 {
             log::error!("time out while poll send cq");
-            return Err(TestError::Error("Poll cq timeout"))
+            return Err(TestError::Error("Poll cq timeout"));
         }
     }
     if completions[0].status != 0 {
         Ok(())
     } else {
-        Err(TestError::Error("Read with wrong rkey should generate a failed cqe"))
+        Err(TestError::Error(
+            "Read with wrong rkey should generate a failed cqe",
+        ))
     }
 }
 
