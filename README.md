@@ -6,14 +6,12 @@ which builds on the first part.
 
 ## Rust-based RDMA library 
 
-Crate location: `./rust-kernel-rdma/KRdmaKit`. 
+Crate location: `./KRdmaKit`. 
 
 The goals of this part is:
-1. Simplify building RDMA-based applications with rust
-2. Using rust to manage all the (local) lifecycles of RDMA resources (e.g., QP) in a safe and transparent way
-3. A unified codebase to run applications both in the kernel-space and user-space. 
-
-User-space support is under development. 
+1. Simplify building RDMA-based applications with rust.
+2. Using rust to manage all the (local) lifecycles of RDMA resources (e.g., QP) in a safe and transparent way.
+3. A unified codebase to build RDMA-enabled applications both in the kernel-space and user-space. 
 
 ## Kernel-space support for fast RDMA connections
 
