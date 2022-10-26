@@ -5,6 +5,7 @@ use core::fmt::{Debug, Formatter};
 use core::ptr::NonNull;
 
 use rdma_shim::bindings::*;
+#[cfg(feature = "kernel")]
 use rdma_shim::{log, Error};
 
 use crate::context::{AddressHandler, ContextRef};

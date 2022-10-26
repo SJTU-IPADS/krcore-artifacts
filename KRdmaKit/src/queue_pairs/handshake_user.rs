@@ -1,33 +1,66 @@
-use crate::services_user::{ibv_gid_wrapper, CMReqType, RCConnectionData};
+use crate::services_user::{
+    ibv_gid_wrapper, then_send, CMMessage, CommStruct, MRInfos, RCConnectionData,
+};
 use std::io::Write;
 use std::net::SocketAddr;
 use std::net::TcpStream as StdTcpStream;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::AsyncReadExt;
 use tokio::net::TcpStream;
 
 #[cfg(feature = "user")]
 impl PreparedQueuePair {
     /// The method `handshake` serves for RC control path, establishing communication between client
-    /// and server. After the handshake phase, client side RC qp's `addr` field will be filled, which
+    /// and server. After the handshake phase, client side RC qp's `comm` field will be filled, which
     /// is for `Drop` to use.
     ///
     /// Param:
     /// - `addr` : ReliableConnectionServer's listening address.
     ///
+    /// The reason why this function looks so ugly is that we cannot call a `block_on`
+    /// in an asynchronous context, neither create a new tokio runtime. So once we detect that this
+    /// function is called in an asynchronous context, we must create a new thread and wait until
+    /// the newly created thread finished.
+    ///
+    /// We provide you an **async version of handshake method**, which avoids double scheduling
+    /// and thread creation/destruction
     pub fn handshake(self, addr: SocketAddr) -> Result<Arc<QueuePair>, ControlpathError> {
-        tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .map_err(|_| {
-                ControlpathError::CreationError(
-                    "Failed to build tokio Runtime",
-                    Error::from_kernel_errno(0),
-                )
-            })?
-            .block_on(self.handshake_inner(addr))
+        match tokio::runtime::Handle::try_current() {
+            Ok(_) => std::thread::spawn(move || -> Result<Arc<QueuePair>, ControlpathError> {
+                tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .map_err(|_| {
+                        ControlpathError::CreationError(
+                            "Failed to build tokio Runtime",
+                            Error::from_kernel_errno(0),
+                        )
+                    })?
+                    .block_on(self.handshake_async(addr))
+            })
+                .join()
+                .map_err(|_| {
+                    ControlpathError::CreationError(
+                        "Failed to build tokio Runtime",
+                        Error::from_kernel_errno(0),
+                    )
+                })?,
+            Err(_) => tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .map_err(|_| {
+                    ControlpathError::CreationError(
+                        "Failed to build tokio Runtime",
+                        Error::from_kernel_errno(0),
+                    )
+                })?
+                .block_on(self.handshake_async(addr)),
+        }
     }
 
-    async fn handshake_inner(self, addr: SocketAddr) -> Result<Arc<QueuePair>, ControlpathError> {
+    pub async fn handshake_async(
+        self,
+        addr: SocketAddr,
+    ) -> Result<Arc<QueuePair>, ControlpathError> {
         // check qp type
         // must be rc and never initialized
         if self.inner.mode != QPType::RC {
@@ -69,31 +102,43 @@ impl PreparedQueuePair {
             rc_key: 0,
         };
 
-        let req = CMReqType::RegReq(data);
-
-        let serialized = serde_json::to_string(&req).map_err(|_| {
+        let serialized = serde_json::to_string(&data).map_err(|_| {
             ControlpathError::CreationError(
                 "Failed to do serialization",
                 Error::from_kernel_errno(0),
             )
         })?;
-        let _ = write.write(serialized.as_bytes()).await;
+
+        let req = CMMessage {
+            message_type: CMMessageType::RegRCReq,
+            serialized,
+        };
+
+        let _ = then_send(&mut write, req).await.map_err(|_| {
+            log::error!("IO error");
+            ControlpathError::CreationError(
+                "Failed to write to server",
+                Error::from_kernel_errno(0),
+            )
+        })?;
 
         let mut buffer = [0; 1024];
         let bytes_read = read.read(&mut buffer).await.map_err(|_| {
             log::error!("IO error");
             ControlpathError::CreationError(
-                "Failed to do read from client",
+                "Failed to read from client",
+                Error::from_kernel_errno(0),
+            )
+        })?;
+        let message: CMMessage = serde_json::from_slice(&buffer[..bytes_read]).map_err(|_| {
+            ControlpathError::CreationError(
+                "Failed to deserialize CM Message",
                 Error::from_kernel_errno(0),
             )
         })?;
 
-        let req_type: CMReqType = serde_json::from_slice(&buffer[..bytes_read]).map_err(|_| {
-            ControlpathError::CreationError("Failed to bring up qp", Error::from_kernel_errno(0))
-        })?;
-
-        let data = match req_type {
-            CMReqType::RegRes(data) => data,
+        match message.message_type {
+            CMMessageType::RegRCRes => {}
             _ => {
                 log::error!("Response type error");
                 return Err(ControlpathError::CreationError(
@@ -102,6 +147,14 @@ impl PreparedQueuePair {
                 ));
             }
         };
+
+        let data: RCConnectionData =
+            serde_json::from_str(message.serialized.as_str()).map_err(|_| {
+                ControlpathError::CreationError(
+                    "Failed to deserialize RCConnection Data",
+                    Error::from_kernel_errno(0),
+                )
+            })?;
 
         rc_qp
             .bring_up_rc_inner(data.lid, data.gid.into(), data.qpn, data.starting_psn)
@@ -112,8 +165,11 @@ impl PreparedQueuePair {
                 )
             })?;
 
-        rc_qp.rc_key = data.rc_key;
-        rc_qp.addr = Some(addr);
+        rc_qp.comm = Some(CommStruct {
+            qp_type: QPType::RC,
+            addr,
+            key: data.rc_key,
+        });
         Ok(Arc::new(rc_qp))
     }
 }
@@ -121,20 +177,141 @@ impl PreparedQueuePair {
 #[cfg(feature = "user")]
 impl QueuePair {
     pub(crate) fn dereg(&self) {
-        let addr = if self.addr.is_none() {
+        let comm = if self.comm.is_none() {
             return;
         } else {
-            self.addr.unwrap()
+            self.comm.unwrap()
         };
-        let res = StdTcpStream::connect(addr);
-        let mut stream = if res.is_ok() { res.unwrap() } else { return };
-        let dereg = CMReqType::DeregReq(self.rc_key);
-        let serialized = serde_json::to_string(&dereg);
-        let serialized = if serialized.is_ok() {
-            serialized.unwrap()
-        } else {
-            return;
+
+        match comm.qp_type {
+            QPType::RC => {
+                let res = StdTcpStream::connect(comm.addr);
+                let mut stream = if res.is_ok() { res.unwrap() } else { return };
+                let serialized = serde_json::to_string(&comm.key).unwrap();
+                let dereg = CMMessage {
+                    message_type: CMMessageType::DeregRCReq,
+                    serialized,
+                };
+                let serialized = serde_json::to_vec(&dereg);
+                let serialized = if serialized.is_ok() {
+                    serialized.unwrap()
+                } else {
+                    return;
+                };
+                let _ = stream.write(serialized.as_slice());
+            }
+            QPType::UD => unimplemented!(),
+            QPType::WC => unimplemented!(),
+            QPType::DC => unimplemented!(),
+        }
+    }
+
+    /// The reason why this function is so ugly is the same as `handshake`. See the doc of `handshake`
+    /// for more details.
+    pub fn query_mr_info(&self) -> Result<MRInfos, ControlpathError> {
+        let addr = match self.comm {
+            None => {
+                return Err(ControlpathError::CreationError(
+                    "None value on `comm`",
+                    Error::from_kernel_errno(0),
+                ))
+            }
+            Some(comm) => comm.addr,
         };
-        let _ = stream.write(serialized.as_bytes());
+
+        match tokio::runtime::Handle::try_current() {
+            Ok(_) => std::thread::spawn(move || -> Result<MRInfos, ControlpathError> {
+                tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .map_err(|_| {
+                        ControlpathError::CreationError(
+                            "Failed to build tokio Runtime",
+                            Error::from_kernel_errno(0),
+                        )
+                    })?
+                    .block_on(Self::query_mr_info_inner(addr))
+            })
+                .join()
+                .map_err(|_| {
+                    ControlpathError::CreationError(
+                        "Failed to build tokio Runtime",
+                        Error::from_kernel_errno(0),
+                    )
+                })?,
+            Err(_) => tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .map_err(|_| {
+                    ControlpathError::CreationError(
+                        "Failed to build tokio Runtime",
+                        Error::from_kernel_errno(0),
+                    )
+                })?
+                .block_on(Self::query_mr_info_inner(addr)),
+        }
+    }
+
+    pub async fn query_mr_info_async(&self) -> Result<MRInfos, ControlpathError> {
+        let addr = match self.comm {
+            None => {
+                return Err(ControlpathError::CreationError(
+                    "None value on `comm`",
+                    Error::from_kernel_errno(0),
+                ))
+            }
+            Some(comm) => comm.addr,
+        };
+        Self::query_mr_info_inner(addr).await
+    }
+
+    async fn query_mr_info_inner(addr: SocketAddr) -> Result<MRInfos, ControlpathError> {
+        let mut stream = TcpStream::connect(addr).await.map_err(|_| {
+            ControlpathError::CreationError("Failed to connect server", Error::from_kernel_errno(0))
+        })?;
+        let (mut read, mut write) = stream.split();
+
+        let req = CMMessage {
+            message_type: CMMessageType::QueryMRReq,
+            serialized: String::new(),
+        };
+
+        let _ = then_send(&mut write, req).await.map_err(|_| {
+            ControlpathError::CreationError("Failed to send message", Error::from_kernel_errno(0))
+        });
+
+        let mut buffer = [0; 1024];
+        let bytes_read = read.read(&mut buffer).await.map_err(|_| {
+            log::error!("IO error");
+            ControlpathError::CreationError(
+                "Failed to do read from client",
+                Error::from_kernel_errno(0),
+            )
+        })?;
+
+        let message: CMMessage = serde_json::from_slice(&buffer[..bytes_read]).map_err(|_| {
+            ControlpathError::CreationError(
+                "Failed to do deserialization",
+                Error::from_kernel_errno(0),
+            )
+        })?;
+        match message.message_type {
+            CMMessageType::QueryMRRes => {}
+            _ => {
+                log::error!("Response type error");
+                return Err(ControlpathError::CreationError(
+                    "Failed to pass response type check",
+                    Error::from_kernel_errno(0),
+                ));
+            }
+        };
+
+        let data = serde_json::from_str(message.serialized.as_str()).map_err(|_| {
+            ControlpathError::CreationError(
+                "Failed to do deserialization",
+                Error::from_kernel_errno(0),
+            )
+        })?;
+        Ok(data)
     }
 }

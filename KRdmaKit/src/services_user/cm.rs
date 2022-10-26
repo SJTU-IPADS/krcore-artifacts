@@ -1,30 +1,14 @@
-extern crate serde;
-extern crate serde_derive;
-extern crate serde_json;
-
 use crate::context::Context;
-use crate::{CMError, QueuePair, QueuePairBuilder};
-
-use hashbrown::HashMap;
+use crate::services_user::{CMMessage, CMMessageType, ConnectionManagerHandler};
+use crate::{CMError, ControlpathError, MemoryRegion, QueuePair, QueuePairBuilder};
+use async_trait::async_trait;
+use core::fmt::Debug;
 use rdma_shim::bindings::*;
-use rdma_shim::user::log;
+use rdma_shim::{log, Error};
 use serde_derive::{Deserialize, Serialize};
-use std::net::SocketAddr;
+use std::collections::HashMap;
 use std::sync::Arc;
-use std::thread;
-
-use tokio::io;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::tcp::WriteHalf;
-use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::Mutex;
-
-#[derive(Copy, Clone, Serialize, Deserialize, Debug)]
-pub enum CMReqType {
-    RegReq(RCConnectionData),
-    RegRes(RCConnectionData),
-    DeregReq(u64),
-}
+use tokio::sync::{Mutex, RwLock};
 
 /// `RCConnectionData` is used for remote QP to connect with it
 #[derive(Copy, Clone, Serialize, Deserialize, Debug)]
@@ -66,23 +50,22 @@ impl Into<ib_gid> for ibv_gid_wrapper {
     }
 }
 
-pub struct ConnectionManagerServer {
+/// The DefaultHandler basically handles connection-requests and stores the incoming RC-QPs.
+///
+/// After receiving an RC-QP connection request,
+/// it will automatically create a new one and store it in its `registered_rc`.
+pub struct DefaultConnectionManagerHandler {
     registered_rc: Arc<Mutex<HashMap<u64, Arc<QueuePair>>>>,
+    registered_mr: RwLock<MRWrapper>,
     port_num: u8,
     ctx: Arc<Context>,
 }
 
-unsafe impl Send for ConnectionManagerServer {}
-unsafe impl Sync for ConnectionManagerServer {}
+unsafe impl Send for DefaultConnectionManagerHandler {}
+unsafe impl Sync for DefaultConnectionManagerHandler {}
 
-/// ConnectionManagerServer in user-mode.
-///
-/// The server basically handles connection-requests and stores the incoming RC-QPs.
-///
-/// After receiving an RC-QP connection request,
-/// it will automatically create a new one and store it in its `registered_rc`.
-impl ConnectionManagerServer {
-    /// Create an ConnectionManagerServer that listens to connection request and handles registration
+impl DefaultConnectionManagerHandler {
+    /// Create an DefaultConnectionManagerHandler that listens to connection request and handles registration
     /// requests and de-registration request.
     ///
     /// Param `port_num` is the  RC-QP's port number to be created.
@@ -90,79 +73,40 @@ impl ConnectionManagerServer {
     /// Param `ctx` is corresponding to NIC you want to use.
     /// Pass different `ctx` created by `UDriver` to select a specific NIC to use or simultaneously use multiple-NICs
     ///
-    /// Return an `Arc<ConnectionManagerServer>` for communicating usage.
-    ///
-    /// To make the server work, call `ConnectionManagerServer::spawn_rc_server`.
+    /// Return an `Arc<DefaultConnectionManagerHandler>` for communicating usage.
     pub fn new(ctx: &Arc<Context>, port_num: u8) -> Arc<Self> {
         Arc::new(Self {
             registered_rc: Arc::new(Default::default()),
+            registered_mr: Default::default(),
             port_num,
             ctx: ctx.clone(),
         })
     }
 
-    /// Spawn an listening thread to accept TCP connection and to handle RC-QP connection by this TCP stream.
-    ///
-    /// Param: `addr` is the socket address which the thread listens on.
-    ///
-    /// Return a `std::thread::JoinHandle<tokio::io::Result<()>>`
-    /// The server thread will never exit unless something went wrong with the network IO (TCP stream).
-    pub fn spawn_listener(
+    #[inline]
+    pub fn register_mr(
         self: &Arc<Self>,
-        addr: SocketAddr,
-    ) -> thread::JoinHandle<io::Result<()>> {
-        let server = self.clone();
-        thread::spawn(move || {
-            tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .unwrap()
-                .block_on(server.listener_inner(addr))
-        })
+        mrs: Vec<(String, MemoryRegion)>,
+    ) -> Result<(), ControlpathError> {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .map_err(|_| {
+                ControlpathError::CreationError(
+                    "Failed to build tokio Runtime",
+                    Error::from_kernel_errno(0),
+                )
+            })?
+            .block_on(async { self.registered_mr.write().await.insert(mrs) });
+        Ok(())
     }
 }
 
-impl ConnectionManagerServer {
-    async fn listener_inner(self: &Arc<Self>, addr: SocketAddr) -> io::Result<()> {
-        let listener = TcpListener::bind(addr).await?;
-        loop {
-            let (stream, _) = listener.accept().await?;
-            let server = self.clone();
-            let _handle = tokio::spawn(server.service_handler(stream));
-        }
-    }
-
-    // TODO : error handling
-    async fn service_handler(self: Arc<Self>, mut stream: TcpStream) -> Result<(), CMError> {
-        let mut buffer = [0; 1024];
-        let (mut read, write) = stream.split();
-
-        // 1. decode the connection data
-        let bytes_read = read.read(&mut buffer).await.map_err(|_| {
-            log::error!("IO error");
-            CMError::Creation(0)
-        })?;
-        let req_type: CMReqType = serde_json::from_slice(&buffer[..bytes_read]).map_err(|_| {
-            log::error!("Failed to do deserialization");
-            CMError::Creation(0)
-        })?;
-
-        match req_type {
-            CMReqType::RegReq(data) => self.handle_reg(write, data).await,
-            CMReqType::RegRes(_) => {
-                log::error!("Req type error");
-                Err(CMError::Creation(0))
-            }
-            CMReqType::DeregReq(rc_key) => self.handle_dereg(rc_key).await,
-        }
-    }
-
-    #[inline]
-    async fn handle_reg(
-        self: Arc<Self>,
-        mut write: WriteHalf<'_>,
-        data: RCConnectionData,
-    ) -> Result<(), CMError> {
+#[async_trait]
+impl ConnectionManagerHandler for DefaultConnectionManagerHandler {
+    async fn handle_reg_rc_req(self: Arc<Self>, raw: String) -> Result<CMMessage, CMError> {
+        let data: RCConnectionData = serde_json::from_str(raw.as_str())
+            .map_err(|_| CMError::InvalidArg("Failed to do deserialization", "".to_string()))?;
         let mut builder = QueuePairBuilder::new(&self.ctx);
         builder
             .set_rnr_retry(data.rnr_retry_count)
@@ -197,27 +141,103 @@ impl ConnectionManagerServer {
             .map_err(|err| CMError::Creation(err.to_kernel_errno()))?;
 
         // send back
-        let data = CMReqType::RegRes(RCConnectionData {
+        let data = RCConnectionData {
             lid,
             gid: ibv_gid_wrapper::from(gid),
             qpn: rc_qp.qp_num(),
             starting_psn: rc_qp.qp_num(),
             rnr_retry_count: data.rnr_retry_count,
             rc_key,
-        });
-
-        let serialized = serde_json::to_string(&data).map_err(|_| CMError::Creation(0))?;
+        };
         self.registered_rc.lock().await.insert(rc_key, rc_qp);
-        write.write(&serialized.as_bytes()).await.map_err(|_| {
-            log::error!("Send response error");
-            CMError::Creation(0)
-        })?;
-        Ok(())
+        let serialized = serde_json::to_string(&data).map_err(|_| CMError::Creation(0))?;
+        Ok(CMMessage {
+            message_type: CMMessageType::RegRCRes,
+            serialized,
+        })
+    }
+
+    async fn handle_dereg_rc_req(self: Arc<Self>, raw: String) -> Result<CMMessage, CMError> {
+        let rc_key: u64 = serde_json::from_str(raw.as_str())
+            .map_err(|_| CMError::InvalidArg("Failed to do deserialization", "".to_string()))?;
+        self.registered_rc.lock().await.remove(&rc_key);
+        Ok(CMMessage {
+            message_type: CMMessageType::NeverSend,
+            serialized: Default::default(),
+        })
+    }
+
+    async fn handle_query_mr_req(self: Arc<Self>, _raw: String) -> Result<CMMessage, CMError> {
+        let mrs = self.registered_mr.read().await.to_mrinfos();
+        let serialized = serde_json::to_string(&mrs).map_err(|_| CMError::Creation(0))?;
+        Ok(CMMessage {
+            message_type: CMMessageType::QueryMRRes,
+            serialized,
+        })
+    }
+
+    async fn handle_error(self: Arc<Self>, _raw: String) -> Result<CMMessage, CMError> {
+        return Ok(CMMessage {
+            message_type: CMMessageType::NeverSend,
+            serialized: "Remote Side Error".to_string(),
+        });
+    }
+}
+
+#[derive(Copy, Clone, Serialize, Deserialize, Debug)]
+pub struct MRInfo {
+    pub addr: u64,
+    pub capacity: usize,
+    pub rkey: u32,
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug, Default)]
+pub struct MRInfos {
+    inner: HashMap<String, MRInfo>,
+}
+
+unsafe impl Send for MRInfos {}
+unsafe impl Sync for MRInfos {}
+
+impl MRInfos {
+    #[inline]
+    pub fn inner(&self) -> &HashMap<String, MRInfo> {
+        &self.inner
+    }
+}
+
+#[derive(Default)]
+pub(super) struct MRWrapper {
+    pub(super) inner: HashMap<String, MemoryRegion>,
+}
+
+unsafe impl Send for MRWrapper {}
+unsafe impl Sync for MRWrapper {}
+
+impl MRWrapper {
+    #[inline]
+    pub fn insert(&mut self, mrs: Vec<(String, MemoryRegion)>) {
+        for mr in mrs {
+            self.inner.insert(mr.0, mr.1);
+        }
     }
 
     #[inline]
-    async fn handle_dereg(self: Arc<Self>, rc_key: u64) -> Result<(), CMError> {
-        self.registered_rc.lock().await.remove(&rc_key);
-        Ok(())
+    pub fn to_mrinfos(&self) -> MRInfos {
+        let mut infos = HashMap::default();
+        for (k, mr) in &self.inner {
+            infos.insert(k.clone(), MRInfo::from(mr));
+        }
+        MRInfos { inner: infos }
+    }
+}
+
+impl From<&MemoryRegion> for MRInfo {
+    fn from(mr: &MemoryRegion) -> Self {
+        Self {
+            addr: mr.get_virt_addr(),
+            capacity: mr.capacity(),
+            rkey: mr.rkey().0,
+        }
     }
 }
