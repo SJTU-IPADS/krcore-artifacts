@@ -1,5 +1,5 @@
 use rdma_shim::bindings::*;
-use rdma_shim::{log, Error};
+use rdma_shim::{Error, log};
 
 use alloc::{boxed::Box, sync::Arc};
 use core::ptr::NonNull;
@@ -8,6 +8,8 @@ use crate::context::Context;
 use crate::queue_pairs::{QPType, QueuePair, QueuePairStatus};
 use crate::MAX_RD_ATOMIC;
 use crate::{CompletionQueue, ControlpathError};
+#[cfg(feature = "user")]
+use crate::services_user::CMMessageType;
 
 /// Builder for different kind of queue pairs (RCQP, UDQP ,etc.).
 /// Store the necessary configuration parameters required
@@ -391,9 +393,7 @@ impl QueuePairBuilder {
                 #[cfg(feature = "kernel")]
                 rc_comm: None,
                 #[cfg(feature = "user")]
-                addr: None,
-                #[cfg(feature = "user")]
-                rc_key: 0,
+                comm: None,
 
                 send_cq: send,
                 recv_cq: recv,

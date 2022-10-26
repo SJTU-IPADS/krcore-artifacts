@@ -169,6 +169,127 @@ impl QueuePair {
     }
 
     #[inline]
+    pub fn post_send_cas(
+        &self,
+        mr: &MemoryRegion,
+        offset: u64,
+        signaled: bool,
+        raddr: u64,
+        rkey: u32,
+        wr_id: u64,
+        old: u64,
+        new: u64,
+    ) -> Result<(), DatapathError> {
+        if self.mode != QPType::RC {
+            return Err(DatapathError::QPTypeError);
+        }
+
+        let send_flag = if signaled {
+            ibv_send_flags::IBV_SEND_SIGNALED
+        } else {
+            0
+        };
+
+        self.post_send_atomic_inner(
+            ibv_wr_opcode::IBV_WR_ATOMIC_CMP_AND_SWP,
+            unsafe { mr.get_rdma_addr() } + offset,
+            raddr,
+            mr.lkey().0,
+            rkey,
+            send_flag as _,
+            wr_id,
+            old,
+            new,
+        )
+    }
+
+    #[inline]
+    pub fn post_send_faa(
+        &self,
+        mr: &MemoryRegion,
+        offset: u64,
+        signaled: bool,
+        raddr: u64,
+        rkey: u32,
+        wr_id: u64,
+        val: u64,
+    ) -> Result<(), DatapathError> {
+        if self.mode != QPType::RC {
+            return Err(DatapathError::QPTypeError);
+        }
+
+        let send_flag = if signaled {
+            ibv_send_flags::IBV_SEND_SIGNALED
+        } else {
+            0
+        };
+
+        self.post_send_atomic_inner(
+            ibv_wr_opcode::IBV_WR_ATOMIC_FETCH_AND_ADD,
+            unsafe { mr.get_rdma_addr() } + offset,
+            raddr,
+            mr.lkey().0,
+            rkey,
+            send_flag as _,
+            wr_id,
+            val,
+            0,
+        )
+    }
+
+    #[inline]
+    fn post_send_atomic_inner(
+        &self,
+        op: u32,
+        laddr: u64, // virtual addr
+        raddr: u64, // virtual addr
+        lkey: u32,
+        rkey: u32,
+        send_flag: i32, // send flags, see `ib_send_flags`
+        wr_id: u64,
+        compare_add: u64,
+        swap: u64,
+    ) -> Result<(), DatapathError> {
+        let mut sge = ib_sge {
+            addr: laddr,
+            length: 8,
+            lkey,
+        };
+
+        let mut wr: ibv_send_wr = Default::default();
+
+        wr.wr_id = wr_id;
+        wr.opcode = op;
+        wr.send_flags = send_flag;
+        wr.num_sge = 1;
+        wr.sg_list = &mut sge as *mut _;
+
+        // rdma related requests
+        unsafe {
+            wr.wr.atomic.as_mut().remote_addr = raddr;
+            wr.wr.atomic.as_mut().compare_add = compare_add;
+            wr.wr.atomic.as_mut().swap = swap;
+            wr.wr.atomic.as_mut().rkey = rkey;
+        };
+
+        let mut bad_wr: *mut ib_send_wr = null_mut();
+
+        let err = unsafe {
+            (self.post_send_op)(
+                self.inner_qp.as_ptr(),
+                &mut wr as *mut _,
+                &mut bad_wr as *mut _,
+            )
+        };
+
+        if err != 0 {
+            Err(DatapathError::PostSendError(Error::from_kernel_errno(err)))
+        } else {
+            Ok(())
+        }
+    }
+
+    #[inline]
     fn post_send_inner(
         &self,
         op: u32,

@@ -17,6 +17,7 @@
 compile_error!("features `crate/kernel` and `crate/user` are mutually exclusive");
 
 extern crate alloc;
+extern crate core;
 
 pub use completion_queue::{CompletionQueue, SharedReceiveQueue};
 

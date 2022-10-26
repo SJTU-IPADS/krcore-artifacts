@@ -10,9 +10,6 @@ use core::iter::TrustedRandomAccessNoCoerce;
 use core::ops::Range;
 use core::ptr::{null_mut, NonNull};
 
-#[cfg(feature = "user")]
-use std::net::SocketAddr;
-
 use crate::memory_region::MemoryRegion;
 use crate::{context::Context, CompletionQueue, DatapathError, SharedReceiveQueue};
 
@@ -42,10 +39,13 @@ pub mod dynamic_connected_transport;
 
 #[cfg(feature = "dct")]
 pub use dynamic_connected_transport::DynamicConnectedTarget;
+#[cfg(feature = "user")]
+use crate::services_user::CommStruct;
 
 #[allow(dead_code)]
 #[derive(PartialEq)]
-enum QPType {
+#[derive(Copy, Clone)]
+pub enum QPType {
     RC, // reliable connection
     UD, // unreliable datagram
     WC, // unreliable conenction
@@ -76,9 +76,7 @@ pub struct QueuePair {
 
     /// server address for user mode rc
     #[cfg(feature = "user")]
-    addr: Option<SocketAddr>,
-    #[cfg(feature = "user")]
-    rc_key: u64,
+    comm: Option<CommStruct>,
 
     /// the send_cq must be exclusively used by a QP
     /// thus, it is an Box

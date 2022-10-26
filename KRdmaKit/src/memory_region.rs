@@ -72,6 +72,9 @@ pub struct MemoryRegion {
     mr: NonNull<ibv_mr>,
 }
 
+unsafe impl Send for MemoryRegion {}
+unsafe impl Sync for MemoryRegion {}
+
 #[derive(Debug)]
 pub struct LocalKey(pub u32);
 #[derive(Debug)]
