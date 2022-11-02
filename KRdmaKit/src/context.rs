@@ -22,6 +22,9 @@ pub struct Context {
     pd: NonNull<ib_pd>,
 }
 
+unsafe impl Send for Context {}
+unsafe impl Sync for Context {}
+
 pub type ContextRef = Arc<Context>;
 
 #[derive(Debug)]
