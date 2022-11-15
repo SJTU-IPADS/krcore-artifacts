@@ -76,6 +76,16 @@ impl ReliableConnectionServer {
     fn encode_rc_key_by_cm(cm_id : &NonNull<ib_cm_id>) -> u64 { 
         cm_id.as_ptr() as _
     }
+
+    #[inline]
+    pub fn ctx(&self) -> &Arc<Context> {
+        &self.ctx
+    }
+
+    #[inline]
+    pub fn port_num(&self) -> u8 {
+        self.port_num
+    }
 }
 
 impl CMCallbacker for ReliableConnectionServer {
