@@ -42,8 +42,8 @@ pub mod func {
             .open_context()
             .expect("failed to create RDMA context");
         let handler = DefaultConnectionManagerHandler::new(&ctx, 1);
-        let server_mr_1 = MemoryRegion::new(ctx.clone(), 128).expect("Failed to allocate MR");
-        let server_mr_2 = MemoryRegion::new(ctx.clone(), 128).expect("Failed to allocate MR");
+        let server_mr_1 = MemoryRegion::new(ctx.clone(), 4096).expect("Failed to allocate MR");
+        let server_mr_2 = MemoryRegion::new(ctx.clone(), 4096).expect("Failed to allocate MR");
         let buf = server_mr_2.get_virt_addr() as *mut [u8; 11];
         handler
             .register_mr(vec![
@@ -84,7 +84,7 @@ pub mod func {
         println!("{:?}", mr_infos);
         let mr_metadata = mr_infos.inner().get("MR2").expect("Unregistered MR");
 
-        let client_mr = MemoryRegion::new(ctx.clone(), 128).expect("Failed to allocate MR");
+        let client_mr = MemoryRegion::new_huge_page(ctx.clone(), 4096).expect("Failed to allocate MR");
 
         {
             println!("\n=================RDMA READ==================\n");
