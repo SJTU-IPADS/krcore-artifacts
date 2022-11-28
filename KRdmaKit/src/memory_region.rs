@@ -8,6 +8,8 @@ use core::ptr::NonNull;
 
 use alloc::boxed::Box;
 use alloc::sync::Arc;
+use nix::libc::*;
+use std::ptr::null_mut;
 
 use crate::context::Context;
 
@@ -18,11 +20,11 @@ use crate::context::Context;
 pub const MAX_CAPACITY: usize = 4 * 1024 * 1024; // 4MB
 
 /// A memory region that abstracts the memory used by RDMA
-/// 
+///
 /// # Examples
-/// 
+///
 /// - To allocate a memory region (1KB) and register it to RDMA:
-/// 
+///
 /// ``` text,ignore
 ///         let ctx = crate::UDriver::create()
 ///            .expect("failed to query device")
@@ -35,13 +37,13 @@ pub const MAX_CAPACITY: usize = 4 * 1024 * 1024; // 4MB
 ///
 ///        let mr = super::MemoryRegion::new(ctx.clone(), 1024);
 /// ```
-/// 
-/// - The user can further pass a raw pointer to the memory region. 
-/// However, it is highly unnsafe and the user should take care to manage the 
+///
+/// - The user can further pass a raw pointer to the memory region.
+/// However, it is highly unnsafe and the user should take care to manage the
 /// lifecycles of the memory region pointed by the raw pointer:
-/// 
+///
 /// ```text,ignore
-/// 
+///
 ///        let mut test_buf: alloc::vec::Vec<u64> = alloc::vec![1, 2, 3, 4];
 ///        
 ///        let mr = unsafe {
@@ -55,10 +57,10 @@ pub const MAX_CAPACITY: usize = 4 * 1024 * 1024; // 4MB
 ///                    | ib_access_flags::IBV_ACCESS_REMOTE_ATOMIC)
 ///                    .0 as _,
 ///            )
-///        }; 
+///        };
 ///        // if the test_buf is deallocated later, the `mr` may still be used
 /// ```
-/// 
+///
 #[allow(dead_code)]
 pub struct MemoryRegion {
     ctx: Arc<Context>,
@@ -67,6 +69,8 @@ pub struct MemoryRegion {
     capacity: usize,
 
     is_raw_ptr: bool,
+    #[cfg(feature = "user")]
+    is_huge_page: bool,
 
     #[cfg(feature = "user")]
     mr: NonNull<ibv_mr>,
@@ -95,7 +99,7 @@ impl MemoryRegion {
             return Err(crate::ControlpathError::InvalidArg("MR size"));
         }
 
-        #[allow(unused_mut)]        
+        #[allow(unused_mut)]
         let mut data: Box<[core::mem::MaybeUninit<i8>]> = Box::new_zeroed_slice(capacity);
 
         #[cfg(feature = "user")]
@@ -108,7 +112,7 @@ impl MemoryRegion {
                 (rdma_shim::bindings::ib_access_flags::IB_ACCESS_LOCAL_WRITE
                     | ib_access_flags::IB_ACCESS_REMOTE_READ
                     | ib_access_flags::IB_ACCESS_REMOTE_WRITE
-                    | ib_access_flags::IB_ACCESS_REMOTE_ATOMIC) as _
+                    | ib_access_flags::IB_ACCESS_REMOTE_ATOMIC) as _,
             )
         })
         .ok_or(crate::ControlpathError::CreationError(
@@ -122,7 +126,60 @@ impl MemoryRegion {
             capacity: capacity,
             is_raw_ptr: false,
             #[cfg(feature = "user")]
+            is_huge_page: false,
+            #[cfg(feature = "user")]
             mr: mr,
+        })
+    }
+
+    /// new MR using huge-tlb
+    #[cfg(feature = "user")]
+    pub fn new_huge_page(
+        context: Arc<Context>,
+        capacity: usize,
+    ) -> Result<Self, crate::ControlpathError> {
+        let data = unsafe {
+            mmap(
+                null_mut(),
+                capacity as size_t,
+                PROT_READ | PROT_WRITE,
+                MAP_PRIVATE | MAP_ANONYMOUS | MAP_POPULATE | MAP_HUGETLB,
+                -1,
+                0,
+            )
+        };
+
+        if data == MAP_FAILED {
+            return Err(crate::ControlpathError::CreationError(
+                "Failed to create huge-page MR",
+                rdma_shim::Error::EFAULT,
+            ));
+        }
+
+        let mr = NonNull::new(unsafe {
+            rdma_shim::bindings::ibv_reg_mr(
+                context.get_pd().as_ptr(),
+                data as *mut _,
+                capacity,
+                // FIXME: maybe we should enable different permissions
+                (rdma_shim::bindings::ib_access_flags::IB_ACCESS_LOCAL_WRITE
+                    | ib_access_flags::IB_ACCESS_REMOTE_READ
+                    | ib_access_flags::IB_ACCESS_REMOTE_WRITE
+                    | ib_access_flags::IB_ACCESS_REMOTE_ATOMIC) as _,
+            )
+        })
+        .ok_or(crate::ControlpathError::CreationError(
+            "Failed to create MR",
+            rdma_shim::Error::EFAULT,
+        ))?;
+
+        Ok(Self {
+            ctx: context,
+            data: data as _,
+            capacity,
+            is_raw_ptr: false,
+            is_huge_page: true,
+            mr,
         })
     }
 
@@ -156,6 +213,7 @@ impl MemoryRegion {
             data: ptr,
             capacity: capacity,
             is_raw_ptr: true,
+            is_huge_page: false,
             mr: mr,
         })
     }
@@ -197,13 +255,12 @@ impl MemoryRegion {
     #[inline]
     pub unsafe fn get_rdma_addr(&self) -> u64 {
         self.get_virt_addr()
-    }    
+    }
 
     #[inline]
     pub fn get_virt_addr(&self) -> u64 {
         self.data as u64
     }
-
 
     #[inline]
     pub fn rkey(&self) -> RemoteKey {
@@ -232,11 +289,19 @@ impl MemoryRegion {
 impl Drop for MemoryRegion {
     fn drop(&mut self) {
         #[cfg(feature = "user")]
-        unsafe { ibv_dereg_mr(self.mr.as_ptr()) };
+        unsafe {
+            ibv_dereg_mr(self.mr.as_ptr())
+        };
 
         if self.is_raw_ptr {
             // user-passed raw pointer, do nothing
         } else {
+            #[cfg(feature = "user")]
+            if self.is_huge_page {
+                unsafe { munmap(self.data, self.capacity) };
+                return;
+            }
+
             // will just free it
             unsafe { Box::from_raw(self.data) };
         }
@@ -276,7 +341,7 @@ mod tests {
         use rdma_shim::bindings::ib_access_flags;
 
         let mut test_buf: alloc::vec::Vec<u64> = alloc::vec![1, 2, 3, 4];
-        
+
         let mr = unsafe {
             super::MemoryRegion::new_from_raw(
                 ctx.clone(),
@@ -285,9 +350,9 @@ mod tests {
                 (rdma_shim::bindings::ib_access_flags::IB_ACCESS_LOCAL_WRITE
                     | ib_access_flags::IB_ACCESS_REMOTE_READ
                     | ib_access_flags::IB_ACCESS_REMOTE_WRITE
-                    | ib_access_flags::IB_ACCESS_REMOTE_ATOMIC) as _
+                    | ib_access_flags::IB_ACCESS_REMOTE_ATOMIC) as _,
             )
-        }; 
+        };
 
         assert!(mr.is_ok());
 
@@ -299,10 +364,9 @@ mod tests {
                 (rdma_shim::bindings::ib_access_flags::IB_ACCESS_LOCAL_WRITE
                     | ib_access_flags::IB_ACCESS_REMOTE_READ
                     | ib_access_flags::IB_ACCESS_REMOTE_WRITE
-                    | ib_access_flags::IB_ACCESS_REMOTE_ATOMIC) as _
+                    | ib_access_flags::IB_ACCESS_REMOTE_ATOMIC) as _,
             )
-        };         
+        };
         assert!(mr.is_err());
-
     }
 }
