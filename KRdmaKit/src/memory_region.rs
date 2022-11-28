@@ -151,7 +151,7 @@ impl MemoryRegion {
 
         if data == MAP_FAILED {
             return Err(crate::ControlpathError::CreationError(
-                "Failed to create MR",
+                "Failed to create huge-page MR",
                 rdma_shim::Error::EFAULT,
             ));
         }
