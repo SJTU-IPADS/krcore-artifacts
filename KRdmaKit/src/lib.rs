@@ -65,6 +65,9 @@ pub use udriver::{KDriverRef, UDriver};
 #[cfg(feature = "kernel")]
 pub use kdriver::{KDriver, KDriverRef};
 
+#[cfg(all(feature = "user", feature = "rdma-runtime"))]
+pub mod runtime;
+
 pub mod random;
 pub mod utils;
 
