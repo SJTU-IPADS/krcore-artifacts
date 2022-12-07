@@ -5,7 +5,7 @@ authors = ["Xingda Wei <wxdwfc@gmail.com>", "Fangming Lu", "Haotian Wang"]
 edition = "2018"
 
 [dependencies]
-rdma-shim = {path = "../rdma-shim"} 
+rdma-shim = {path = "../rdma-shim"}
 no-std-net = { path = "../rust-kernel-rdma/deps/no-std-net" }
 nix = "0.25.0"
 nostd_async = "0.3.1"
@@ -21,11 +21,20 @@ serde_derive = { version = "1.0.144", optional = true }
 serde_json = { version = "1.0.85", optional = true }
 async-trait = { version = "0.1.57", optional = true }
 bytes = { version = "1.2.1", optional = true }
+crossbeam = "0.8.2"
+futures = "0.3.24"
+async-task = "4.3.0"
+once_cell = "1.16.0"
+failure = "0.1.8"
+concurrent-queue = "2.0.0"
+pin-utils = "0.1.0"
+core_affinity = "0.7.2"
 
 [features]
 dct = ["rdma-shim/dct"]
 kernel = ["rdma-shim/kernel"]
 user = ["rdma-shim/user", "tokio", "serde", "serde_derive", "serde_json", "bytes", "async-trait"]
+rdma-runtime = []
 profile = []
 
 ## IF enable `rpc_server`, the `poll_all` will busy polling the UD result. IF disabled, the application should
