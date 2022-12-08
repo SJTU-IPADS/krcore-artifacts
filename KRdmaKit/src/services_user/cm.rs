@@ -7,8 +7,7 @@ use rdma_shim::bindings::*;
 use rdma_shim::{log, Error};
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::sync::{Mutex, RwLock};
+use std::sync::{Arc, Mutex};
 
 /// `RCConnectionData` is used for remote QP to connect with it
 #[derive(Copy, Clone, Serialize, Deserialize, Debug)]
@@ -89,9 +88,8 @@ impl DefaultConnectionManagerHandler {
     }
 }
 
-#[async_trait]
 impl ConnectionManagerHandler for DefaultConnectionManagerHandler {
-    async fn handle_reg_rc_req(&self, raw: String) -> Result<CMMessage, CMError> {
+    fn handle_reg_rc_req(&self, raw: String) -> Result<CMMessage, CMError> {
         let data: RCConnectionData = serde_json::from_str(raw.as_str())
             .map_err(|_| CMError::InvalidArg("Failed to do deserialization", "".to_string()))?;
         let mut builder = QueuePairBuilder::new(&self.ctx);
@@ -136,7 +134,7 @@ impl ConnectionManagerHandler for DefaultConnectionManagerHandler {
             rnr_retry_count: data.rnr_retry_count,
             rc_key,
         };
-        self.registered_rc.lock().await.insert(rc_key, rc_qp);
+        self.registered_rc.lock().unwrap().insert(rc_key, rc_qp);
         let serialized = serde_json::to_string(&data).map_err(|_| CMError::Creation(0))?;
         Ok(CMMessage {
             message_type: CMMessageType::RegRCRes,
@@ -144,17 +142,17 @@ impl ConnectionManagerHandler for DefaultConnectionManagerHandler {
         })
     }
 
-    async fn handle_dereg_rc_req(&self, raw: String) -> Result<CMMessage, CMError> {
+    fn handle_dereg_rc_req(&self, raw: String) -> Result<CMMessage, CMError> {
         let rc_key: u64 = serde_json::from_str(raw.as_str())
             .map_err(|_| CMError::InvalidArg("Failed to do deserialization", "".to_string()))?;
-        self.registered_rc.lock().await.remove(&rc_key);
+        self.registered_rc.lock().unwrap().remove(&rc_key);
         Ok(CMMessage {
             message_type: CMMessageType::NeverSend,
             serialized: Default::default(),
         })
     }
 
-    async fn handle_query_mr_req(&self, _raw: String) -> Result<CMMessage, CMError> {
+    fn handle_query_mr_req(&self, _raw: String) -> Result<CMMessage, CMError> {
         let mrs = self.registered_mr.to_mrinfos();
         let serialized = serde_json::to_string(&mrs).map_err(|_| CMError::Creation(0))?;
         Ok(CMMessage {
@@ -163,7 +161,7 @@ impl ConnectionManagerHandler for DefaultConnectionManagerHandler {
         })
     }
 
-    async fn handle_error(&self, _raw: String) -> Result<CMMessage, CMError> {
+    fn handle_error(&self, _raw: String) -> Result<CMMessage, CMError> {
         return Ok(CMMessage {
             message_type: CMMessageType::NeverSend,
             serialized: "Remote Side Error".to_string(),

@@ -39,7 +39,7 @@ impl MemoryWindow {
 
 impl Drop for MemoryWindow {
     fn drop(&mut self) {
-        let ibv_dealloc_mw = unsafe { context.raw_ptr().as_ref().ops.dealloc_mw.unwrap() };
+        let ibv_dealloc_mw = unsafe { self.ctx.raw_ptr().as_ref().ops.dealloc_mw.unwrap() };
         let errno = unsafe { ibv_dealloc_mw(self.mw.as_ptr()) };
         if errno != 0 {
             eprintln!("Dealloc MW error : {}", errno)
