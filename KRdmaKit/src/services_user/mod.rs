@@ -44,7 +44,7 @@ pub trait ConnectionManagerHandler: Send + Sync {
     fn handle_query_mr_res(&self, raw: String) -> Result<CMMessage, CMError> {
         unimplemented!()
     }
-    async fn handle_error(&self, raw: String) -> Result<CMMessage, CMError> {
+    fn handle_error(&self, raw: String) -> Result<CMMessage, CMError> {
         unimplemented!()
     }
 }

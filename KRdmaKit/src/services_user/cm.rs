@@ -86,6 +86,21 @@ impl DefaultConnectionManagerHandler {
     pub fn register_mr(&mut self, mrs: Vec<(String, MemoryRegion)>) {
         let _ = self.registered_mr.insert(mrs);
     }
+
+    #[inline]
+    pub fn exp_get_qps(&self) -> Vec<Arc<QueuePair>> {
+        self.registered_rc
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|(_, qp)| qp.clone())
+            .collect()
+    }
+
+    #[inline]
+    pub fn exp_get_mrs(&self) -> Vec<&MemoryRegion> {
+        self.registered_mr.inner.iter().map(|(_, mr)| mr).collect()
+    }
 }
 
 impl ConnectionManagerHandler for DefaultConnectionManagerHandler {
@@ -192,8 +207,8 @@ impl MRInfos {
 }
 
 #[derive(Default)]
-pub(super) struct MRWrapper {
-    pub(super) inner: HashMap<String, MemoryRegion>,
+pub(crate) struct MRWrapper {
+    pub(crate) inner: HashMap<String, MemoryRegion>,
 }
 
 unsafe impl Send for MRWrapper {}
@@ -214,6 +229,11 @@ impl MRWrapper {
             infos.insert(k.clone(), MRInfo::from(mr));
         }
         MRInfos { inner: infos }
+    }
+
+    #[inline]
+    pub fn get_mr(&self, name: &String) -> Option<&MemoryRegion> {
+        self.inner.get(name)
     }
 }
 

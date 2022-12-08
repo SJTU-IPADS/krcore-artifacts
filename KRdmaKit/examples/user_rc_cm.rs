@@ -23,8 +23,8 @@ fn main() {
         func::client_ops(addr);
         thread::sleep(Duration::from_millis(100));
         unsafe { *running = false };
-        println!("\nServer Exit!!");
         let _ = handle.join();
+        println!("\nServer Exit!!");
         unsafe { Box::from_raw(running) };
     }
 }
