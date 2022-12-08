@@ -366,7 +366,7 @@ impl QueuePair {
         wr.bind_mw.bind_info.mr = mr.inner().as_ptr() as _;
         wr.bind_mw.bind_info.addr = mr.get_virt_addr() + range.start;
         wr.bind_mw.bind_info.length = range.size() as _;
-        wr.bind_mw_bind_info.mw_access_flags = (ib_access_flags::IB_ACCESS_LOCAL_WRITE
+        wr.bind_mw.bind_info.mw_access_flags = (ib_access_flags::IB_ACCESS_LOCAL_WRITE
             | ib_access_flags::IB_ACCESS_REMOTE_READ
             | ib_access_flags::IB_ACCESS_REMOTE_WRITE
             | ib_access_flags::IB_ACCESS_REMOTE_ATOMIC)

@@ -104,7 +104,7 @@ impl MemoryRegion {
         }
 
         #[allow(unused_mut)]
-        let mut data: Box<[mem::MaybeUninit<i8>]> = Box::new_zeroed_slice(capacity);
+        let mut data = Box::<[u8]>::new_zeroed_slice(capacity);
 
         #[cfg(feature = "user")]
         let mr = NonNull::new(unsafe {

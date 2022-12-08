@@ -19,6 +19,7 @@ unsafe impl Sync for MemoryWindow {}
 impl MemoryWindow {
     /// Create a TYPE_2 MW, unbound
     pub fn new(context: Arc<Context>) -> Result<Self, crate::ControlpathError> {
+        let ibv_alloc_mw = unsafe { context.raw_ptr().as_ref().ops.alloc_mw.unwrap() };
         let mw = NonNull::new(unsafe {
             ibv_alloc_mw(context.get_pd().as_ptr(), ibv_mw_type::IBV_MW_TYPE_2)
         })
@@ -27,11 +28,7 @@ impl MemoryWindow {
             rdma_shim::Error::EFAULT,
         ))?;
 
-        Ok(Self {
-            ctx: context,
-            mw,
-            bound_qp: None,
-        })
+        Ok(Self { ctx: context, mw })
     }
 
     #[inline]
@@ -42,6 +39,7 @@ impl MemoryWindow {
 
 impl Drop for MemoryWindow {
     fn drop(&mut self) {
+        let ibv_dealloc_mw = unsafe { context.raw_ptr().as_ref().ops.dealloc_mw.unwrap() };
         let errno = unsafe { ibv_dealloc_mw(self.mw.as_ptr()) };
         if errno != 0 {
             eprintln!("Dealloc MW error : {}", errno)
