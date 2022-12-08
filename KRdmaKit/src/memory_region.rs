@@ -8,10 +8,14 @@ use core::ptr::NonNull;
 
 use alloc::boxed::Box;
 use alloc::sync::Arc;
+use hashbrown::HashMap;
 use nix::libc::*;
+use spin::Mutex;
 use std::ptr::null_mut;
 
 use crate::context::Context;
+#[cfg(feature = "user")]
+use crate::memory_window::*;
 
 /// The largest capcity of kernel-space MR is limited:
 /// - kernel only supports access RDMA via physical memory,
@@ -81,7 +85,7 @@ unsafe impl Sync for MemoryRegion {}
 
 #[derive(Debug)]
 pub struct LocalKey(pub u32);
-#[derive(Debug)]
+#[derive(Debug, Hash)]
 pub struct RemoteKey(pub u32);
 
 impl MemoryRegion {
@@ -100,16 +104,16 @@ impl MemoryRegion {
         }
 
         #[allow(unused_mut)]
-        let mut data: Box<[core::mem::MaybeUninit<i8>]> = Box::new_zeroed_slice(capacity);
+        let mut data: Box<[mem::MaybeUninit<i8>]> = Box::new_zeroed_slice(capacity);
 
         #[cfg(feature = "user")]
         let mr = NonNull::new(unsafe {
-            rdma_shim::bindings::ibv_reg_mr(
+            ibv_reg_mr(
                 context.get_pd().as_ptr(),
                 data.as_mut_ptr() as *mut _,
                 capacity,
                 // FIXME: maybe we should enable different permissions
-                (rdma_shim::bindings::ib_access_flags::IB_ACCESS_LOCAL_WRITE
+                (ib_access_flags::IB_ACCESS_LOCAL_WRITE
                     | ib_access_flags::IB_ACCESS_REMOTE_READ
                     | ib_access_flags::IB_ACCESS_REMOTE_WRITE
                     | ib_access_flags::IB_ACCESS_REMOTE_ATOMIC) as _,
@@ -123,12 +127,12 @@ impl MemoryRegion {
         Ok(Self {
             ctx: context,
             data: Box::into_raw(data) as _,
-            capacity: capacity,
+            capacity,
             is_raw_ptr: false,
             #[cfg(feature = "user")]
             is_huge_page: false,
             #[cfg(feature = "user")]
-            mr: mr,
+            mr,
         })
     }
 
@@ -157,12 +161,12 @@ impl MemoryRegion {
         }
 
         let mr = NonNull::new(unsafe {
-            rdma_shim::bindings::ibv_reg_mr(
+            ibv_reg_mr(
                 context.get_pd().as_ptr(),
                 data as *mut _,
                 capacity,
                 // FIXME: maybe we should enable different permissions
-                (rdma_shim::bindings::ib_access_flags::IB_ACCESS_LOCAL_WRITE
+                (ib_access_flags::IB_ACCESS_LOCAL_WRITE
                     | ib_access_flags::IB_ACCESS_REMOTE_READ
                     | ib_access_flags::IB_ACCESS_REMOTE_WRITE
                     | ib_access_flags::IB_ACCESS_REMOTE_ATOMIC) as _,
@@ -211,10 +215,10 @@ impl MemoryRegion {
         Ok(Self {
             ctx: context,
             data: ptr,
-            capacity: capacity,
+            capacity,
             is_raw_ptr: true,
             is_huge_page: false,
-            mr: mr,
+            mr,
         })
     }
 
@@ -280,6 +284,12 @@ impl MemoryRegion {
         return LocalKey(unsafe { self.mr.as_ref().lkey });
     }
 
+    #[cfg(feature = "user")]
+    #[inline]
+    pub fn inner(&self) -> &NonNull<ibv_mr> {
+        &self.mr
+    }
+
     /// Total size of the memory region
     pub fn capacity(&self) -> usize {
         self.capacity
@@ -340,14 +350,14 @@ mod tests {
 
         use rdma_shim::bindings::ib_access_flags;
 
-        let mut test_buf: alloc::vec::Vec<u64> = alloc::vec![1, 2, 3, 4];
+        let mut test_buf: Vec<u64> = alloc::vec![1, 2, 3, 4];
 
         let mr = unsafe {
             super::MemoryRegion::new_from_raw(
                 ctx.clone(),
                 test_buf.as_mut_ptr() as _,
                 test_buf.len() * core::mem::size_of::<u64>(),
-                (rdma_shim::bindings::ib_access_flags::IB_ACCESS_LOCAL_WRITE
+                (ib_access_flags::IB_ACCESS_LOCAL_WRITE
                     | ib_access_flags::IB_ACCESS_REMOTE_READ
                     | ib_access_flags::IB_ACCESS_REMOTE_WRITE
                     | ib_access_flags::IB_ACCESS_REMOTE_ATOMIC) as _,
@@ -361,7 +371,7 @@ mod tests {
                 ctx.clone(),
                 test_buf.as_mut_ptr() as _,
                 1024 * 1024 * 1024,
-                (rdma_shim::bindings::ib_access_flags::IB_ACCESS_LOCAL_WRITE
+                (ib_access_flags::IB_ACCESS_LOCAL_WRITE
                     | ib_access_flags::IB_ACCESS_REMOTE_READ
                     | ib_access_flags::IB_ACCESS_REMOTE_WRITE
                     | ib_access_flags::IB_ACCESS_REMOTE_ATOMIC) as _,

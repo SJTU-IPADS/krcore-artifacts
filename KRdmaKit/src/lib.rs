@@ -33,6 +33,9 @@ pub use queue_pairs::{DatagramEndpoint, QueuePair, QueuePairBuilder, QueuePairSt
 pub mod memory_region;
 pub use memory_region::MemoryRegion;
 
+#[cfg(feature = "user")]
+pub mod memory_window;
+
 /// Abstraction for the RDMA-capable devices (RNIC)
 pub mod device; // the new device implementation that will overwrite the old one
 

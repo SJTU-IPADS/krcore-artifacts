@@ -27,6 +27,7 @@ fn main() {
 #[cfg(feature = "user")]
 pub mod func {
     use std::net::SocketAddr;
+    use std::sync::Arc;
     use std::thread::JoinHandle;
     use std::time::SystemTime;
     use KRdmaKit::services_user::{ConnectionManagerServer, DefaultConnectionManagerHandler};
@@ -41,12 +42,10 @@ pub mod func {
             .expect("no rdma device available")
             .open_context()
             .expect("failed to create RDMA context");
-        let handler = DefaultConnectionManagerHandler::new(&ctx, 1);
+        let mut handler = DefaultConnectionManagerHandler::new(&ctx, 1);
         let server_mr_1 = MemoryRegion::new(ctx.clone(), 1024).expect("Failed to allocate MR");
         handler
-            .register_mr(vec![
-                ("MR1".to_string(), server_mr_1),
-            ])
+            .register_mr(vec![("MR1".to_string(), server_mr_1)])
             .expect("Failed to register MR");
         let server = ConnectionManagerServer::new(handler);
         let handle = server.spawn_listener(addr);
@@ -131,10 +130,7 @@ pub mod func {
             let count = vec.len();
             let sum = vec.iter().sum::<u128>();
 
-            println!(
-                "duration average : {} us",
-                (sum as f64) / (count as f64)
-            );
+            println!("duration average : {} us", (sum as f64) / (count as f64));
         }
     }
 }

@@ -56,7 +56,7 @@ impl Into<ib_gid> for ibv_gid_wrapper {
 /// it will automatically create a new one and store it in its `registered_rc`.
 pub struct DefaultConnectionManagerHandler {
     registered_rc: Arc<Mutex<HashMap<u64, Arc<QueuePair>>>>,
-    registered_mr: RwLock<MRWrapper>,
+    registered_mr: MRWrapper,
     port_num: u8,
     ctx: Arc<Context>,
 }
@@ -74,37 +74,24 @@ impl DefaultConnectionManagerHandler {
     /// Pass different `ctx` created by `UDriver` to select a specific NIC to use or simultaneously use multiple-NICs
     ///
     /// Return an `Arc<DefaultConnectionManagerHandler>` for communicating usage.
-    pub fn new(ctx: &Arc<Context>, port_num: u8) -> Arc<Self> {
-        Arc::new(Self {
+    pub fn new(ctx: &Arc<Context>, port_num: u8) -> Self {
+        Self {
             registered_rc: Arc::new(Default::default()),
             registered_mr: Default::default(),
             port_num,
             ctx: ctx.clone(),
-        })
+        }
     }
 
     #[inline]
-    pub fn register_mr(
-        self: &Arc<Self>,
-        mrs: Vec<(String, MemoryRegion)>,
-    ) -> Result<(), ControlpathError> {
-        tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .map_err(|_| {
-                ControlpathError::CreationError(
-                    "Failed to build tokio Runtime",
-                    Error::from_kernel_errno(0),
-                )
-            })?
-            .block_on(async { self.registered_mr.write().await.insert(mrs) });
-        Ok(())
+    pub fn register_mr(&mut self, mrs: Vec<(String, MemoryRegion)>) {
+        let _ = self.registered_mr.insert(mrs);
     }
 }
 
 #[async_trait]
 impl ConnectionManagerHandler for DefaultConnectionManagerHandler {
-    async fn handle_reg_rc_req(self: Arc<Self>, raw: String) -> Result<CMMessage, CMError> {
+    async fn handle_reg_rc_req(&self, raw: String) -> Result<CMMessage, CMError> {
         let data: RCConnectionData = serde_json::from_str(raw.as_str())
             .map_err(|_| CMError::InvalidArg("Failed to do deserialization", "".to_string()))?;
         let mut builder = QueuePairBuilder::new(&self.ctx);
@@ -157,7 +144,7 @@ impl ConnectionManagerHandler for DefaultConnectionManagerHandler {
         })
     }
 
-    async fn handle_dereg_rc_req(self: Arc<Self>, raw: String) -> Result<CMMessage, CMError> {
+    async fn handle_dereg_rc_req(&self, raw: String) -> Result<CMMessage, CMError> {
         let rc_key: u64 = serde_json::from_str(raw.as_str())
             .map_err(|_| CMError::InvalidArg("Failed to do deserialization", "".to_string()))?;
         self.registered_rc.lock().await.remove(&rc_key);
@@ -167,8 +154,8 @@ impl ConnectionManagerHandler for DefaultConnectionManagerHandler {
         })
     }
 
-    async fn handle_query_mr_req(self: Arc<Self>, _raw: String) -> Result<CMMessage, CMError> {
-        let mrs = self.registered_mr.read().await.to_mrinfos();
+    async fn handle_query_mr_req(&self, _raw: String) -> Result<CMMessage, CMError> {
+        let mrs = self.registered_mr.to_mrinfos();
         let serialized = serde_json::to_string(&mrs).map_err(|_| CMError::Creation(0))?;
         Ok(CMMessage {
             message_type: CMMessageType::QueryMRRes,
@@ -176,7 +163,7 @@ impl ConnectionManagerHandler for DefaultConnectionManagerHandler {
         })
     }
 
-    async fn handle_error(self: Arc<Self>, _raw: String) -> Result<CMMessage, CMError> {
+    async fn handle_error(&self, _raw: String) -> Result<CMMessage, CMError> {
         return Ok(CMMessage {
             message_type: CMMessageType::NeverSend,
             serialized: "Remote Side Error".to_string(),

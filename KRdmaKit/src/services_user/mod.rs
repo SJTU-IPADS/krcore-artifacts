@@ -28,22 +28,22 @@ use tokio::net::{TcpListener, TcpStream};
 #[allow(unused)]
 #[async_trait]
 pub trait ConnectionManagerHandler: Send + Sync {
-    async fn handle_reg_rc_req(self: Arc<Self>, raw: String) -> Result<CMMessage, CMError> {
+    async fn handle_reg_rc_req(&self, raw: String) -> Result<CMMessage, CMError> {
         unimplemented!()
     }
-    async fn handle_reg_rc_res(self: Arc<Self>, raw: String) -> Result<CMMessage, CMError> {
+    async fn handle_reg_rc_res(&self, raw: String) -> Result<CMMessage, CMError> {
         unimplemented!()
     }
-    async fn handle_dereg_rc_req(self: Arc<Self>, raw: String) -> Result<CMMessage, CMError> {
+    async fn handle_dereg_rc_req(&self, raw: String) -> Result<CMMessage, CMError> {
         unimplemented!()
     }
-    async fn handle_query_mr_req(self: Arc<Self>, raw: String) -> Result<CMMessage, CMError> {
+    async fn handle_query_mr_req(&self, raw: String) -> Result<CMMessage, CMError> {
         unimplemented!()
     }
-    async fn handle_query_mr_res(self: Arc<Self>, raw: String) -> Result<CMMessage, CMError> {
+    async fn handle_query_mr_res(&self, raw: String) -> Result<CMMessage, CMError> {
         unimplemented!()
     }
-    async fn handle_error(self: Arc<Self>, raw: String) -> Result<CMMessage, CMError> {
+    async fn handle_error(&self, raw: String) -> Result<CMMessage, CMError> {
         unimplemented!()
     }
 }
@@ -115,12 +115,12 @@ mod tests {
             .open_context()
             .expect("failed to create RDMA context");
         let handler = DefaultConnectionManagerHandler::new(&ctx, 1);
-        let server = ConnectionManagerServer::new(handler);
+        let server = ConnectionManagerServer::new(Arc::new(handler));
     }
 }
 
 pub struct ConnectionManagerServer<T: ConnectionManagerHandler> {
-    handler: Arc<T>,
+    handler: T,
 }
 
 unsafe impl<T: ConnectionManagerHandler> Send for ConnectionManagerServer<T> {}
@@ -131,7 +131,7 @@ impl<T: ConnectionManagerHandler + 'static> ConnectionManagerServer<T> {
     /// Create a ConnectionManagerServer with a specific `ConnectionManagerHandler` instance.
     ///
     /// To make the server work, call `ConnectionManagerServer::spawn_rc_server`.
-    pub fn new(handler: Arc<T>) -> Arc<Self> {
+    pub fn new(handler: T) -> Arc<Self> {
         Arc::new(Self { handler })
     }
 
@@ -185,7 +185,7 @@ impl<T: ConnectionManagerHandler + 'static> ConnectionManagerServer<T> {
 
             let msg_type = message.message_type;
             let raw = message.serialized;
-            let handler = self.handler.clone();
+            let handler = &self.handler;
             let msg = match msg_type {
                 CMMessageType::RegRCReq => handler.handle_reg_rc_req(raw).await,
                 CMMessageType::DeregRCReq => handler.handle_dereg_rc_req(raw).await,
@@ -200,7 +200,7 @@ impl<T: ConnectionManagerHandler + 'static> ConnectionManagerServer<T> {
         }
     }
 
-    pub fn handler(&self) -> &Arc<T> {
+    pub fn handler(&self) -> &T {
         &self.handler
     }
 }

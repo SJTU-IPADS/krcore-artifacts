@@ -1,3 +1,4 @@
+use crate::memory_window::MemoryWindow;
 use crate::ControlpathError;
 use rdma_shim::ffi::c_types::c_int;
 
@@ -325,6 +326,53 @@ impl QueuePair {
 
         let mut bad_wr: *mut ib_send_wr = null_mut();
 
+        let err = unsafe {
+            (self.post_send_op)(
+                self.inner_qp.as_ptr(),
+                &mut wr as *mut _,
+                &mut bad_wr as *mut _,
+            )
+        };
+
+        if err != 0 {
+            Err(DatapathError::PostSendError(Error::from_kernel_errno(err)))
+        } else {
+            Ok(())
+        }
+    }
+
+    #[inline]
+    pub fn post_bind_mw(
+        &self,
+        mr: &MemoryRegion,
+        mw: &MemoryWindow,
+        range: Range<u64>,
+        rkey: u32,
+        wr_id: u64,
+        signal: bool,
+    ) -> Result<(), DatapathError> {
+        let mut wr: ib_send_wr = Default::default();
+        wr.wr_id = wr_id;
+        wr.sg_list = null_mut() as _;
+        wr.num_sge = 0 as _;
+        wr.opcode = ibv_wr_opcode::IBV_WR_ATOMIC_FETCH_AND_ADD;
+        wr.send_flags = if signal {
+            ibv_send_flags::IBV_SEND_SIGNALED
+        } else {
+            0
+        } as _;
+        wr.bind_mw.mw = mw.inner().as_ptr() as _;
+        wr.bind_mw.rkey = rkey as _;
+        wr.bind_mw.bind_info.mr = mr.inner().as_ptr() as _;
+        wr.bind_mw.bind_info.addr = mr.get_virt_addr() + range.start;
+        wr.bind_mw.bind_info.length = range.size() as _;
+        wr.bind_mw_bind_info.mw_access_flags = (ib_access_flags::IB_ACCESS_LOCAL_WRITE
+            | ib_access_flags::IB_ACCESS_REMOTE_READ
+            | ib_access_flags::IB_ACCESS_REMOTE_WRITE
+            | ib_access_flags::IB_ACCESS_REMOTE_ATOMIC)
+            as _;
+
+        let mut bad_wr: *mut ib_send_wr = null_mut();
         let err = unsafe {
             (self.post_send_op)(
                 self.inner_qp.as_ptr(),
