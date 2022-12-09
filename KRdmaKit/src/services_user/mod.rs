@@ -61,7 +61,7 @@ pub trait ConnectionManagerHandler: Send + Sync {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub enum CMMessageType {
     RegRCReq,
     DeregRCReq,
