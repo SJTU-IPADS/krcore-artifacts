@@ -176,6 +176,13 @@ mod wrapper_types {
     pub unsafe fn ib_create_qp(pd: *mut ib_pd, qp_init_attr: *mut ib_qp_init_attr) -> *mut ib_qp {
         ibv_create_qp(pd, qp_init_attr)
     }
+
+    #[inline(always)]
+    pub fn ibv_inc_rkey(rkey: u32) -> u32 {
+        const MASK: u32 = 0x000000ff;
+        let tag: u8 = ((rkey + 1) & 0x000000ff) as u8;
+        return (rkey & (!0x000000ff)) | tag as u32;
+    }
 }
 
 pub use wrapper_types::*;

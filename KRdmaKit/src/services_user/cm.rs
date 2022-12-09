@@ -101,6 +101,11 @@ impl DefaultConnectionManagerHandler {
     pub fn exp_get_mrs(&self) -> Vec<&MemoryRegion> {
         self.registered_mr.inner.iter().map(|(_, mr)| mr).collect()
     }
+
+    #[inline]
+    pub fn ctx(&self) -> &Arc<Context> {
+        &self.ctx
+    }
 }
 
 impl ConnectionManagerHandler for DefaultConnectionManagerHandler {

@@ -116,7 +116,8 @@ impl MemoryRegion {
                 (ib_access_flags::IB_ACCESS_LOCAL_WRITE
                     | ib_access_flags::IB_ACCESS_REMOTE_READ
                     | ib_access_flags::IB_ACCESS_REMOTE_WRITE
-                    | ib_access_flags::IB_ACCESS_REMOTE_ATOMIC) as _,
+                    | ib_access_flags::IB_ACCESS_REMOTE_ATOMIC
+                    | ib_access_flags::IB_ACCESS_MW_BIND) as _,
             )
         })
         .ok_or(crate::ControlpathError::CreationError(
@@ -169,7 +170,8 @@ impl MemoryRegion {
                 (ib_access_flags::IB_ACCESS_LOCAL_WRITE
                     | ib_access_flags::IB_ACCESS_REMOTE_READ
                     | ib_access_flags::IB_ACCESS_REMOTE_WRITE
-                    | ib_access_flags::IB_ACCESS_REMOTE_ATOMIC) as _,
+                    | ib_access_flags::IB_ACCESS_REMOTE_ATOMIC
+                    | ib_access_flags::IB_ACCESS_MW_BIND) as _,
             )
         })
         .ok_or(crate::ControlpathError::CreationError(
@@ -360,7 +362,8 @@ mod tests {
                 (ib_access_flags::IB_ACCESS_LOCAL_WRITE
                     | ib_access_flags::IB_ACCESS_REMOTE_READ
                     | ib_access_flags::IB_ACCESS_REMOTE_WRITE
-                    | ib_access_flags::IB_ACCESS_REMOTE_ATOMIC) as _,
+                    | ib_access_flags::IB_ACCESS_REMOTE_ATOMIC
+                    | ib_access_flags::IB_ACCESS_MW_BIND) as _,
             )
         };
 
@@ -374,7 +377,8 @@ mod tests {
                 (ib_access_flags::IB_ACCESS_LOCAL_WRITE
                     | ib_access_flags::IB_ACCESS_REMOTE_READ
                     | ib_access_flags::IB_ACCESS_REMOTE_WRITE
-                    | ib_access_flags::IB_ACCESS_REMOTE_ATOMIC) as _,
+                    | ib_access_flags::IB_ACCESS_REMOTE_ATOMIC
+                    | ib_access_flags::IB_ACCESS_MW_BIND) as _,
             )
         };
         assert!(mr.is_err());

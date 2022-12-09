@@ -13,20 +13,25 @@ pub struct MemoryWindow {
     mw: NonNull<ibv_mw>,
 }
 
+pub enum MWType {
+    Type1,
+    Type2,
+}
+
 unsafe impl Send for MemoryWindow {}
 unsafe impl Sync for MemoryWindow {}
 
 impl MemoryWindow {
-    /// Create a TYPE_2 MW, unbound
-    pub fn new(context: Arc<Context>) -> Result<Self, crate::ControlpathError> {
+    /// Create an unbound MW from the given ctx and MW_TYPE
+    pub fn new(context: Arc<Context>, mw_type: MWType) -> Result<Self, crate::ControlpathError> {
         let ibv_alloc_mw = unsafe { context.raw_ptr().as_ref().ops.alloc_mw.unwrap() };
-        let mw = NonNull::new(unsafe {
-            ibv_alloc_mw(context.get_pd().as_ptr(), ibv_mw_type::IBV_MW_TYPE_2)
-        })
-        .ok_or(crate::ControlpathError::CreationError(
-            "Failed to create MR",
-            rdma_shim::Error::EFAULT,
-        ))?;
+        let mw_type = match mw_type {
+            MWType::Type1 => ibv_mw_type::IBV_MW_TYPE_1,
+            MWType::Type2 => ibv_mw_type::IBV_MW_TYPE_2,
+        };
+        let mw = NonNull::new(unsafe { ibv_alloc_mw(context.get_pd().as_ptr(), mw_type) }).ok_or(
+            crate::ControlpathError::CreationError("Failed to create MR", rdma_shim::Error::EFAULT),
+        )?;
 
         Ok(Self { ctx: context, mw })
     }
@@ -34,6 +39,21 @@ impl MemoryWindow {
     #[inline]
     pub fn inner(&self) -> &NonNull<ibv_mw> {
         &self.mw
+    }
+
+    #[inline]
+    pub fn get_rkey(&self) -> u32 {
+        unsafe { (*(self.mw.as_ptr())).rkey }
+    }
+
+    #[inline]
+    pub fn is_type_1(&self) -> bool {
+        unsafe { (*self.mw.as_ptr()).type_ == ibv_mw_type::IBV_MW_TYPE_1 }
+    }
+
+    #[inline]
+    pub fn is_type_2(&self) -> bool {
+        unsafe { (*self.mw.as_ptr()).type_ == ibv_mw_type::IBV_MW_TYPE_2 }
     }
 }
 

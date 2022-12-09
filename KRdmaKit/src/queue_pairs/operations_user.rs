@@ -342,6 +342,56 @@ impl QueuePair {
     }
 
     #[inline]
+    pub fn bind_mw(
+        &self,
+        mr: &MemoryRegion,
+        mw: &MemoryWindow,
+        range: Range<u64>,
+        wr_id: u64,
+        signal: bool,
+    ) -> Result<(), DatapathError> {
+        if !mw.is_type_1() {
+            return Err(DatapathError::PostSendError(Error::from_kernel_errno(
+                Error::EINVAL.to_kernel_errno(),
+            )));
+        }
+        let mut mw_bind = ibv_mw_bind {
+            wr_id: wr_id,
+            send_flags: if signal {
+                ibv_send_flags::IBV_SEND_SIGNALED as _
+            } else {
+                0
+            },
+            bind_info: ibv_mw_bind_info {
+                mr: mr.inner().as_ptr() as _,
+                addr: unsafe { mr.get_rdma_addr() } + range.start,
+                length: range.size() as _,
+                mw_access_flags: (ib_access_flags::IB_ACCESS_LOCAL_WRITE
+                    | ib_access_flags::IB_ACCESS_REMOTE_READ
+                    | ib_access_flags::IB_ACCESS_REMOTE_WRITE
+                    | ib_access_flags::IB_ACCESS_REMOTE_ATOMIC
+                    | ib_access_flags::IB_ACCESS_MW_BIND) as _,
+            },
+        };
+
+        let ibv_bind_mw = unsafe { self.ctx().raw_ptr().as_ref().ops.bind_mw.unwrap() };
+
+        let err = unsafe {
+            ibv_bind_mw(
+                self.inner_qp.as_ptr(),
+                mw.inner().as_ptr(),
+                &mut mw_bind as *mut _,
+            )
+        };
+
+        if err != 0 {
+            Err(DatapathError::PostSendError(Error::from_kernel_errno(err)))
+        } else {
+            Ok(())
+        }
+    }
+
+    #[inline]
     pub fn post_bind_mw(
         &self,
         mr: &MemoryRegion,
@@ -351,11 +401,17 @@ impl QueuePair {
         wr_id: u64,
         signal: bool,
     ) -> Result<(), DatapathError> {
+        if !mw.is_type_1() {
+            return Err(DatapathError::PostSendError(Error::from_kernel_errno(
+                Error::EINVAL.to_kernel_errno(),
+            )));
+        }
+
         let mut wr: ib_send_wr = Default::default();
         wr.wr_id = wr_id;
         wr.sg_list = null_mut() as _;
         wr.num_sge = 0 as _;
-        wr.opcode = ibv_wr_opcode::IBV_WR_ATOMIC_FETCH_AND_ADD;
+        wr.opcode = ibv_wr_opcode::IBV_WR_BIND_MW;
         wr.send_flags = if signal {
             ibv_send_flags::IBV_SEND_SIGNALED
         } else {
@@ -364,12 +420,13 @@ impl QueuePair {
         wr.bind_mw.mw = mw.inner().as_ptr() as _;
         wr.bind_mw.rkey = rkey as _;
         wr.bind_mw.bind_info.mr = mr.inner().as_ptr() as _;
-        wr.bind_mw.bind_info.addr = mr.get_virt_addr() + range.start;
+        wr.bind_mw.bind_info.addr = unsafe { mr.get_rdma_addr() } + range.start;
         wr.bind_mw.bind_info.length = range.size() as _;
         wr.bind_mw.bind_info.mw_access_flags = (ib_access_flags::IB_ACCESS_LOCAL_WRITE
             | ib_access_flags::IB_ACCESS_REMOTE_READ
             | ib_access_flags::IB_ACCESS_REMOTE_WRITE
-            | ib_access_flags::IB_ACCESS_REMOTE_ATOMIC)
+            | ib_access_flags::IB_ACCESS_REMOTE_ATOMIC
+            | ib_access_flags::IB_ACCESS_MW_BIND)
             as _;
 
         let mut bad_wr: *mut ib_send_wr = null_mut();
