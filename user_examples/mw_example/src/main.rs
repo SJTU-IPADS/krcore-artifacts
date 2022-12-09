@@ -4,7 +4,6 @@ use std::sync::Arc;
 use std::thread::{sleep, spawn, yield_now, JoinHandle};
 use std::time::Duration;
 use KRdmaKit::memory_window::MWType;
-use KRdmaKit::rdma_shim::bindings::ibv_inc_rkey;
 use KRdmaKit::services_user::{ConnectionManagerServer, DefaultConnectionManagerHandler};
 use KRdmaKit::{MemoryRegion, MemoryWindow, QueuePairBuilder, QueuePairStatus, UDriver};
 
@@ -50,8 +49,8 @@ pub fn server_mw(
         }
 
         let qp = handler.exp_get_qps()[0].clone();
-        println!("=================BIND MW====================");
 
+        println!("=================BIND MW====================");
         let mw = MemoryWindow::new(ctx.clone(), MWType::Type1).unwrap();
         qp.bind_mw(&mr, &mw, 0..2048, 30, true).unwrap();
 
@@ -68,7 +67,6 @@ pub fn server_mw(
             }
         }
 
-        println!("{}", mw.get_rkey());
         unsafe { ADDR = mr.get_virt_addr() };
         unsafe { RKEY = mw.get_rkey() };
         unsafe { MW = true };
@@ -80,7 +78,6 @@ pub fn server_mw(
 
         drop(mw);
         drop(mr);
-        println!("\nDrop MW and MR");
     })
 }
 
@@ -124,7 +121,22 @@ pub fn client_ops(addr: SocketAddr) {
         .expect("Handshake failed!");
     match qp1.status().expect("Query status failed!") {
         QueuePairStatus::ReadyToSend => println!("Bring up succeeded"),
-        _ => eprintln!("Error : Bring up failed"),
+        _ => panic!("Error : Bring up failed"),
+    }
+
+    let mut builder = QueuePairBuilder::new(&ctx);
+    builder
+        .allow_remote_rw()
+        .allow_remote_atomic()
+        .set_port_num(client_port);
+    let qp2 = builder
+        .build_rc()
+        .expect("failed to create the client QP")
+        .handshake(addr)
+        .expect("Handshake failed!");
+    match qp2.status().expect("Query status failed!") {
+        QueuePairStatus::ReadyToSend => println!("Bring up succeeded"),
+        _ => panic!("Error : Bring up failed"),
     }
 
     unsafe { RC = true };
@@ -135,7 +147,7 @@ pub fn client_ops(addr: SocketAddr) {
     let rkey = unsafe { RKEY };
     let addr = unsafe { ADDR };
 
-    let mr = MemoryRegion::new(ctx.clone(), 4096).expect("Failed to allocate MR");
+    let mr = MemoryRegion::new(ctx.clone(), 128).expect("Failed to allocate MR");
 
     {
         println!("=================RDMA READ==================");
@@ -143,6 +155,27 @@ pub fn client_ops(addr: SocketAddr) {
         let mut completions = [Default::default()];
         loop {
             let ret = qp1
+                .poll_send_cq(&mut completions)
+                .expect("Failed to poll cq");
+            if ret.len() > 0 {
+                break;
+            }
+        }
+
+        let buf = (mr.get_virt_addr()) as *mut [u8; 11];
+        let msg = from_utf8(unsafe { &*buf }).expect("failed to decode received message");
+        println!(
+            "post_send_read\twr_id {}, status {}, msg [{}]",
+            completions[0].wr_id, completions[0].status, msg
+        );
+        unsafe { (*buf).clone_from_slice(&[0; 11]) };
+    }
+    {
+        println!("=================RDMA READ==================");
+        let _ = qp2.post_send_read(&mr, 0..11, true, addr, rkey, 24);
+        let mut completions = [Default::default()];
+        loop {
+            let ret = qp2
                 .poll_send_cq(&mut completions)
                 .expect("Failed to poll cq");
             if ret.len() > 0 {
@@ -180,10 +213,10 @@ pub fn client_ops(addr: SocketAddr) {
     }
     {
         println!("=================RDMA READ==================");
-        let _ = qp1.post_send_read(&mr, 0..11, true, addr + 32, rkey, 90);
+        let _ = qp2.post_send_read(&mr, 0..11, true, addr + 32, rkey, 90);
         let mut completions = [Default::default()];
         loop {
-            let ret = qp1
+            let ret = qp2
                 .poll_send_cq(&mut completions)
                 .expect("Failed to poll cq");
             if ret.len() > 0 {

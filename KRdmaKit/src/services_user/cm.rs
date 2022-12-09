@@ -1,10 +1,9 @@
 use crate::context::Context;
 use crate::services_user::{CMMessage, CMMessageType, ConnectionManagerHandler};
-use crate::{CMError, ControlpathError, MemoryRegion, QueuePair, QueuePairBuilder};
-use async_trait::async_trait;
+use crate::{CMError, MemoryRegion, QueuePair, QueuePairBuilder};
 use core::fmt::Debug;
 use rdma_shim::bindings::*;
-use rdma_shim::{log, Error};
+use rdma_shim::log;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -63,6 +62,7 @@ pub struct DefaultConnectionManagerHandler {
 unsafe impl Send for DefaultConnectionManagerHandler {}
 unsafe impl Sync for DefaultConnectionManagerHandler {}
 
+#[allow(dead_code)]
 impl DefaultConnectionManagerHandler {
     /// Create an DefaultConnectionManagerHandler that listens to connection request and handles registration
     /// requests and de-registration request.

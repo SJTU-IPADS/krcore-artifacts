@@ -8,14 +8,10 @@ use core::ptr::NonNull;
 
 use alloc::boxed::Box;
 use alloc::sync::Arc;
-use hashbrown::HashMap;
 use nix::libc::*;
-use spin::Mutex;
 use std::ptr::null_mut;
 
 use crate::context::Context;
-#[cfg(feature = "user")]
-use crate::memory_window::*;
 
 /// The largest capcity of kernel-space MR is limited:
 /// - kernel only supports access RDMA via physical memory,
