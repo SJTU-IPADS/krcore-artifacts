@@ -52,15 +52,15 @@ pub fn server_mw(
         let qp = handler.exp_get_qps()[0].clone();
         println!("\n=================RDMA BIND MW===============\n");
 
-        // let mw = MemoryWindow::new(ctx.clone(), MWType::Type1).unwrap();
-        // qp.bind_mw(&mr, &mw, 0..2048, 30, true).unwrap();
+        let mw = MemoryWindow::new(ctx.clone(), MWType::Type1).unwrap();
+        qp.bind_mw(&mr, &mw, 0..2048, 30, true).unwrap();
 
-        let mw = MemoryWindow::new(ctx.clone(), MWType::Type2).unwrap();
-        let rkey = ibv_inc_rkey(mw.get_rkey());
-
-        println!("{}", mw.get_rkey());
-
-        qp.post_bind_mw(&mr, &mw, 0..2048, rkey, 30, true).unwrap();
+        // let mw = MemoryWindow::new(ctx.clone(), MWType::Type2).unwrap();
+        // let rkey = ibv_inc_rkey(mw.get_rkey());
+        //
+        // println!("{}", mw.get_rkey());
+        //
+        // qp.post_bind_mw(&mr, &mw, 0..2048, rkey, 30, true).unwrap();
 
         loop {
             let ret = qp

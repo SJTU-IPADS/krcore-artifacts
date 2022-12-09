@@ -341,6 +341,8 @@ impl QueuePair {
         }
     }
 
+    /// Bind a Memory Window to a Memory Region. The bound `ibv_mw` is related to the `ibv_pd`
+    /// and a QP under this `ibv_pd` could be safely dropped before the Memory Window is dropped.
     #[inline]
     pub fn bind_mw(
         &self,
@@ -379,7 +381,7 @@ impl QueuePair {
         let err = unsafe {
             ibv_bind_mw(
                 self.inner_qp.as_ptr(),
-                mw.inner().as_ptr(),
+                mw.inner_mw().as_ptr(),
                 &mut mw_bind as *mut _,
             )
         };
@@ -391,7 +393,9 @@ impl QueuePair {
         }
     }
 
+    // FIXME: Failed to bind MW using this method
     #[inline]
+    #[deprecated]
     pub fn post_bind_mw(
         &self,
         mr: &MemoryRegion,
@@ -401,7 +405,7 @@ impl QueuePair {
         wr_id: u64,
         signal: bool,
     ) -> Result<(), DatapathError> {
-        if !mw.is_type_1() {
+        if !mw.is_type_2() {
             return Err(DatapathError::PostSendError(Error::from_kernel_errno(
                 Error::EINVAL.to_kernel_errno(),
             )));
@@ -417,7 +421,7 @@ impl QueuePair {
         } else {
             0
         } as _;
-        wr.bind_mw.mw = mw.inner().as_ptr() as _;
+        wr.bind_mw.mw = mw.inner_mw().as_ptr() as _;
         wr.bind_mw.rkey = rkey as _;
         wr.bind_mw.bind_info.mr = mr.inner().as_ptr() as _;
         wr.bind_mw.bind_info.addr = unsafe { mr.get_rdma_addr() } + range.start;
