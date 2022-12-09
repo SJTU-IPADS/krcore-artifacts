@@ -15,49 +15,71 @@ pub use cm::*;
 
 use crate::queue_pairs::QPType;
 use crate::CMError;
-use async_trait::async_trait;
 use rdma_shim::user::log;
 use serde_derive::{Deserialize, Serialize};
+use std::io::Write;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::time::Duration;
 use std::{io, thread};
 use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::net::tcp::WriteHalf;
 use tokio::net::{TcpListener, TcpStream};
+use tokio::time::timeout;
 
 #[allow(unused)]
-#[async_trait]
 pub trait ConnectionManagerHandler: Send + Sync {
-    async fn handle_reg_rc_req(self: Arc<Self>, raw: String) -> Result<CMMessage, CMError> {
+    fn handle_reg_rc_req(&self, raw: String) -> Result<CMMessage, CMError> {
         unimplemented!()
     }
-    async fn handle_reg_rc_res(self: Arc<Self>, raw: String) -> Result<CMMessage, CMError> {
+    fn handle_dereg_rc_req(&self, raw: String) -> Result<CMMessage, CMError> {
         unimplemented!()
     }
-    async fn handle_dereg_rc_req(self: Arc<Self>, raw: String) -> Result<CMMessage, CMError> {
+    fn handle_query_mr_req(&self, raw: String) -> Result<CMMessage, CMError> {
         unimplemented!()
     }
-    async fn handle_query_mr_req(self: Arc<Self>, raw: String) -> Result<CMMessage, CMError> {
+    fn handle_error(&self, raw: String) -> Result<CMMessage, CMError> {
         unimplemented!()
     }
-    async fn handle_query_mr_res(self: Arc<Self>, raw: String) -> Result<CMMessage, CMError> {
+    fn handle_user_slot_a(&self, raw: String) -> Result<CMMessage, CMError> {
         unimplemented!()
     }
-    async fn handle_error(self: Arc<Self>, raw: String) -> Result<CMMessage, CMError> {
+    fn handle_user_slot_b(&self, raw: String) -> Result<CMMessage, CMError> {
+        unimplemented!()
+    }
+    fn handle_user_slot_c(&self, raw: String) -> Result<CMMessage, CMError> {
+        unimplemented!()
+    }
+    fn handle_user_slot_d(&self, raw: String) -> Result<CMMessage, CMError> {
+        unimplemented!()
+    }
+    fn handle_user_slot_e(&self, raw: String) -> Result<CMMessage, CMError> {
+        unimplemented!()
+    }
+    fn handle_user_slot_f(&self, raw: String) -> Result<CMMessage, CMError> {
         unimplemented!()
     }
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub enum CMMessageType {
     RegRCReq,
-    RegRCRes,
     DeregRCReq,
     QueryMRReq,
+
+    RegRCRes,
     QueryMRRes,
+
     Error,
-    NeverSend, // No need to send back this type of message
-    Test,
+    NeverSend, // Never send back this type of message
+
+    // unimplemented request type
+    UserSlotA,
+    UserSlotB,
+    UserSlotC,
+    UserSlotD,
+    UserSlotE,
+    UserSlotF,
 }
 
 impl CMMessageType {
@@ -115,12 +137,12 @@ mod tests {
             .open_context()
             .expect("failed to create RDMA context");
         let handler = DefaultConnectionManagerHandler::new(&ctx, 1);
-        let server = ConnectionManagerServer::new(handler);
+        let server = ConnectionManagerServer::new(Arc::new(handler));
     }
 }
 
 pub struct ConnectionManagerServer<T: ConnectionManagerHandler> {
-    handler: Arc<T>,
+    handler: T,
 }
 
 unsafe impl<T: ConnectionManagerHandler> Send for ConnectionManagerServer<T> {}
@@ -131,7 +153,7 @@ impl<T: ConnectionManagerHandler + 'static> ConnectionManagerServer<T> {
     /// Create a ConnectionManagerServer with a specific `ConnectionManagerHandler` instance.
     ///
     /// To make the server work, call `ConnectionManagerServer::spawn_rc_server`.
-    pub fn new(handler: Arc<T>) -> Arc<Self> {
+    pub fn new(handler: T) -> Arc<Self> {
         Arc::new(Self { handler })
     }
 
@@ -144,24 +166,33 @@ impl<T: ConnectionManagerHandler + 'static> ConnectionManagerServer<T> {
     pub fn spawn_listener(
         self: &Arc<Self>,
         addr: SocketAddr,
+        running: *mut bool,
     ) -> thread::JoinHandle<io::Result<()>> {
         let server = self.clone();
+        let running_addr = running as u64;
         thread::spawn(move || {
-            tokio::runtime::Builder::new_multi_thread()
+            tokio::runtime::Builder::new_current_thread()
                 .enable_all()
                 .build()
                 .unwrap()
-                .block_on(server.listener_inner(addr))
+                .block_on(server.listener_inner(addr, running_addr))
         })
     }
 
-    async fn listener_inner(self: &Arc<Self>, addr: SocketAddr) -> io::Result<()> {
+    async fn listener_inner(
+        self: &Arc<Self>,
+        addr: SocketAddr,
+        running_addr: u64,
+    ) -> io::Result<()> {
         let listener = TcpListener::bind(addr).await?;
-        loop {
-            let (stream, _) = listener.accept().await?;
-            let server = self.clone();
-            let _handle = tokio::spawn(server.service_handler(stream));
+        while unsafe { *(running_addr as *const bool) } {
+            if let Ok(res) = timeout(Duration::from_millis(1), listener.accept()).await {
+                let (stream, _) = res?;
+                let server = self.clone();
+                let _handle = tokio::spawn(server.service_handler(stream));
+            }
         }
+        Ok(())
     }
 
     async fn service_handler(self: Arc<Self>, mut stream: TcpStream) -> Result<(), CMError> {
@@ -185,28 +216,31 @@ impl<T: ConnectionManagerHandler + 'static> ConnectionManagerServer<T> {
 
             let msg_type = message.message_type;
             let raw = message.serialized;
-            let handler = self.handler.clone();
+            let handler = &self.handler;
             let msg = match msg_type {
-                CMMessageType::RegRCReq => handler.handle_reg_rc_req(raw).await,
-                CMMessageType::DeregRCReq => handler.handle_dereg_rc_req(raw).await,
-                CMMessageType::QueryMRReq => handler.handle_query_mr_req(raw).await,
-                _ => {
-                    log::error!("Req type error");
-                    Err(CMError::Creation(0))
-                }
+                CMMessageType::RegRCReq => handler.handle_reg_rc_req(raw),
+                CMMessageType::DeregRCReq => handler.handle_dereg_rc_req(raw),
+                CMMessageType::QueryMRReq => handler.handle_query_mr_req(raw),
+                CMMessageType::UserSlotA => handler.handle_user_slot_a(raw),
+                CMMessageType::UserSlotB => handler.handle_user_slot_b(raw),
+                CMMessageType::UserSlotC => handler.handle_user_slot_c(raw),
+                CMMessageType::UserSlotD => handler.handle_user_slot_d(raw),
+                CMMessageType::UserSlotE => handler.handle_user_slot_e(raw),
+                CMMessageType::UserSlotF => handler.handle_user_slot_f(raw),
+                _ => Err(CMError::Creation(0)),
             }
             .unwrap_or(CMMessage::Error());
-            then_send(&mut write, msg).await?;
+            then_send_async(&mut write, msg).await?;
         }
     }
 
-    pub fn handler(&self) -> &Arc<T> {
+    pub fn handler(&self) -> &T {
         &self.handler
     }
 }
 
 #[inline]
-pub(crate) async fn then_send(
+pub(crate) async fn then_send_async(
     write: &mut WriteHalf<'_>,
     message: CMMessage,
 ) -> Result<(), CMError> {
@@ -216,6 +250,23 @@ pub(crate) async fn then_send(
 
     let serialized = serde_json::to_vec(&message).map_err(|_| CMError::Creation(0))?;
     write.write(&serialized.as_slice()).await.map_err(|_| {
+        log::error!("Send response error");
+        CMError::Creation(0)
+    })?;
+    Ok(())
+}
+
+#[inline]
+pub(crate) fn then_send_sync(
+    stream: &mut std::net::TcpStream,
+    message: CMMessage,
+) -> Result<(), CMError> {
+    if !message.should_send_back() {
+        return Ok(());
+    }
+
+    let serialized = serde_json::to_vec(&message).map_err(|_| CMError::Creation(0))?;
+    stream.write(&serialized.as_slice()).map_err(|_| {
         log::error!("Send response error");
         CMError::Creation(0)
     })?;

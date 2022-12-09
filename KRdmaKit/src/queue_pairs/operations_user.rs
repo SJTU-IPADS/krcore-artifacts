@@ -1,3 +1,4 @@
+use crate::memory_window::MemoryWindow;
 use crate::ControlpathError;
 use rdma_shim::ffi::c_types::c_int;
 
@@ -339,6 +340,113 @@ impl QueuePair {
             Ok(())
         }
     }
+
+    /// Bind a Memory Window to a Memory Region. The bound `ibv_mw` is related to the `ibv_pd`
+    /// and a QP under this `ibv_pd` could be safely dropped before the Memory Window is dropped.
+    #[inline]
+    pub fn bind_mw(
+        &self,
+        mr: &MemoryRegion,
+        mw: &MemoryWindow,
+        range: Range<u64>,
+        wr_id: u64,
+        signal: bool,
+    ) -> Result<(), DatapathError> {
+        if !mw.is_type_1() {
+            return Err(DatapathError::PostSendError(Error::from_kernel_errno(
+                Error::EINVAL.to_kernel_errno(),
+            )));
+        }
+        let mut mw_bind = ibv_mw_bind {
+            wr_id: wr_id,
+            send_flags: if signal {
+                ibv_send_flags::IBV_SEND_SIGNALED as _
+            } else {
+                0
+            },
+            bind_info: ibv_mw_bind_info {
+                mr: mr.inner().as_ptr() as _,
+                addr: unsafe { mr.get_rdma_addr() } + range.start,
+                length: range.size() as _,
+                mw_access_flags: (ib_access_flags::IB_ACCESS_LOCAL_WRITE
+                    | ib_access_flags::IB_ACCESS_REMOTE_READ
+                    | ib_access_flags::IB_ACCESS_REMOTE_WRITE
+                    | ib_access_flags::IB_ACCESS_REMOTE_ATOMIC)
+                    as _,
+            },
+        };
+
+        let ibv_bind_mw = unsafe { self.ctx().raw_ptr().as_ref().ops.bind_mw.unwrap() };
+
+        let err = unsafe {
+            ibv_bind_mw(
+                self.inner_qp.as_ptr(),
+                mw.inner_mw().as_ptr(),
+                &mut mw_bind as *mut _,
+            )
+        };
+
+        if err != 0 {
+            Err(DatapathError::PostSendError(Error::from_kernel_errno(err)))
+        } else {
+            Ok(())
+        }
+    }
+
+    // // FIXME: Failed to bind MW using this method
+    // #[inline]
+    // #[deprecated]
+    // pub fn post_bind_mw(
+    //     &self,
+    //     mr: &MemoryRegion,
+    //     mw: &MemoryWindow,
+    //     range: Range<u64>,
+    //     rkey: u32,
+    //     wr_id: u64,
+    //     signal: bool,
+    // ) -> Result<(), DatapathError> {
+    //     if !mw.is_type_2() {
+    //         return Err(DatapathError::PostSendError(Error::from_kernel_errno(
+    //             Error::EINVAL.to_kernel_errno(),
+    //         )));
+    //     }
+    //
+    //     let mut wr: ib_send_wr = Default::default();
+    //     wr.wr_id = wr_id;
+    //     wr.sg_list = null_mut() as _;
+    //     wr.num_sge = 0 as _;
+    //     wr.opcode = ibv_wr_opcode::IBV_WR_BIND_MW;
+    //     wr.send_flags = if signal {
+    //         ibv_send_flags::IBV_SEND_SIGNALED
+    //     } else {
+    //         0
+    //     } as _;
+    //     wr.bind_mw.mw = mw.inner_mw().as_ptr() as _;
+    //     wr.bind_mw.rkey = rkey as _;
+    //     wr.bind_mw.bind_info.mr = mr.inner().as_ptr() as _;
+    //     wr.bind_mw.bind_info.addr = unsafe { mr.get_rdma_addr() } + range.start;
+    //     wr.bind_mw.bind_info.length = range.size() as _;
+    //     wr.bind_mw.bind_info.mw_access_flags = (ib_access_flags::IB_ACCESS_LOCAL_WRITE
+    //         | ib_access_flags::IB_ACCESS_REMOTE_READ
+    //         | ib_access_flags::IB_ACCESS_REMOTE_WRITE
+    //         | ib_access_flags::IB_ACCESS_REMOTE_ATOMIC)
+    //         as _;
+    //
+    //     let mut bad_wr: *mut ib_send_wr = null_mut();
+    //     let err = unsafe {
+    //         (self.post_send_op)(
+    //             self.inner_qp.as_ptr(),
+    //             &mut wr as *mut _,
+    //             &mut bad_wr as *mut _,
+    //         )
+    //     };
+    //
+    //     if err != 0 {
+    //         Err(DatapathError::PostSendError(Error::from_kernel_errno(err)))
+    //     } else {
+    //         Ok(())
+    //     }
+    // }
 }
 
 #[cfg(feature = "user")]

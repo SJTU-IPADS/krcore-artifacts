@@ -80,6 +80,12 @@ impl Default for ibv_srq_init_attr {
     }
 }
 
+impl Default for ibv_mw_bind_info {
+    fn default() -> Self {
+        unsafe { core::mem::zeroed() }
+    }
+}
+
 impl core::fmt::Debug for ibv_wc {
 
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
