@@ -50,17 +50,10 @@ pub fn server_mw(
         }
 
         let qp = handler.exp_get_qps()[0].clone();
-        println!("\n=================RDMA BIND MW===============\n");
+        println!("=================BIND MW====================");
 
         let mw = MemoryWindow::new(ctx.clone(), MWType::Type1).unwrap();
         qp.bind_mw(&mr, &mw, 0..2048, 30, true).unwrap();
-
-        // let mw = MemoryWindow::new(ctx.clone(), MWType::Type2).unwrap();
-        // let rkey = ibv_inc_rkey(mw.get_rkey());
-        //
-        // println!("{}", mw.get_rkey());
-        //
-        // qp.post_bind_mw(&mr, &mw, 0..2048, rkey, 30, true).unwrap();
 
         loop {
             let ret = qp
@@ -101,8 +94,7 @@ pub fn spawn_server_thread(
     let ctx = UDriver::create()
         .expect("failed to query device")
         .devices()
-        .into_iter()
-        .next()
+        .get(1)
         .expect("no rdma device available")
         .open_context()
         .expect("failed to create RDMA context");
@@ -116,8 +108,7 @@ pub fn client_ops(addr: SocketAddr) {
     let ctx = UDriver::create()
         .expect("failed to query device")
         .devices()
-        .into_iter()
-        .next()
+        .get(1)
         .expect("no rdma device available")
         .open_context()
         .expect("failed to create RDMA context");
@@ -147,7 +138,7 @@ pub fn client_ops(addr: SocketAddr) {
     let mr = MemoryRegion::new(ctx.clone(), 4096).expect("Failed to allocate MR");
 
     {
-        println!("\n=================RDMA READ==================\n");
+        println!("=================RDMA READ==================");
         let _ = qp1.post_send_read(&mr, 0..11, true, addr, rkey, 42);
         let mut completions = [Default::default()];
         loop {
@@ -168,7 +159,7 @@ pub fn client_ops(addr: SocketAddr) {
         unsafe { (*buf).clone_from_slice(&[0; 11]) };
     }
     {
-        println!("\n=================RDMA WRITE=================\n");
+        println!("=================RDMA WRITE=================");
         let buf = mr.get_virt_addr() as *mut [u8; 11];
         unsafe { (*buf).clone_from_slice("WORLD_HELLO".as_bytes()) };
         let _ = qp1.post_send_write(&mr, 0..11, true, addr + 32, rkey, 88);
@@ -188,7 +179,7 @@ pub fn client_ops(addr: SocketAddr) {
         unsafe { (*buf).clone_from_slice(&[0; 11]) };
     }
     {
-        println!("\n=================RDMA READ==================\n");
+        println!("=================RDMA READ==================");
         let _ = qp1.post_send_read(&mr, 0..11, true, addr + 32, rkey, 90);
         let mut completions = [Default::default()];
         loop {
