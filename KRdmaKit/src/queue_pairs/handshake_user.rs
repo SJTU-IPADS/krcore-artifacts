@@ -1,11 +1,9 @@
 use crate::services_user::{
-    ibv_gid_wrapper, then_send_async, then_send_sync, CMMessage, CommStruct, MRInfos,
+    ibv_gid_wrapper, then_send_sync, CMMessage, CommStruct, MRInfos,
     RCConnectionData,
 };
 use std::io::{Read, Write};
 use std::net::SocketAddr;
-use std::net::TcpStream as StdTcpStream;
-use tokio::net::TcpStream;
 
 #[cfg(feature = "user")]
 impl PreparedQueuePair {
@@ -131,6 +129,11 @@ impl PreparedQueuePair {
         });
         Ok(Arc::new(rc_qp))
     }
+
+    #[inline]
+    pub fn comm_struct(&self) -> Option<CommStruct> {
+        self.inner.comm
+    }
 }
 
 #[cfg(feature = "user")]
@@ -144,7 +147,7 @@ impl QueuePair {
 
         match comm.qp_type {
             QPType::RC => {
-                let res = StdTcpStream::connect(comm.addr);
+                let res = std::net::TcpStream::connect(comm.addr);
                 let mut stream = if res.is_ok() { res.unwrap() } else { return };
                 let serialized = serde_json::to_string(&comm.key).unwrap();
                 let dereg = CMMessage {

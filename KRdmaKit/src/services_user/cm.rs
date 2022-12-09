@@ -62,7 +62,6 @@ pub struct DefaultConnectionManagerHandler {
 unsafe impl Send for DefaultConnectionManagerHandler {}
 unsafe impl Sync for DefaultConnectionManagerHandler {}
 
-#[allow(dead_code)]
 impl DefaultConnectionManagerHandler {
     /// Create an DefaultConnectionManagerHandler that listens to connection request and handles registration
     /// requests and de-registration request.
@@ -237,6 +236,7 @@ impl MRWrapper {
     }
 
     #[inline]
+    #[allow(dead_code)]
     pub fn get_mr(&self, name: &String) -> Option<&MemoryRegion> {
         self.inner.get(name)
     }
