@@ -17,10 +17,15 @@ fn main() {
     #[cfg(feature = "user")]
     {
         let addr: SocketAddr = "127.0.0.1:10001".parse().expect("Failed to resolve addr");
-        let _handle = func::spawn_server_thread(addr);
-        thread::sleep(Duration::from_millis(500));
-        func::client_thread(addr);
-        thread::sleep(Duration::from_millis(500));
+        let running = Box::into_raw(Box::new(true));
+        let handle = func::spawn_server_thread(addr, running);
+        thread::sleep(Duration::from_millis(300));
+        func::client_ops(addr);
+        thread::sleep(Duration::from_millis(100));
+        unsafe { *running = false };
+        let _ = handle.join();
+        println!("\nServer Exit!!");
+        unsafe { Box::from_raw(running) };
     }
 }
 
@@ -32,7 +37,10 @@ pub mod func {
     use KRdmaKit::services_user::{ConnectionManagerServer, DefaultConnectionManagerHandler};
     use KRdmaKit::{MemoryRegion, QueuePairBuilder, QueuePairStatus, UDriver};
 
-    pub fn spawn_server_thread(addr: SocketAddr) -> JoinHandle<std::io::Result<()>> {
+    pub fn spawn_server_thread(
+        addr: SocketAddr,
+        running: *mut bool,
+    ) -> JoinHandle<std::io::Result<()>> {
         let ctx = UDriver::create()
             .expect("failed to query device")
             .devices()
@@ -41,23 +49,21 @@ pub mod func {
             .expect("no rdma device available")
             .open_context()
             .expect("failed to create RDMA context");
-        let handler = DefaultConnectionManagerHandler::new(&ctx, 1);
+        let mut handler = DefaultConnectionManagerHandler::new(&ctx, 1);
         let server_mr_1 = MemoryRegion::new(ctx.clone(), 4096).expect("Failed to allocate MR");
         let server_mr_2 = MemoryRegion::new(ctx.clone(), 4096).expect("Failed to allocate MR");
         let buf = server_mr_2.get_virt_addr() as *mut [u8; 11];
-        handler
-            .register_mr(vec![
-                ("MR1".to_string(), server_mr_1),
-                ("MR2".to_string(), server_mr_2),
-            ])
-            .expect("Failed to register MR");
+        handler.register_mr(vec![
+            ("MR1".to_string(), server_mr_1),
+            ("MR2".to_string(), server_mr_2),
+        ]);
         let server = ConnectionManagerServer::new(handler);
         unsafe { (*buf).clone_from_slice("Hello world".as_bytes()) };
-        let handle = server.spawn_listener(addr);
+        let handle = server.spawn_listener(addr, running);
         return handle;
     }
 
-    pub fn client_thread(addr: SocketAddr) {
+    pub fn client_ops(addr: SocketAddr) {
         let client_port: u8 = 1;
         let ctx = UDriver::create()
             .expect("failed to query device")
@@ -84,7 +90,8 @@ pub mod func {
         println!("{:?}", mr_infos);
         let mr_metadata = mr_infos.inner().get("MR2").expect("Unregistered MR");
 
-        let client_mr = MemoryRegion::new_huge_page(ctx.clone(), 4096).expect("Failed to allocate MR");
+        let client_mr =
+            MemoryRegion::new_huge_page(ctx.clone(), 4096).expect("Failed to allocate MR");
 
         {
             println!("\n=================RDMA READ==================\n");
