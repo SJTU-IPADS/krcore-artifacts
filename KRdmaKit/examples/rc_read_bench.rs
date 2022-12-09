@@ -1,3 +1,4 @@
+use nix::libc::truncate;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::thread;
@@ -17,22 +18,31 @@ fn main() {
     #[cfg(feature = "user")]
     {
         let addr: SocketAddr = "127.0.0.1:10001".parse().expect("Failed to resolve addr");
-        let _handle = func::spawn_server_thread(addr);
-        thread::sleep(Duration::from_millis(500));
+        let running = Box::into_raw(Box::new(true));
+        let handle = func::spawn_server_thread(addr, running);
+        thread::sleep(Duration::from_millis(300));
         func::client_thread(addr);
-        thread::sleep(Duration::from_millis(500));
+        thread::sleep(Duration::from_millis(100));
+        unsafe { *running = false };
+        let _ = handle.join();
+        println!("\nServer Exit!!");
+        unsafe { Box::from_raw(running) };
     }
 }
 
 #[cfg(feature = "user")]
 pub mod func {
     use std::net::SocketAddr;
+    use std::sync::Arc;
     use std::thread::JoinHandle;
     use std::time::SystemTime;
     use KRdmaKit::services_user::{ConnectionManagerServer, DefaultConnectionManagerHandler};
     use KRdmaKit::{MemoryRegion, QueuePairBuilder, QueuePairStatus, UDriver};
 
-    pub fn spawn_server_thread(addr: SocketAddr) -> JoinHandle<std::io::Result<()>> {
+    pub fn spawn_server_thread(
+        addr: SocketAddr,
+        running: *mut bool,
+    ) -> JoinHandle<std::io::Result<()>> {
         let ctx = UDriver::create()
             .expect("failed to query device")
             .devices()
@@ -41,15 +51,12 @@ pub mod func {
             .expect("no rdma device available")
             .open_context()
             .expect("failed to create RDMA context");
-        let handler = DefaultConnectionManagerHandler::new(&ctx, 1);
+        let mut handler = DefaultConnectionManagerHandler::new(&ctx, 1);
         let server_mr_1 = MemoryRegion::new(ctx.clone(), 1024).expect("Failed to allocate MR");
-        handler
-            .register_mr(vec![
-                ("MR1".to_string(), server_mr_1),
-            ])
-            .expect("Failed to register MR");
+        handler.register_mr(vec![("MR1".to_string(), server_mr_1)]);
         let server = ConnectionManagerServer::new(handler);
-        let handle = server.spawn_listener(addr);
+        let handle = server.spawn_listener(addr, running);
+        let handler = server.handler();
         return handle;
     }
 
@@ -131,10 +138,7 @@ pub mod func {
             let count = vec.len();
             let sum = vec.iter().sum::<u128>();
 
-            println!(
-                "duration average : {} us",
-                (sum as f64) / (count as f64)
-            );
+            println!("duration average : {} us", (sum as f64) / (count as f64));
         }
     }
 }
