@@ -240,7 +240,7 @@ impl<T: ConnectionManagerHandler + 'static> ConnectionManagerServer<T> {
 }
 
 #[inline]
-pub(crate) async fn then_send_async(
+pub async fn then_send_async(
     write: &mut WriteHalf<'_>,
     message: CMMessage,
 ) -> Result<(), CMError> {
@@ -257,7 +257,7 @@ pub(crate) async fn then_send_async(
 }
 
 #[inline]
-pub(crate) fn then_send_sync(
+pub fn then_send_sync(
     stream: &mut std::net::TcpStream,
     message: CMMessage,
 ) -> Result<(), CMError> {
