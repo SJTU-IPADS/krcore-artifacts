@@ -3,9 +3,14 @@ use std::str::from_utf8;
 use std::sync::Arc;
 use std::thread::{sleep, spawn, yield_now, JoinHandle};
 use std::time::Duration;
+use KRdmaKit::context::Context;
 use KRdmaKit::memory_window::MWType;
-use KRdmaKit::services_user::{ConnectionManagerServer, DefaultConnectionManagerHandler};
-use KRdmaKit::{MemoryRegion, MemoryWindow, QueuePairBuilder, QueuePairStatus, UDriver};
+use KRdmaKit::services_user::{
+    CMMessage, ConnectionManagerHandler, ConnectionManagerServer, DefaultConnectionManagerHandler,
+};
+use KRdmaKit::{
+    CMError, MemoryRegion, MemoryWindow, QueuePair, QueuePairBuilder, QueuePairStatus, UDriver,
+};
 
 // register RC => malloc and bind MW => unbind MW
 // RC false, MW false => RC true, MW false => RC true, MW true => RC true, MW false
@@ -31,7 +36,7 @@ fn main() {
 }
 
 pub fn server_mw(
-    server: Arc<ConnectionManagerServer<DefaultConnectionManagerHandler>>,
+    server: Arc<ConnectionManagerServer<UserDefinedHandler>>,
     running_addr: u64,
 ) -> JoinHandle<()> {
     spawn(move || {
@@ -81,11 +86,39 @@ pub fn server_mw(
     })
 }
 
+pub struct UserDefinedHandler {
+    inner: DefaultConnectionManagerHandler,
+}
+
+impl ConnectionManagerHandler for UserDefinedHandler {
+    fn handle_reg_rc_req(&self, raw: String) -> Result<CMMessage, CMError> {
+        self.inner.handle_reg_rc_req(raw)
+    }
+
+    fn handle_dereg_rc_req(&self, raw: String) -> Result<CMMessage, CMError> {
+        self.inner.handle_dereg_rc_req(raw)
+    }
+
+    fn handle_query_mr_req(&self, raw: String) -> Result<CMMessage, CMError> {
+        self.inner.handle_query_mr_req(raw)
+    }
+}
+
+impl UserDefinedHandler {
+    pub fn ctx(&self) -> &Arc<Context> {
+        self.inner.ctx()
+    }
+
+    pub fn exp_get_qps(&self) -> Vec<Arc<QueuePair>> {
+        self.inner.exp_get_qps()
+    }
+}
+
 pub fn spawn_server_thread(
     addr: SocketAddr,
     running: *mut bool,
 ) -> (
-    Arc<ConnectionManagerServer<DefaultConnectionManagerHandler>>,
+    Arc<ConnectionManagerServer<UserDefinedHandler>>,
     JoinHandle<std::io::Result<()>>,
 ) {
     let ctx = UDriver::create()
@@ -95,7 +128,9 @@ pub fn spawn_server_thread(
         .expect("no rdma device available")
         .open_context()
         .expect("failed to create RDMA context");
-    let server = ConnectionManagerServer::new(DefaultConnectionManagerHandler::new(&ctx, 1));
+    let server = ConnectionManagerServer::new(UserDefinedHandler {
+        inner: DefaultConnectionManagerHandler::new(&ctx, 1),
+    });
     let handle = server.spawn_listener(addr, running);
     return (server, handle);
 }

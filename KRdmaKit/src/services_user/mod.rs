@@ -17,6 +17,7 @@ use crate::queue_pairs::QPType;
 use crate::CMError;
 use rdma_shim::user::log;
 use serde_derive::{Deserialize, Serialize};
+use std::io::Write;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -229,7 +230,7 @@ impl<T: ConnectionManagerHandler + 'static> ConnectionManagerServer<T> {
                 _ => Err(CMError::Creation(0)),
             }
             .unwrap_or(CMMessage::Error());
-            then_send(&mut write, msg).await?;
+            then_send_async(&mut write, msg).await?;
         }
     }
 
@@ -239,7 +240,7 @@ impl<T: ConnectionManagerHandler + 'static> ConnectionManagerServer<T> {
 }
 
 #[inline]
-pub(crate) async fn then_send(
+pub(crate) async fn then_send_async(
     write: &mut WriteHalf<'_>,
     message: CMMessage,
 ) -> Result<(), CMError> {
@@ -249,6 +250,23 @@ pub(crate) async fn then_send(
 
     let serialized = serde_json::to_vec(&message).map_err(|_| CMError::Creation(0))?;
     write.write(&serialized.as_slice()).await.map_err(|_| {
+        log::error!("Send response error");
+        CMError::Creation(0)
+    })?;
+    Ok(())
+}
+
+#[inline]
+pub(crate) fn then_send_sync(
+    stream: &mut std::net::TcpStream,
+    message: CMMessage,
+) -> Result<(), CMError> {
+    if !message.should_send_back() {
+        return Ok(());
+    }
+
+    let serialized = serde_json::to_vec(&message).map_err(|_| CMError::Creation(0))?;
+    stream.write(&serialized.as_slice()).map_err(|_| {
         log::error!("Send response error");
         CMError::Creation(0)
     })?;
