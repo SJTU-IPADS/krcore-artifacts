@@ -53,10 +53,10 @@ impl Into<ib_gid> for ibv_gid_wrapper {
 /// After receiving an RC-QP connection request,
 /// it will automatically create a new one and store it in its `registered_rc`.
 pub struct DefaultConnectionManagerHandler {
-    registered_rc: Arc<Mutex<HashMap<u64, Arc<QueuePair>>>>,
-    registered_mr: MRWrapper,
-    port_num: u8,
-    ctx: Arc<Context>,
+    pub registered_rc: Arc<Mutex<HashMap<u64, Arc<QueuePair>>>>,
+    pub registered_mr: MRWrapper,
+    pub port_num: u8,
+    pub ctx: Arc<Context>,
 }
 
 unsafe impl Send for DefaultConnectionManagerHandler {}
@@ -211,8 +211,8 @@ impl MRInfos {
 }
 
 #[derive(Default)]
-pub(crate) struct MRWrapper {
-    pub(crate) inner: HashMap<String, MemoryRegion>,
+pub struct MRWrapper {
+    pub inner: HashMap<String, MemoryRegion>,
 }
 
 unsafe impl Send for MRWrapper {}

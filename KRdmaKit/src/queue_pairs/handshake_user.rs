@@ -1,6 +1,5 @@
 use crate::services_user::{
-    ibv_gid_wrapper, then_send_sync, CMMessage, CommStruct, MRInfos,
-    RCConnectionData,
+    ibv_gid_wrapper, then_send_sync, CMMessage, CommStruct, MRInfos, RCConnectionData,
 };
 use std::io::{Read, Write};
 use std::net::SocketAddr;
