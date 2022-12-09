@@ -15,7 +15,6 @@ pub use cm::*;
 
 use crate::queue_pairs::QPType;
 use crate::CMError;
-use async_trait::async_trait;
 use rdma_shim::user::log;
 use serde_derive::{Deserialize, Serialize};
 use std::net::SocketAddr;
@@ -32,19 +31,31 @@ pub trait ConnectionManagerHandler: Send + Sync {
     fn handle_reg_rc_req(&self, raw: String) -> Result<CMMessage, CMError> {
         unimplemented!()
     }
-    fn handle_reg_rc_res(&self, raw: String) -> Result<CMMessage, CMError> {
-        unimplemented!()
-    }
     fn handle_dereg_rc_req(&self, raw: String) -> Result<CMMessage, CMError> {
         unimplemented!()
     }
     fn handle_query_mr_req(&self, raw: String) -> Result<CMMessage, CMError> {
         unimplemented!()
     }
-    fn handle_query_mr_res(&self, raw: String) -> Result<CMMessage, CMError> {
+    fn handle_error(&self, raw: String) -> Result<CMMessage, CMError> {
         unimplemented!()
     }
-    fn handle_error(&self, raw: String) -> Result<CMMessage, CMError> {
+    fn handle_user_slot_a(&self, raw: String) -> Result<CMMessage, CMError> {
+        unimplemented!()
+    }
+    fn handle_user_slot_b(&self, raw: String) -> Result<CMMessage, CMError> {
+        unimplemented!()
+    }
+    fn handle_user_slot_c(&self, raw: String) -> Result<CMMessage, CMError> {
+        unimplemented!()
+    }
+    fn handle_user_slot_d(&self, raw: String) -> Result<CMMessage, CMError> {
+        unimplemented!()
+    }
+    fn handle_user_slot_e(&self, raw: String) -> Result<CMMessage, CMError> {
+        unimplemented!()
+    }
+    fn handle_user_slot_f(&self, raw: String) -> Result<CMMessage, CMError> {
         unimplemented!()
     }
 }
@@ -52,13 +63,22 @@ pub trait ConnectionManagerHandler: Send + Sync {
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum CMMessageType {
     RegRCReq,
-    RegRCRes,
     DeregRCReq,
     QueryMRReq,
+
+    RegRCRes,
     QueryMRRes,
+
     Error,
-    NeverSend, // No need to send back this type of message
-    Test,
+    NeverSend, // Never send back this type of message
+
+    // unimplemented request type
+    UserSlotA,
+    UserSlotB,
+    UserSlotC,
+    UserSlotD,
+    UserSlotE,
+    UserSlotF,
 }
 
 impl CMMessageType {
@@ -200,10 +220,13 @@ impl<T: ConnectionManagerHandler + 'static> ConnectionManagerServer<T> {
                 CMMessageType::RegRCReq => handler.handle_reg_rc_req(raw),
                 CMMessageType::DeregRCReq => handler.handle_dereg_rc_req(raw),
                 CMMessageType::QueryMRReq => handler.handle_query_mr_req(raw),
-                _ => {
-                    log::error!("Req type error");
-                    Err(CMError::Creation(0))
-                }
+                CMMessageType::UserSlotA => handler.handle_user_slot_a(raw),
+                CMMessageType::UserSlotB => handler.handle_user_slot_b(raw),
+                CMMessageType::UserSlotC => handler.handle_user_slot_c(raw),
+                CMMessageType::UserSlotD => handler.handle_user_slot_d(raw),
+                CMMessageType::UserSlotE => handler.handle_user_slot_e(raw),
+                CMMessageType::UserSlotF => handler.handle_user_slot_f(raw),
+                _ => Err(CMError::Creation(0)),
             }
             .unwrap_or(CMMessage::Error());
             then_send(&mut write, msg).await?;

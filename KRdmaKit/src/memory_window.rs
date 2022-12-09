@@ -1,5 +1,4 @@
 use crate::context::Context;
-use crate::QueuePair;
 #[allow(unused_imports)]
 use rdma_shim::bindings::*;
 use std::ptr::NonNull;
