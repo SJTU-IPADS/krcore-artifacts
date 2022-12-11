@@ -128,11 +128,6 @@ impl PreparedQueuePair {
         });
         Ok(Arc::new(rc_qp))
     }
-
-    #[inline]
-    pub fn comm_struct(&self) -> Option<CommStruct> {
-        self.inner.comm
-    }
 }
 
 #[cfg(feature = "user")]
@@ -223,5 +218,10 @@ impl QueuePair {
             )
         })?;
         Ok(data)
+    }
+
+    #[inline]
+    pub fn comm_struct(&self) -> Option<CommStruct> {
+        self.comm
     }
 }
