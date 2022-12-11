@@ -110,6 +110,14 @@ impl CMMessage {
     pub fn should_send_back(&self) -> bool {
         self.message_type.should_send_back()
     }
+
+    pub fn serialization(&self) -> Vec<u8> {
+        serde_json::to_vec(self).unwrap()
+    }
+
+    pub fn deserialization(raw: &[u8]) -> Result<Self, CMError> {
+        Ok(serde_json::from_slice(raw).map_err(|_| CMError::Creation(0))?)
+    }
 }
 
 unsafe impl Send for CMMessage {}
@@ -209,10 +217,8 @@ impl<T: ConnectionManagerHandler + 'static> ConnectionManagerServer<T> {
                 // Disconnection
                 return Ok(());
             }
-            let message: CMMessage = serde_json::from_slice(&buf[0..bytes_read]).map_err(|_| {
-                log::error!("Failed to do deserialization");
-                CMError::Creation(0)
-            })?;
+
+            let message = CMMessage::deserialization(&buf[0..bytes_read])?;
 
             let msg_type = message.message_type;
             let raw = message.serialized;
@@ -240,35 +246,30 @@ impl<T: ConnectionManagerHandler + 'static> ConnectionManagerServer<T> {
 }
 
 #[inline]
-pub async fn then_send_async(
-    write: &mut WriteHalf<'_>,
-    message: CMMessage,
-) -> Result<(), CMError> {
+pub async fn then_send_async(write: &mut WriteHalf<'_>, message: CMMessage) -> Result<(), CMError> {
     if !message.should_send_back() {
         return Ok(());
     }
-
-    let serialized = serde_json::to_vec(&message).map_err(|_| CMError::Creation(0))?;
-    write.write(&serialized.as_slice()).await.map_err(|_| {
-        log::error!("Send response error");
-        CMError::Creation(0)
-    })?;
+    write
+        .write(message.serialization().as_slice())
+        .await
+        .map_err(|_| {
+            log::error!("Send response error");
+            CMError::Creation(0)
+        })?;
     Ok(())
 }
 
 #[inline]
-pub fn then_send_sync(
-    stream: &mut std::net::TcpStream,
-    message: CMMessage,
-) -> Result<(), CMError> {
+pub fn then_send_sync(stream: &mut std::net::TcpStream, message: CMMessage) -> Result<(), CMError> {
     if !message.should_send_back() {
         return Ok(());
     }
-
-    let serialized = serde_json::to_vec(&message).map_err(|_| CMError::Creation(0))?;
-    stream.write(&serialized.as_slice()).map_err(|_| {
-        log::error!("Send response error");
-        CMError::Creation(0)
-    })?;
+    stream
+        .write(message.serialization().as_slice())
+        .map_err(|_| {
+            log::error!("Send response error");
+            CMError::Creation(0)
+        })?;
     Ok(())
 }
