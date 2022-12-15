@@ -37,6 +37,9 @@ pub struct DatagramEndpoint {
     dc_key: u64,
 }
 
+unsafe impl Send for DatagramEndpoint {}
+unsafe impl Sync for DatagramEndpoint {}
+
 impl Debug for DatagramEndpoint {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         #[cfg(not(feature = "dct"))]

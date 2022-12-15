@@ -139,6 +139,7 @@ impl MemoryRegion {
         context: Arc<Context>,
         capacity: usize,
     ) -> Result<Self, crate::ControlpathError> {
+        let capacity = Self::align_to_hugepage_sz(capacity, 2 << 20);
         let data = unsafe {
             mmap(
                 null_mut(),
@@ -291,6 +292,11 @@ impl MemoryRegion {
     /// Total size of the memory region
     pub fn capacity(&self) -> usize {
         self.capacity
+    }
+
+    #[inline]
+    pub fn align_to_hugepage_sz(x: usize, a: usize) -> usize {
+        ((x) + a - 1) / a * a
     }
 }
 

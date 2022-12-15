@@ -4,10 +4,10 @@ This document shows all of the essential software installation process on **serv
 
 Software preparation list: 
 
-- OS: Ubuntu16.04 or 18.04  (**bare-metal OS**, not VM or containers)
+- OS: Ubuntu16.04 or 18.04  (**bare-metal OS**, not VM or containers for kernel-space)
 - Linux kernel: 4.15.0-46-generic
 - MLNX_OFED driver: 4.9-3.1.5.0
-- Rustc: nightly-2020-11-10-x86_64
+- Rustc: nightly-2022-02-04-x86_64 and nightly-2022-02-04-aarch64 (only tested for user-space)
 - Clang-9
 
 > If you have trouble configuring the OS, we can provide a few number of servers with the experiment environment.  
@@ -20,6 +20,8 @@ Pre-assumptions:
 [toc]
 
 ## 1. Configure the linux kernel to use
+
+**This is optional if you are using the user-space KRCore**. 
 
 If you are using machines provided by us, then no need for this step.  Otherwise, follow the below steps for the configurations (assuming we are using Ubuntu): 
 
@@ -46,6 +48,8 @@ After reboot the machine, check it out by `uname -r` to see whether the kernel v
 
 
 ## 2. Install (our modified version of ) Mellanox OFED driver
+
+**This is optional if you are using the user-space KRCore**. 
 
 We first install the driver from a snapshot of the tarball in the artifact. Then we install our patches that support DCT.  If you are using machines provided by us, then no need for this step. 
 
@@ -115,6 +119,10 @@ If the state is INIT, you can use `sudo /etc/init.d/opensmd start` to enable it.
 #### 3.1 clang-9
 
 If you are using machines provided by us, then no need for this step. 
+(Optional) If running user-space libraries, install libclang-dev first: 
+```
+sudo apt install libclang-dev
+```
 
 There are two methods to install clang-9 on your machine. Choose one method as you like.
 
@@ -161,7 +169,7 @@ Install the rustup and the toolchain (version `nightly-2022-02-04`)
 ```
 curl --proto '=https' --tlsv1.2 https://sh.rustup.rs -sSf | sh
 source $HOME/.cargo/env
-rustup default nightly-2022-02-04-x86_64-unknown-linux-gnu
+rustup default nightly-2022-02-04-x86_64-unknown-linux-gnu # switch to nightly-2022-02-04-aarch64-unknown-linux-gnu on ARM
 rustup component add rust-src
 ```
 

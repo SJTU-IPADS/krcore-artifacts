@@ -1,0 +1,4 @@
+[[pass]]
+path = "./krcore/krcore/user-benchs/bench_rdma/target/release"
+host = "localhost"
+cmd = "scp bench_rdma val01:~; scp bench_rdma val02:~; "

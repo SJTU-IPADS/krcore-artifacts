@@ -15,5 +15,7 @@ log = {version = "0.4", optional = true, features = ["max_level_debug", "release
 kernel = ["rust-kernel-rdma-base"]
 dct = ["rust-kernel-rdma-base/dct"]
 user = ["rust-user-rdma", "libc", "log"]
+OFED_5_4 = ["rust-user-rdma/OFED_5_4"]
+
 
 

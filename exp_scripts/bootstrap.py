@@ -348,7 +348,8 @@ def str_to_bool(value):
         return False
     elif value.lower() in {'true', 't', '1', 'yes', 'y'}:
         return True
-    raise ValueError(f'{value} is not a valid boolean value')
+    raise ValueError('not a valid boolean value')        
+#    raise ValueError(f'{value} is not a valid boolean value')
 
 def main():
     global use_ssh_config

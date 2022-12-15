@@ -1,14 +1,15 @@
 use std::net::SocketAddr;
-use std::thread::JoinHandle;
 use KRdmaKit::services_user::{ConnectionManagerServer, DefaultConnectionManagerHandler};
 use KRdmaKit::{MemoryRegion, UDriver};
 
+static mut RUNNING: bool = true;
+
 fn main() {
     let addr: SocketAddr = "127.0.0.1:10001".parse().expect("Failed to resolve addr");
-    let _ = spawn_server_thread(addr).join();
+    spawn_server_thread(addr);
 }
 
-pub fn spawn_server_thread(addr: SocketAddr) -> JoinHandle<std::io::Result<()>> {
+pub fn spawn_server_thread(addr: SocketAddr) {
     let ctx = UDriver::create()
         .expect("failed to query device")
         .devices()
@@ -17,11 +18,16 @@ pub fn spawn_server_thread(addr: SocketAddr) -> JoinHandle<std::io::Result<()>> 
         .expect("no rdma device available")
         .open_context()
         .expect("failed to create RDMA context");
-    let handler = DefaultConnectionManagerHandler::new(&ctx, 1);
+    let mut handler = DefaultConnectionManagerHandler::new(&ctx, 1);
     let server_mr_1 = MemoryRegion::new(ctx.clone(), 1024 * 1024).expect("Failed to allocate MR");
-    handler
-        .register_mr(vec![("MR1".to_string(), server_mr_1)])
-        .expect("Failed to register MR");
+    handler.register_mr(vec![("MR1".to_string(), server_mr_1)]);
     let server = ConnectionManagerServer::new(handler);
-    server.spawn_listener(addr)
+
+    ctrlc::set_handler(move || {
+        unsafe { RUNNING = false };
+    })
+    .expect("Error setting Ctrl-C handler");
+    let running = unsafe { &mut RUNNING as *mut bool };
+    let _ = server.blocking_listener(addr, running);
+    println!("Exit");
 }

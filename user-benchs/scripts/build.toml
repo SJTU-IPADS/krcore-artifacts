@@ -1,0 +1,10 @@
+[[pass]]
+path = "./krcore/krcore/user-benchs/bench_rdma"
+host = "localhost"
+cmd = "/home/wxd/.cargo/bin/cargo build --release"
+
+[[pass]]
+path = "./krcore/krcore/user-benchs/bench_server"
+host = "localhost"
+cmd = "/home/wxd/.cargo/bin/cargo build --release"
+

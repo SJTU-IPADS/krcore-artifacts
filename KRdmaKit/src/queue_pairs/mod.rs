@@ -37,14 +37,13 @@ mod rc_comm;
 #[cfg(feature = "dct")]
 pub mod dynamic_connected_transport;
 
-#[cfg(feature = "dct")]
-pub use dynamic_connected_transport::DynamicConnectedTarget;
 #[cfg(feature = "user")]
 use crate::services_user::CommStruct;
+#[cfg(feature = "dct")]
+pub use dynamic_connected_transport::DynamicConnectedTarget;
 
 #[allow(dead_code)]
-#[derive(PartialEq)]
-#[derive(Copy, Clone)]
+#[derive(PartialEq, Copy, Clone)]
 pub enum QPType {
     RC, // reliable connection
     UD, // unreliable datagram
