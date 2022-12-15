@@ -30,12 +30,117 @@ impl QueuePair {
             mr,
             range,
             wr_id,
+            None,
             if signaled {
                 rdma_shim::bindings::ibv_send_flags::IBV_SEND_SIGNALED
             } else {
                 0
             } as _,
         )
+    }
+
+    pub fn post_datagram_w_imm(
+        &self,
+        endpoint: &DatagramEndpoint,
+        mr: &MemoryRegion,
+        range: Range<u64>,
+        wr_id: u64,
+        imm_data: u32,
+        signaled: bool,
+    ) -> Result<(), DatapathError> {
+        self.post_datagram_w_flags(
+            endpoint,
+            mr,
+            range,
+            wr_id,
+            Some(imm_data),
+            if signaled {
+                rdma_shim::bindings::ibv_send_flags::IBV_SEND_SIGNALED
+            } else {
+                0
+            } as _,
+        )
+    }
+
+    /// DatagramEndpoint, MemoryRegion, Range, wr_id, signal, imm_data
+    pub fn post_datagram_batch(
+        &self,
+        param: Vec<(
+            &DatagramEndpoint,
+            &MemoryRegion,
+            Range<u64>,
+            u64,
+            bool,
+            Option<u32>,
+        )>,
+    ) -> Result<(), DatapathError> {
+        const WR_LIST_MAX: usize = 32;
+        if self.mode != QPType::UD {
+            return Err(DatapathError::QPTypeError);
+        }
+        let num_wr = param.len();
+        if num_wr > WR_LIST_MAX {
+            return Err(DatapathError::PostSendError(Error::from_kernel_errno(-1)));
+        }
+        let mut wr_list: [ib_send_wr; WR_LIST_MAX] = [Default::default(); WR_LIST_MAX];
+        for i in 0..num_wr {
+            wr_list[i].next = if i == num_wr - 1 {
+                null_mut() as *mut _
+            } else {
+                (&mut wr_list[i + 1]) as *mut _
+            };
+        }
+        let mut bad_wr: *mut ib_send_wr = null_mut();
+        for (i, (endpoint, mr, range, wr_id, signal, imm)) in param.into_iter().enumerate() {
+            let wr = &mut wr_list[i];
+            // first setup the sge
+            let mut sge = ib_sge {
+                addr: unsafe { mr.get_rdma_addr() } + range.start,
+                length: range.size() as u32,
+                lkey: mr.lkey().0,
+            };
+            unsafe {
+                wr.wr.ud.as_mut().remote_qpn = endpoint.qpn();
+                wr.wr.ud.as_mut().remote_qkey = endpoint.qkey();
+                wr.wr.ud.as_mut().ah = endpoint.raw_address_handler_ptr().as_ptr();
+            };
+            let flags = if signal {
+                rdma_shim::bindings::ibv_send_flags::IBV_SEND_SIGNALED
+            } else {
+                0
+            };
+            wr.wr_id = wr_id;
+            wr.sg_list = &mut sge as _;
+            wr.num_sge = 1;
+            wr.send_flags = flags as _;
+            wr.opcode = if imm.is_some() {
+                #[cfg(feature = "OFED_5_4")]
+                unsafe {
+                    *wr.__bindgen_anon_1.imm_data.as_mut() = imm.unwrap()
+                };
+
+                #[cfg(not(feature = "OFED_5_4"))]
+                {
+                    wr.imm_data = imm.unwrap()
+                };
+                ibv_wr_opcode::IBV_WR_SEND_WITH_IMM
+            } else {
+                ibv_wr_opcode::IBV_WR_SEND
+            };
+        }
+
+        let err = unsafe {
+            (self.post_send_op)(
+                self.inner_qp.as_ptr(),
+                (&mut wr_list[0]) as *mut _,
+                &mut bad_wr as *mut _,
+            )
+        };
+        if err != 0 {
+            Err(DatapathError::PostSendError(Error::from_kernel_errno(err)))
+        } else {
+            Ok(())
+        }
     }
 
     #[inline]
@@ -45,6 +150,7 @@ impl QueuePair {
         mr: &MemoryRegion,
         range: Range<u64>,
         wr_id: u64,
+        imm_data: Option<u32>,
         flags: c_int,
     ) -> Result<(), DatapathError> {
         if self.mode != QPType::UD {
@@ -69,8 +175,22 @@ impl QueuePair {
         wr.wr_id = wr_id;
         wr.sg_list = &mut sge as _;
         wr.num_sge = 1;
-        wr.send_flags = flags;
-        wr.opcode = ibv_wr_opcode::IBV_WR_SEND;
+        wr.send_flags = flags as _;
+
+        wr.opcode = if imm_data.is_some() {
+            #[cfg(feature = "OFED_5_4")]
+            unsafe {
+                *wr.__bindgen_anon_1.imm_data.as_mut() = imm_data.unwrap()
+            };
+
+            #[cfg(not(feature = "OFED_5_4"))]
+            {
+                wr.imm_data = imm_data.unwrap()
+            };
+            ibv_wr_opcode::IBV_WR_SEND_WITH_IMM
+        } else {
+            ibv_wr_opcode::IBV_WR_SEND
+        };
 
         let err = unsafe {
             (self.post_send_op)(
@@ -261,7 +381,7 @@ impl QueuePair {
 
         wr.wr_id = wr_id;
         wr.opcode = op;
-        wr.send_flags = send_flag;
+        wr.send_flags = send_flag as _;
         wr.num_sge = 1;
         wr.sg_list = &mut sge as *mut _;
 
@@ -313,8 +433,18 @@ impl QueuePair {
 
         wr.wr_id = wr_id;
         wr.opcode = op;
-        wr.send_flags = send_flag;
-        wr.imm_data = imm_data;
+        wr.send_flags = send_flag as _;
+
+        #[cfg(feature = "OFED_5_4")]
+        unsafe {
+            *wr.__bindgen_anon_1.imm_data.as_mut() = imm_data
+        };
+
+        #[cfg(not(feature = "OFED_5_4"))]
+        {
+            wr.imm_data = imm_data;
+        }
+
         wr.num_sge = 1;
         wr.sg_list = &mut sge as *mut _;
 
@@ -550,7 +680,7 @@ impl QueuePair {
                 timeout: self.timeout,
                 retry_cnt: self.retry_count,
                 rnr_retry: self.rnr_retry,
-                sq_psn: self.qp_num(),
+                sq_psn: 3185, //self.qp_num(), FIXME: a magic number 
                 max_rd_atomic: self.max_rd_atomic,
                 max_dest_rd_atomic: self.max_rd_atomic,
                 ..Default::default()

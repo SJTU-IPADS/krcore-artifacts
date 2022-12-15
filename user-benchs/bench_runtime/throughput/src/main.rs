@@ -41,7 +41,7 @@ struct Args {
     payload: u64,
 
     /// Server address to connect to
-    #[arg(long, default_value_t = ("127.0.0.1:8888".to_socket_addrs().unwrap().next().unwrap()))]
+    #[arg(long, default_value_t = ("127.0.0.1:10001".to_socket_addrs().unwrap().next().unwrap()))]
     addr: SocketAddr,
 
     /// Number of tasks you poll one round, between each round

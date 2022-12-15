@@ -1,0 +1,10 @@
+[[pass]]
+path = "./krcore/krcore/user-benchs/bench_server/target/release"
+host = "val01"
+cmd = './bench_server --addr="192.168.12.113:8888"'
+
+[[pass]]
+path = "~/"
+host = "val02"
+cmd = 'sleep 1; ./bench_rdma --addr "192.168.12.113:8888" --factor=12 --threads=12'
+

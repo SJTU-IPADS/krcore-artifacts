@@ -54,14 +54,14 @@ impl Context {
     }
 
     #[cfg(feature = "user")]
-    pub fn raw_ptr(&self) -> &NonNull<ibv_context> { 
+    pub fn raw_ptr(&self) -> &NonNull<ibv_context> {
         &self.ctx
     }
 
     #[cfg(feature = "kernel")]
-    pub fn raw_ptr(&self) -> &NonNull<ib_device> { 
+    pub fn raw_ptr(&self) -> &NonNull<ib_device> {
         self.get_dev_ref().raw_ptr()
-    }    
+    }
 
     #[allow(unused_variables)]
     pub fn new_from_flags(dev: &DeviceRef, mr_flags: i32) -> Result<ContextRef, ControlpathError> {
@@ -215,7 +215,14 @@ impl Context {
         #[cfg(feature = "user")]
         {
             let mut port_attr: ib_port_attr = Default::default();
-            let err = unsafe { ibv_query_port(self.ctx.as_ptr(), port_id, &mut port_attr as _) };
+            // we should do this ugly conversion to prevent errors of different RDMA versions
+            let err = unsafe {
+                ibv_query_port(
+                    self.ctx.as_ptr(),
+                    port_id,
+                    &mut port_attr as *mut ib_port_attr as u64 as _,
+                )
+            };
 
             if err != 0 {
                 return Err(Error::from_kernel_errno(err));

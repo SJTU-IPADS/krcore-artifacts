@@ -123,9 +123,7 @@ impl ConnectionManagerHandler for DefaultConnectionManagerHandler {
             .map_err(|_| CMError::InvalidArg("Failed to do deserialization", "".to_string()))?;
         let mut builder = QueuePairBuilder::new(&self.ctx);
         builder
-            .set_rnr_retry(data.rnr_retry_count)
             .set_port_num(self.port_num)
-            .set_max_send_wr(64) // not necessary to use a large WR: server QP is passive
             .allow_remote_rw()
             .allow_remote_atomic();
         let rc_qp = builder.build_rc().map_err(|_| {

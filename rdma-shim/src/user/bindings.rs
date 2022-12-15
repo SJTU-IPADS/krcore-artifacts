@@ -77,12 +77,22 @@ mod wrapper_types {
         pub const IB_QPT_RC: Type = IBV_QPT_RC;
         pub const IB_QPT_UC: Type = IBV_QPT_UC;
         pub const IB_QPT_UD: Type = IBV_QPT_UD;
+
+        #[cfg(feature = "dct")]
         pub const IB_QPT_XRC: Type = IBV_QPT_XRC;
+
+        #[cfg(feature = "dct")]
         pub const IB_QPT_RAW_PACKET: Type = IBV_QPT_RAW_PACKET;
+
+        #[cfg(feature = "dct")]
         pub const IB_QPT_RAW_ETH: Type = IBV_QPT_RAW_ETH;
         pub const IB_QPT_XRC_SEND: Type = IBV_QPT_XRC_SEND;
         pub const IB_QPT_XRC_RECV: Type = IBV_QPT_XRC_RECV;
+
+        #[cfg(feature = "dct")]
         pub const IB_EXP_QP_TYPE_START: Type = IBV_EXP_QP_TYPE_START;
+        
+        #[cfg(feature = "dct")]        
         pub const IB_EXP_QPT_DC_INI: Type = IBV_EXP_QPT_DC_INI;
     }
 

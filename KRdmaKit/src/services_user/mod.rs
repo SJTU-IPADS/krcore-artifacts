@@ -22,6 +22,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 use std::{io, thread};
+
 use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::net::tcp::WriteHalf;
 use tokio::net::{TcpListener, TcpStream};
@@ -185,6 +186,18 @@ impl<T: ConnectionManagerHandler + 'static> ConnectionManagerServer<T> {
                 .unwrap()
                 .block_on(server.listener_inner(addr, running_addr))
         })
+    }
+
+    pub fn blocking_listener(
+        self: &Arc<Self>,
+        addr: SocketAddr,
+        running: *mut bool,
+    ) -> io::Result<()> {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(self.listener_inner(addr, running as u64))
     }
 
     async fn listener_inner(

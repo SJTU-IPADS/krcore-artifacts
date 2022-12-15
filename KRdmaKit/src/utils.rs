@@ -23,3 +23,6 @@ pub fn convert_c_str_to_string<'s>(string: &'s [c_char]) -> String {
         }
     }
 }
+
+
+

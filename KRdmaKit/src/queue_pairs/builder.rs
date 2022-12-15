@@ -51,16 +51,16 @@ impl QueuePairBuilder {
             ctx: ctx.clone(),
             max_send_wr: 128,
             max_recv_wr: 2048,
-            max_cq_entries: 2048,
-            max_send_sge: 16,
+            max_cq_entries: 128,
+            max_send_sge: 1,
             max_recv_sge: 1,
             max_inline_data: 64,
             access: ib_access_flags::IB_ACCESS_LOCAL_WRITE,
-            path_mtu: ib_mtu::IB_MTU_512,
-            timeout: 10,
-            retry_count: 5,
-            rnr_retry: 5,
-            min_rnr_timer: 16,
+            path_mtu: ib_mtu::IB_MTU_4096,
+            timeout: 20,
+            retry_count: 7,
+            rnr_retry: 7,
+            min_rnr_timer: 20,
             max_rd_atomic: MAX_RD_ATOMIC as u8,
             pkey_index: 0,
             port_num: 1,
@@ -355,9 +355,10 @@ impl QueuePairBuilder {
             #[cfg(feature = "kernel")]
             sq_sig_type: ib_sig_type::IB_SIGNAL_REQ_WR,
 
-            qp_type: ib_qp_type::IB_QPT_RC as u32,
+            qp_type: ib_qp_type::IB_QPT_RC as _,
+            sq_sig_all : 0,
             send_cq: send.raw_ptr().as_ptr(),
-            recv_cq: recv.raw_ptr().as_ptr(),
+            recv_cq: recv.raw_ptr().as_ptr(),            
             ..Default::default()
         };
 

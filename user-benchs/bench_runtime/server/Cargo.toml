@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 KRdmaKit = { path = "../../../KRdmaKit", features = ["user", "rdma-runtime"] }
+ctrlc = "3.2.3"
