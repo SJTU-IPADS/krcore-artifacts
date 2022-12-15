@@ -28,7 +28,7 @@ pub struct RCConnectionData {
 #[allow(non_camel_case_types)]
 #[derive(Copy, Clone, Serialize, Deserialize, Debug)]
 pub struct ibv_gid_wrapper {
-    raw: [u64; 2usize],
+    pub raw: [u64; 2usize],
 }
 
 impl From<ib_gid> for ibv_gid_wrapper {
