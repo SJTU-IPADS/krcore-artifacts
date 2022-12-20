@@ -1,6 +1,8 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 pub(super) type TaskId = usize;
+
+/// [`TaskIdGenerator`] generates task_id in incremental sequence. Each worker has its own TaskIdGenerator.
 pub(super) struct TaskIdGenerator {
     next: AtomicUsize,
 }

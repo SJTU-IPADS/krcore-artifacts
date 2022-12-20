@@ -4,7 +4,7 @@ pub mod random;
 
 use std::borrow::Borrow;
 use std::cell::RefCell;
-use std::collections::BTreeSet;
+use std::collections::BTreeMap;
 use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
 use std::num::NonZeroU8;
@@ -13,7 +13,7 @@ use std::thread;
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 use KRdmaKit::runtime::waitable::{wait_on, WaitStatus, Waitable};
-use KRdmaKit::runtime::work_group::WorkerGroup;
+use KRdmaKit::runtime::worker_group::WorkerGroup;
 use KRdmaKit::{MemoryRegion, QueuePair, QueuePairBuilder, QueuePairStatus, UDriver};
 
 use clap::Parser;
@@ -66,7 +66,8 @@ static mut WORKER_GROUP: WorkerGroup = WorkerGroup::new();
 static mut RUNNING: bool = true;
 
 thread_local! {
-    static POLLED: RefCell<BTreeSet<u64>> = RefCell::new(BTreeSet::new());
+    static POLLED: RefCell<BTreeMap<u64, bool>> = RefCell::new(BTreeMap::new());
+    // static POLLED: RefCell<BTreeSet<u64>> = RefCell::new(BTreeSet::new());
 }
 
 struct RDMAWaitable {
@@ -78,12 +79,20 @@ unsafe impl Send for RDMAWaitable {}
 unsafe impl Sync for RDMAWaitable {}
 
 impl Waitable for RDMAWaitable {
-    fn wait_one_round(&self) -> WaitStatus {
+    fn wait_one_round(&mut self) -> WaitStatus {
         POLLED.with(|polled| {
             let mut polled = polled.borrow_mut();
-            if polled.remove(&self.wr_id) {
-                return WaitStatus::Ready;
+            match polled.remove(&self.wr_id) {
+                Some(flag) => {
+                    return if flag {
+                        WaitStatus::Ready
+                    } else {
+                        WaitStatus::Error
+                    }
+                }
+                None => {}
             }
+
             let mut completions = [Default::default(); 16];
             let completions = unsafe {
                 (*(self.qp))
@@ -91,19 +100,20 @@ impl Waitable for RDMAWaitable {
                     .expect("Poll CQ error")
             };
 
-            let mut ok = false;
+            let mut status = WaitStatus::Waiting;
             for wc in completions {
                 if wc.wr_id == self.wr_id {
-                    ok = true;
+                    if wc.status == 0 {
+                        status = WaitStatus::Ready
+                    } else {
+                        status = WaitStatus::Error
+                    }
                 } else {
-                    polled.insert(wc.wr_id);
+                    polled.insert(wc.wr_id, wc.status == 0);
                 }
             }
-            return if ok {
-                WaitStatus::Ready
-            } else {
-                WaitStatus::Waiting
-            };
+
+            return status;
         })
     }
 }
@@ -247,7 +257,7 @@ fn main() {
                         qp: Arc::as_ptr(&qp),
                         wr_id: task_id,
                     };
-                    wait_on(waitable).await;
+                    wait_on(waitable).await.unwrap();
                     (*(counter_addr as *mut Counter)).inner += 1;
                 }
             });
