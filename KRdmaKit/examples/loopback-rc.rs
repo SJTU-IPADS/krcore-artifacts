@@ -35,7 +35,8 @@ fn main() {
 
     let qpn = client_qp.inner_qp_num();
     let connected_qp = client_qp
-        .bring_up_rc(port_attr.lid as _, gid, qpn, qpn)
+        // FIXME : the rq_psn is a magic number
+        .bring_up_rc(port_attr.lid as _, gid, qpn, 3185)
         .expect("failed to bring up RC");
 
     println!("RC connection passes {:?}", connected_qp.status());
@@ -76,7 +77,10 @@ fn main() {
         }
     }
 
-    println!("sanity check ret {:?} wr_id {}", completions[0], completions[0].wr_id);
+    println!(
+        "sanity check ret {:?} wr_id {}",
+        completions[0], completions[0].wr_id
+    );
 
     let test_msg = (mr.get_virt_addr()) as *mut [u8; 11];
     let test_msg =

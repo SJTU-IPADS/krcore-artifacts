@@ -19,6 +19,8 @@ pub(super) fn set_current_task_id(task_id: TaskId) {
     TASK_ID.with(|tid| *tid.borrow_mut() = task_id)
 }
 
+/// A `Task` is a wrapper of a [`Future`] and a `TaskId` and a task is created when
+/// it is spawned to a [`crate::runtime::worker::Worker`]
 pub(super) struct Task {
     future: Pin<Box<dyn Future<Output = ()>>>,
     pub tid: TaskId,
@@ -46,6 +48,7 @@ impl Debug for Task {
     }
 }
 
+/// `TaskWaker` implements [`Wake`] and is used by workers to wake up tasks.
 pub(super) struct TaskWaker {
     task_id: TaskId,
     queue: Arc<ArrayQueue<TaskId>>,
@@ -59,6 +62,8 @@ impl TaskWaker {
         }))
     }
 
+    /// `wake_task` is simply pushing this task's tid to the scheduling queue so the
+    /// worker is able to poll this task in its main loop
     #[inline(always)]
     fn wake_task(&self) {
         self.queue.push(self.task_id).unwrap()
@@ -75,6 +80,8 @@ impl Wake for TaskWaker {
     }
 }
 
+/// `yield_now` enables a running task to give up the current position and
+///  schedule itself at the end of the scheduling queue
 pub async fn yield_now() {
     struct Yield {
         flag: bool,
