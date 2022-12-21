@@ -1,3 +1,0 @@
-# UAPI Header export list
-header-y += fpga_tools.h
-header-y += fpga.h
