@@ -164,12 +164,12 @@ esac
 
 #### 3.2 Rust related
 
-Install the rustup and the toolchain (version `nightly-2022-02-04`)
+Install the rustup and the toolchain (version `nightly-2023-01-07`)
 
 ```
 curl --proto '=https' --tlsv1.2 https://sh.rustup.rs -sSf | sh
 source $HOME/.cargo/env
-rustup default nightly-2022-02-04-x86_64-unknown-linux-gnu # switch to nightly-2022-02-04-aarch64-unknown-linux-gnu on ARM
+rustup default nightly-2023-01-07-x86_64-unknown-linux-gnu # switch to nightly-2023-01-07-aarch64-unknown-linux-gnu on ARM
 rustup component add rust-src
 ```
 
@@ -180,7 +180,7 @@ rustup toolchain list
 
 # The output result is supposed to be:
 #   stable-x86_64-unknown-linux-gnu
-#   nightly-2022-02-04-x86_64-unknown-linux-gnu (default)
+#   nightly-2023-01-07-x86_64-unknown-linux-gnu (default)
 ```
 
 ## 4. Validate if preparations are all done
