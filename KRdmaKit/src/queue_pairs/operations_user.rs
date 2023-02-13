@@ -699,3 +699,34 @@ impl QueuePair {
         Ok(())
     }
 }
+
+#[cfg(feature = "user")]
+impl QueuePair {
+    ///Post outer send_wr to qp's send queue
+    /// An outer send_wr is maintain by the application(i.e. the API caller).
+    /// Such API can support more flexible use of QP, like sending wrs in a doorbell.
+    pub fn post_send_wr(&self, wr: *mut ibv_send_wr) -> Result<(), DatapathError> {
+        let mut bad_wr: *mut ib_send_wr = null_mut();
+        let err = unsafe { (self.post_send_op)(self.inner_qp.as_ptr(), wr, &mut bad_wr as *mut _) };
+
+        if err != 0 {
+            Err(DatapathError::PostSendError(Error::from_kernel_errno(err)))
+        } else {
+            Ok(())
+        }
+    }
+
+    ///Post outer recv_wr to qp's recv queue
+    /// Similarily, an outer recv_wr is also maintain by the application.
+    /// This API is designed to support posting recv_wrs in a batching way.
+    pub fn post_recv_wr(&self, wr: *mut ibv_recv_wr) -> Result<(), DatapathError> {
+        let mut bad_wr: *mut ib_recv_wr = null_mut();
+        let err = unsafe { (self.post_recv_op)(self.inner_qp.as_ptr(), wr, &mut bad_wr as *mut _) };
+
+        if err != 0 {
+            Err(DatapathError::PostRecvError(Error::from_kernel_errno(err))) 
+        } else {
+            Ok(())
+        }
+    }
+}
