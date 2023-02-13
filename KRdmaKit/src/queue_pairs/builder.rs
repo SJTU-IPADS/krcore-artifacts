@@ -41,6 +41,30 @@ pub struct QueuePairBuilder {
 unsafe impl Send for QueuePairBuilder {}
 unsafe impl Sync for QueuePairBuilder {}
 
+impl Clone for QueuePairBuilder {
+    fn clone(&self) -> QueuePairBuilder {
+        QueuePairBuilder {
+            ctx: self.ctx.clone(),
+            max_send_wr: self.max_send_wr,
+            max_recv_wr: self.max_recv_wr,
+            max_cq_entries: self.max_cq_entries,
+            max_send_sge: self.max_send_sge,
+            max_recv_sge: self.max_recv_sge,
+            max_inline_data: self.max_inline_data,
+            access: self.access,
+            path_mtu: self.path_mtu,
+            timeout: self.timeout,
+            retry_count: self.retry_count,
+            rnr_retry: self.rnr_retry,
+            min_rnr_timer: self.min_rnr_timer,
+            max_rd_atomic: self.max_rd_atomic,
+            pkey_index: self.pkey_index,
+            port_num: self.port_num,
+            qkey: self.qkey,
+        }
+    }
+}
+
 impl QueuePairBuilder {
     /// Create a QueuePairBuilder with the given `Context` which stores the device,
     /// memory region and protection domain information.
