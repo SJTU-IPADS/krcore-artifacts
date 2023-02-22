@@ -5,7 +5,7 @@ use std::path::Path;
 
 fn main() {
     println!("cargo:rustc-link-lib=ibverbs");
-    println!("cargo:rustc-link-lib=pthread");
+    println!("cargo:rustc-link-lib=pthread");  
     
     let mut include_paths: Vec<String> = Vec::new();
 
@@ -18,9 +18,11 @@ fn main() {
 
     let include_args = include_paths.iter().map(|p| format!("-I{}", p));
 
+    println!("cargo:rerun-if-changed=src/bindings.h");
     let bindings = bindgen::Builder::default()
         .clang_args(include_args)
         .header("src/bindings.h")
+        .whitelist_function("bd_ibv_exp_query_device")
         .whitelist_function("ibv_.*")
         .whitelist_type("ibv_.*")
         .whitelist_function("rdma_.*")
@@ -110,6 +112,15 @@ fn main() {
         .disable_untagged_union()
         .generate()
         .expect("Unable to generate bindings");
+
+    if cfg!(feature = "exp") {        
+        let mut builder = cc::Build::new();
+        builder.compiler(env::var("CC").unwrap_or_else(|_| "clang".to_string()));
+        builder.warnings(false);
+        println!("cargo:rerun-if-changed=src/native/exp.c"); 
+        builder.file("src/native/exp.c");
+        builder.compile("helpers");
+    }
 
     let out_dir = env::var_os("OUT_DIR").unwrap();
     let dest_path = Path::new(&out_dir).join("bindings.rs");

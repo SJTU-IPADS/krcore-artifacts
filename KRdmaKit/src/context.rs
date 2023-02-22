@@ -186,6 +186,16 @@ impl Context {
 }
 
 impl Context {
+    #[cfg(feature = "exp")]
+    pub fn get_exp_device_attr(&self) -> KernelResult<ibv_exp_device_attr> {
+        let mut dev_attr: ibv_exp_device_attr = Default::default();
+        let err = unsafe { bd_ibv_exp_query_device(self.ctx.as_ptr(), &mut dev_attr as _) };
+        if err != 0 {
+            return Err(Error::from_kernel_errno(err));
+        }
+        Ok(dev_attr)
+    }
+
     /// get device attr
     pub fn get_device_attr(&self) -> KernelResult<ib_device_attr> {
         #[cfg(feature = "kernel")]

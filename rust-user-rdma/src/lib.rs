@@ -8,46 +8,46 @@ use no_std_net::Guid;
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
-impl Default for ibv_global_route { 
+impl Default for ibv_global_route {
     fn default() -> Self {
         unsafe { core::mem::zeroed() }
-    }    
+    }
 }
 
-impl Default for ibv_wc { 
+impl Default for ibv_wc {
     fn default() -> Self {
         unsafe { core::mem::zeroed() }
-    }    
+    }
 }
 
-impl Default for ibv_qp_cap { 
+impl Default for ibv_qp_cap {
     fn default() -> Self {
         unsafe { core::mem::zeroed() }
-    }    
+    }
 }
 
-impl Default for ibv_qp_init_attr { 
+impl Default for ibv_qp_init_attr {
     fn default() -> Self {
         unsafe { core::mem::zeroed() }
-    }    
+    }
 }
 
-impl Default for ibv_qp_attr { 
+impl Default for ibv_qp_attr {
     fn default() -> Self {
         unsafe { core::mem::zeroed() }
-    }    
+    }
 }
 
-impl Default for ibv_send_wr { 
+impl Default for ibv_send_wr {
     fn default() -> Self {
         unsafe { core::mem::zeroed() }
-    }    
+    }
 }
 
-impl Default for ibv_recv_wr { 
+impl Default for ibv_recv_wr {
     fn default() -> Self {
         unsafe { core::mem::zeroed() }
-    }    
+    }
 }
 
 impl Default for ibv_ah_attr {
@@ -56,25 +56,25 @@ impl Default for ibv_ah_attr {
     }
 }
 
-impl Default for ibv_device_attr { 
+impl Default for ibv_device_attr {
     fn default() -> Self {
         unsafe { core::mem::zeroed() }
     }
 }
 
-impl Default for ibv_port_attr { 
+impl Default for ibv_port_attr {
     fn default() -> Self {
         unsafe { core::mem::zeroed() }
     }
 }
 
-impl Default for ibv_gid { 
+impl Default for ibv_gid {
     fn default() -> Self {
         unsafe { core::mem::zeroed() }
     }
 }
 
-impl Default for ibv_srq_init_attr { 
+impl Default for ibv_srq_init_attr {
     fn default() -> Self {
         unsafe { core::mem::zeroed() }
     }
@@ -86,8 +86,18 @@ impl Default for ibv_mw_bind_info {
     }
 }
 
-impl core::fmt::Debug for ibv_wc {
+#[cfg(feature = "exp")]
+mod exp {
+    use super::ibv_exp_device_attr;
 
+    impl Default for ibv_exp_device_attr {
+        fn default() -> Self {
+            unsafe { core::mem::zeroed() }
+        }
+    }
+}
+
+impl core::fmt::Debug for ibv_wc {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("ibv_wc")
             .field("status", &self.status)
@@ -121,7 +131,7 @@ impl core::fmt::Debug for ibv_port_attr {
 }
 
 impl core::fmt::Debug for ibv_gid {
-    /// print the gid, refer to 
+    /// print the gid, refer to
     /// https://www.rdmamojo.com/2012/08/02/ibv_query_gid/
     fn fmt(&self, fmt: &mut ::core::fmt::Formatter) -> core::fmt::Result {
         let guid = Guid::new_u8(unsafe { &self.raw.as_ref() });

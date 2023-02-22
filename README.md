@@ -10,10 +10,16 @@ which builds on the first part.
 
 Crate location: `./KRdmaKit`.
 
-The goals of this part is:
+This library provides the following functionalities: 
 1. Simplify building RDMA-based applications with rust.
 2. Using rust to manage all the (local) lifecycles of RDMA resources (e.g., QP) in a safe and transparent way.
 3. A unified codebase to build RDMA-enabled applications both in the kernel-space and user-space.
+
+See the  [quickstart](docs/quickstart.md)  doc for how to use it in the user space! 
+
+---
+
+
 
 ## Kernel-space support for fast RDMA connections
 
