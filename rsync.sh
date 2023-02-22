@@ -20,7 +20,7 @@ do
         $PWD/rust-user-rdma \
         $PWD/rust-kernel-rdma \
         $PWD/testlib \
-        $PWD/include 
+        $PWD/include \
         $PWD/exp  \
         $PWD/exp_scripts \
         $user@$machine:/home/${user}/${path} \
