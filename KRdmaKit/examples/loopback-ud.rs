@@ -116,9 +116,9 @@ fn main() {
         .expect("failed to poll recv CQ");
     assert!(res.len() > 0);
 
-    let GRH_SZ = 40; // UD will send an additional header ahead of the message
+    const GRH_SZ: u64 = 40; // UD will send an additional header ahead of the message
     let received_message = (mr.get_virt_addr() + 1024 + GRH_SZ) as *mut [u8; 11];
-    let received_message = std::str::from_utf8(unsafe { & *received_message })
+    let received_message = std::str::from_utf8(unsafe { &*received_message })
         .expect("failed to decode received message");
 
     println!("check received message: {}", received_message);

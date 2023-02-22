@@ -16,6 +16,6 @@ kernel = ["rust-kernel-rdma-base"]
 dct = ["rust-kernel-rdma-base/dct"]
 user = ["rust-user-rdma", "libc", "log"]
 OFED_5_4 = ["rust-user-rdma/OFED_5_4"]
-
+exp = ["rust-user-rdma/exp"]
 
 

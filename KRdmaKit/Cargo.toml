@@ -35,6 +35,7 @@ dct = ["rdma-shim/dct"]
 kernel = ["rdma-shim/kernel"]
 user = ["rdma-shim/user", "tokio", "serde", "serde_derive", "serde_json", "bytes", "async-trait"]
 OFED_5_4 = ["rdma-shim/OFED_5_4"]
+exp = ["rdma-shim/exp"]
 rdma-runtime = []
 profile = []
 

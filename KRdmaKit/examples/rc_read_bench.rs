@@ -1,4 +1,3 @@
-use nix::libc::truncate;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::thread;
@@ -19,11 +18,11 @@ fn main() {
     {
         let addr: SocketAddr = "127.0.0.1:10001".parse().expect("Failed to resolve addr");
         let running = Box::into_raw(Box::new(true));
-        let handle = func::spawn_server_thread(addr, running);
+        let (server, handle) = func::spawn_server_thread(addr);
         thread::sleep(Duration::from_millis(300));
         func::client_thread(addr);
         thread::sleep(Duration::from_millis(100));
-        unsafe { *running = false };
+        server.stop_listening();
         let _ = handle.join();
         println!("\nServer Exit!!");
         unsafe { Box::from_raw(running) };
@@ -41,8 +40,10 @@ pub mod func {
 
     pub fn spawn_server_thread(
         addr: SocketAddr,
-        running: *mut bool,
-    ) -> JoinHandle<std::io::Result<()>> {
+    ) -> (
+        Arc<ConnectionManagerServer<DefaultConnectionManagerHandler>>,
+        JoinHandle<std::io::Result<()>>,
+    ) {
         let ctx = UDriver::create()
             .expect("failed to query device")
             .devices()
@@ -55,9 +56,8 @@ pub mod func {
         let server_mr_1 = MemoryRegion::new(ctx.clone(), 1024).expect("Failed to allocate MR");
         handler.register_mr(vec![("MR1".to_string(), server_mr_1)]);
         let server = ConnectionManagerServer::new(handler);
-        let handle = server.spawn_listener(addr, running);
-        let handler = server.handler();
-        return handle;
+        let joinable = server.spawn_listener(addr);
+        (server, joinable)
     }
 
     pub fn client_thread(addr: SocketAddr) {

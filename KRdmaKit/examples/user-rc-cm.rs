@@ -18,11 +18,11 @@ fn main() {
     {
         let addr: SocketAddr = "127.0.0.1:10001".parse().expect("Failed to resolve addr");
         let running = Box::into_raw(Box::new(true));
-        let handle = func::spawn_server_thread(addr, running);
+        let (server, handle) = func::spawn_server_thread(addr);
         thread::sleep(Duration::from_millis(300));
         func::client_ops(addr);
         thread::sleep(Duration::from_millis(100));
-        unsafe { *running = false };
+        server.stop_listening();
         let _ = handle.join();
         println!("\nServer Exit!!");
         unsafe { Box::from_raw(running) };
@@ -33,14 +33,17 @@ fn main() {
 pub mod func {
     use std::net::SocketAddr;
     use std::str::from_utf8;
+    use std::sync::Arc;
     use std::thread::JoinHandle;
     use KRdmaKit::services_user::{ConnectionManagerServer, DefaultConnectionManagerHandler};
     use KRdmaKit::{MemoryRegion, QueuePairBuilder, QueuePairStatus, UDriver};
 
     pub fn spawn_server_thread(
         addr: SocketAddr,
-        running: *mut bool,
-    ) -> JoinHandle<std::io::Result<()>> {
+    ) -> (
+        Arc<ConnectionManagerServer<DefaultConnectionManagerHandler>>,
+        JoinHandle<std::io::Result<()>>,
+    ) {
         let ctx = UDriver::create()
             .expect("failed to query device")
             .devices()
@@ -59,8 +62,8 @@ pub mod func {
         ]);
         let server = ConnectionManagerServer::new(handler);
         unsafe { (*buf).clone_from_slice("Hello world".as_bytes()) };
-        let handle = server.spawn_listener(addr, running);
-        return handle;
+        let handle = server.spawn_listener(addr);
+        return (server, handle);
     }
 
     pub fn client_ops(addr: SocketAddr) {

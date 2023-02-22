@@ -56,3 +56,4 @@ mod tests {
         assert!(!devices.is_null());    
     }
 }
+

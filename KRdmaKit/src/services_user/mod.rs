@@ -145,13 +145,18 @@ mod tests {
             .expect("no rdma device available")
             .open_context()
             .expect("failed to create RDMA context");
+        let addr: SocketAddr = "127.0.0.1:10001".parse().expect("Failed to resolve addr");
         let handler = DefaultConnectionManagerHandler::new(&ctx, 1);
-        let server = ConnectionManagerServer::new(Arc::new(handler));
+        let server = ConnectionManagerServer::new(handler);
+        let joinable = server.spawn_listener(addr);
+        server.stop_listening();
+        let _ = joinable.join().unwrap();
     }
 }
 
 pub struct ConnectionManagerServer<T: ConnectionManagerHandler> {
     handler: T,
+    running: *mut bool,
 }
 
 unsafe impl<T: ConnectionManagerHandler> Send for ConnectionManagerServer<T> {}
@@ -163,7 +168,8 @@ impl<T: ConnectionManagerHandler + 'static> ConnectionManagerServer<T> {
     ///
     /// To make the server work, call `ConnectionManagerServer::spawn_rc_server`.
     pub fn new(handler: T) -> Arc<Self> {
-        Arc::new(Self { handler })
+        let running = Box::into_raw(Box::new(true));
+        Arc::new(Self { handler, running })
     }
 
     /// Spawn an listening thread to accept TCP connection and to handle RC-QP connection by this TCP stream.
@@ -175,10 +181,9 @@ impl<T: ConnectionManagerHandler + 'static> ConnectionManagerServer<T> {
     pub fn spawn_listener(
         self: &Arc<Self>,
         addr: SocketAddr,
-        running: *mut bool,
     ) -> thread::JoinHandle<io::Result<()>> {
         let server = self.clone();
-        let running_addr = running as u64;
+        let running_addr = self.running as u64;
         thread::spawn(move || {
             tokio::runtime::Builder::new_current_thread()
                 .enable_all()
@@ -188,11 +193,12 @@ impl<T: ConnectionManagerHandler + 'static> ConnectionManagerServer<T> {
         })
     }
 
-    pub fn blocking_listener(
-        self: &Arc<Self>,
-        addr: SocketAddr,
-        running: *mut bool,
-    ) -> io::Result<()> {
+    pub fn stop_listening(&self) {
+        unsafe { *(self.running) = false }
+    }
+
+    pub fn blocking_listener(self: &Arc<Self>, addr: SocketAddr) -> io::Result<()> {
+        let running = self.running;
         tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
