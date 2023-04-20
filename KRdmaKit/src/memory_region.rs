@@ -8,7 +8,7 @@ use core::ptr::NonNull;
 
 use alloc::boxed::Box;
 use alloc::sync::Arc;
-use nix::libc::*;
+use libc::*;
 use std::ptr::null_mut;
 
 use crate::context::Context;

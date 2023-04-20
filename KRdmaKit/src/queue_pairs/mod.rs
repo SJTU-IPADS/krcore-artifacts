@@ -18,6 +18,11 @@ pub use crate::queue_pairs::endpoint::DatagramEndpoint;
 #[allow(unused_imports)]
 use crate::CMError;
 
+#[cfg(feature = "user")]
+pub mod doorbell_helper;
+#[cfg(feature = "user")]
+pub use doorbell_helper::*;
+
 /// Queue pair builders
 pub mod builder;
 pub use builder::{PreparedQueuePair, QueuePairBuilder};
