@@ -23,7 +23,7 @@ static mut RKEY: u32 = 0;
 fn main() {
     let addr: SocketAddr = "127.0.0.1:10001".parse().expect("Failed to resolve addr");
     let running = Box::into_raw(Box::new(true));
-    let (server, handle_1) = spawn_server_thread(addr, running);
+    let (server, handle_1) = spawn_server_thread(addr);
     let running_addr = running as u64;
     let handle_2 = server_mw(server, running_addr);
     sleep(Duration::from_millis(300));
@@ -42,7 +42,7 @@ pub fn server_mw(
     spawn(move || {
         let handler = server.handler();
         let ctx = handler.ctx();
-        let mr = MemoryRegion::new(ctx.clone(), 4096).expect("Failed to allocate MR");
+        let mr = MemoryRegion::new(ctx.clone(), 1024 * 1024 * 1024 * 2).expect("Failed to allocate MR");
         let buf = mr.get_virt_addr() as *mut [u8; 11];
         unsafe { (*buf).clone_from_slice("Hello world".as_bytes()) };
 
@@ -57,7 +57,8 @@ pub fn server_mw(
 
         println!("=================BIND MW====================");
         let mw = MemoryWindow::new(ctx.clone(), MWType::Type1).unwrap();
-        qp.bind_mw(&mr, &mw, 0..2048, 30, true).unwrap();
+        qp.bind_mw(&mr, &mw, 0..(mr.capacity() as _), 30, true)
+            .unwrap();
 
         loop {
             let ret = qp
@@ -81,6 +82,7 @@ pub fn server_mw(
             yield_now();
         }
 
+        server.stop_listening();
         drop(mw);
         drop(mr);
     })
@@ -116,7 +118,6 @@ impl UserDefinedHandler {
 
 pub fn spawn_server_thread(
     addr: SocketAddr,
-    running: *mut bool,
 ) -> (
     Arc<ConnectionManagerServer<UserDefinedHandler>>,
     JoinHandle<std::io::Result<()>>,
@@ -131,7 +132,7 @@ pub fn spawn_server_thread(
     let server = ConnectionManagerServer::new(UserDefinedHandler {
         inner: DefaultConnectionManagerHandler::new(&ctx, 1),
     });
-    let handle = server.spawn_listener(addr, running);
+    let handle = server.spawn_listener(addr);
     return (server, handle);
 }
 
