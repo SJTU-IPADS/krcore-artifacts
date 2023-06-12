@@ -44,16 +44,16 @@ Since KRCore is a kernel-space solution with RDMA, we should first build KRCore 
 If you use KRCore in your research, please kindly cite our paper: 
 
    @inproceedings {krcoreatc22,
-      author = {Xingda Wei and Fangming Lu and Rong Chen and Haibo Chen},
-      title = {{KRCORE}: A Microsecond-scale {RDMA} Control Plane for Elastic Computing},
-      booktitle = {2022 USENIX Annual Technical Conference (USENIX ATC 22)},
-      year = {2022},
-      isbn = {978-1-939133-29-42},
-      address = {Carlsbad, CA},
-      pages = {121--136},
-      url = {https://www.usenix.org/conference/atc22/presentation/wei},
-      publisher = {USENIX Association},
-      month = jul,
+   author = {Xingda Wei and Fangming Lu and Rong Chen and Haibo Chen},
+   title = {{KRCORE}: A Microsecond-scale {RDMA} Control Plane for Elastic Computing},
+   booktitle = {2022 USENIX Annual Technical Conference (USENIX ATC 22)},
+   year = {2022},
+   isbn = {978-1-939133-29-42},
+   address = {Carlsbad, CA},
+   pages = {121--136},
+   url = {https://www.usenix.org/conference/atc22/presentation/wei},
+   publisher = {USENIX Association},
+   month = jul,
    }
 
 ## Getting Started Instructions for the Performance evaluations 
