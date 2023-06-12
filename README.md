@@ -19,8 +19,6 @@ See the  [quickstart](docs/quickstart.md)  doc for how to use it in the user spa
 
 ---
 
-
-
 ## Kernel-space support for fast RDMA connections
 
 Crate location: `./KRdmaKit-syscall`.
@@ -39,7 +37,26 @@ Since KRCore is a kernel-space solution with RDMA, we should first build KRCore 
 - [ ] revise system call layer to the new KRdmaKit API
 - [ ] support cross-communication between user and kernel
 
-## Getting Started Instructions
+##
+
+---
+
+If you use KRCore in your research, please kindly cite our paper: 
+
+   @inproceedings {krcoreatc22,
+      author = {Xingda Wei and Fangming Lu and Rong Chen and Haibo Chen},
+      title = {{KRCORE}: A Microsecond-scale {RDMA} Control Plane for Elastic Computing},
+      booktitle = {2022 USENIX Annual Technical Conference (USENIX ATC 22)},
+      year = {2022},
+      isbn = {978-1-939133-29-42},
+      address = {Carlsbad, CA},
+      pages = {121--136},
+      url = {https://www.usenix.org/conference/atc22/presentation/wei},
+      publisher = {USENIX Association},
+      month = jul,
+   }
+
+## Getting Started Instructions for the Performance evaluations 
 
 **Overview of roles of machines involved in the evaluations**
 
@@ -125,3 +142,5 @@ We focus on the reproducing of these figures---others are similar in principle (
 ## Instructions for re-producing results
 
 See [exp.md](docs/exp.md) for more information. (in `${PROJECT_PATH}`)
+
+
