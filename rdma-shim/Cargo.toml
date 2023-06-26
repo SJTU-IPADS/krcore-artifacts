@@ -6,14 +6,14 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rust-kernel-rdma-base = { path = "../rust-kernel-rdma/rust-kernel-rdma-base", optional = true}
+# rust-kernel-rdma-base = { path = "../rust-kernel-rdma/rust-kernel-rdma-base", optional = true}
 rust-user-rdma = {path = "../rust-user-rdma", optional = true}
 libc = {version = "0.2.0", optional = true}
 log = {version = "0.4", optional = true, features = ["max_level_debug", "release_max_level_info"]}
 
 [features]
-kernel = ["rust-kernel-rdma-base"]
-dct = ["rust-kernel-rdma-base/dct"]
+# kernel = ["rust-kernel-rdma-base"]
+# dct = ["rust-kernel-rdma-base/dct"]
 user = ["rust-user-rdma", "libc", "log"]
 OFED_5_4 = ["rust-user-rdma/OFED_5_4"]
 exp = ["rust-user-rdma/exp"]
