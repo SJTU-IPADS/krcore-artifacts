@@ -36,7 +36,7 @@ fn main() {
     let qpn = client_qp.inner_qp_num();
     let connected_qp = client_qp
         // FIXME : the rq_psn is a magic number
-        .bring_up_rc(port_attr.lid as _, gid, qpn, 3185)
+        .bring_up_rc(port_attr.lid as _, gid, qpn, qpn)
         .expect("failed to bring up RC");
 
     println!("RC connection passes {:?}", connected_qp.status());

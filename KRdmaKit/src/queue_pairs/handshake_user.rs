@@ -56,8 +56,7 @@ impl PreparedQueuePair {
             lid,
             gid: ibv_gid_wrapper::from(gid),
             qpn: rc_qp.qp_num(),
-            // starting_psn: rc_qp.qp_num(),
-            starting_psn : 3185, // FIXME: a magic number to refine 
+            starting_psn: rc_qp.qp_num(),
             rnr_retry_count: self.retry_count,
             rc_key: 0,
         };
