@@ -680,7 +680,7 @@ impl QueuePair {
                 timeout: self.timeout,
                 retry_cnt: self.retry_count,
                 rnr_retry: self.rnr_retry,
-                sq_psn: 3185, //self.qp_num(), FIXME: a magic number 
+                sq_psn: self.qp_num(),
                 max_rd_atomic: self.max_rd_atomic,
                 max_dest_rd_atomic: self.max_rd_atomic,
                 ..Default::default()

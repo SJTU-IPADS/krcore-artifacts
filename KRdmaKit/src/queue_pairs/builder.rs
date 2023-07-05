@@ -774,7 +774,7 @@ mod tests {
             .expect("Query port attr 1 at device 0 error");
 
         let _connected_qp = client_qp
-            .bring_up_rc(port_attr.lid as _, gid, inner_qpn, 0)
+            .bring_up_rc(port_attr.lid as _, gid, inner_qpn, inner_qpn)
             .expect("failed to bring up RC");
     }
 }
