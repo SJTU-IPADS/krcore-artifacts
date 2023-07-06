@@ -116,8 +116,8 @@ impl CMMessage {
         serde_json::to_vec(self).unwrap()
     }
 
-    pub fn deserialization(raw: &[u8]) -> Result<Self, CMError> {
-        Ok(serde_json::from_slice(raw).map_err(|_| CMError::Creation(0))?)
+    pub fn deserialization(raw: &[u8]) -> Result<Self, serde_json::Error> {
+        serde_json::from_slice(raw)
     }
 }
 
@@ -237,7 +237,8 @@ impl<T: ConnectionManagerHandler + 'static> ConnectionManagerServer<T> {
                 return Ok(());
             }
 
-            let message = CMMessage::deserialization(&buf[0..bytes_read])?;
+            let message = CMMessage::deserialization(&buf[0..bytes_read])
+                .map_err(|_| CMError::Creation(0))?;
 
             let msg_type = message.message_type;
             let raw = message.serialized;
