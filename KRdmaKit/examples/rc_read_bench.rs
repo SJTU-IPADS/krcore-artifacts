@@ -25,7 +25,7 @@ fn main() {
         server.stop_listening();
         let _ = handle.join();
         println!("\nServer Exit!!");
-        unsafe { Box::from_raw(running) };
+        let _ = unsafe { Box::from_raw(running) };
     }
 }
 

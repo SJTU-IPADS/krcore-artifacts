@@ -15,8 +15,6 @@ static mut NIC_IDX: usize = 0;
 static mut RANDOM_SPACE_K: usize = 10; // 10KB
 static mut HUGEPAGE: bool = true;
 
-static mut RUNNING: bool = true;
-
 fn main() {
     let matches = App::new("Performance Test")
         .version("0.1")
@@ -84,11 +82,12 @@ pub fn main_inner(idx: usize, addr: SocketAddr) {
     handler.register_mr(vec![("MR".to_string(), server_mr)]);
     let server = ConnectionManagerServer::new(handler);
 
+    let server1 = server.clone();
     ctrlc::set_handler(move || {
-        unsafe { RUNNING = false };
+        server1.stop_listening();
+        println!("Exit");
     })
     .expect("Error setting Ctrl-C handler");
-    let running = unsafe { &mut RUNNING as *mut bool };
-    let _ = server.blocking_listener(addr, running);
-    println!("Exit");
+
+    let _ = server.blocking_listener(addr);
 }
