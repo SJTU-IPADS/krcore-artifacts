@@ -1,6 +1,8 @@
 #[allow(non_snake_case)]
-extern crate KRdmaKit;
+#[cfg(not(feature = "user"))]
+compile_error!("This example must run with feature `user` on");
 
+extern crate KRdmaKit;
 use KRdmaKit::*;
 
 fn main() {

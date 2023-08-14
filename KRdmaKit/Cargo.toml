@@ -31,8 +31,8 @@ pin-utils = "0.1.0"
 core_affinity = "0.7.2"
 
 [features]
-# dct = ["rdma-shim/dct"]
-# kernel = ["rdma-shim/kernel"]
+dct = ["rdma-shim/dct"]
+kernel = ["rdma-shim/kernel"]
 user = ["rdma-shim/user", "tokio", "serde", "serde_derive", "serde_json", "bytes", "async-trait"]
 OFED_5_4 = ["rdma-shim/OFED_5_4"]
 exp = ["rdma-shim/exp"]

@@ -1,3 +1,6 @@
+#[cfg(not(feature = "user"))]
+compile_error!("This example must run with feature `user` on");
+
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::thread;
@@ -11,25 +14,18 @@ pub struct MRMetadata {
 }
 
 fn main() {
-    #[cfg(not(feature = "user"))]
-    println!("This example must run with feature `user` on");
-
-    #[cfg(feature = "user")]
-    {
-        let addr: SocketAddr = "127.0.0.1:10001".parse().expect("Failed to resolve addr");
-        let running = Box::into_raw(Box::new(true));
-        let (server, handle) = func::spawn_server_thread(addr);
-        thread::sleep(Duration::from_millis(300));
-        func::client_ops(addr);
-        thread::sleep(Duration::from_millis(100));
-        server.stop_listening();
-        let _ = handle.join();
-        println!("\nServer Exit!!");
-        let _ = unsafe { Box::from_raw(running) };
-    }
+    let addr: SocketAddr = "127.0.0.1:10001".parse().expect("Failed to resolve addr");
+    let running = Box::into_raw(Box::new(true));
+    let (server, handle) = func::spawn_server_thread(addr);
+    thread::sleep(Duration::from_millis(300));
+    func::client_ops(addr);
+    thread::sleep(Duration::from_millis(100));
+    server.stop_listening();
+    let _ = handle.join();
+    println!("\nServer Exit!!");
+    let _ = unsafe { Box::from_raw(running) };
 }
 
-#[cfg(feature = "user")]
 pub mod func {
     use std::net::SocketAddr;
     use std::str::from_utf8;
