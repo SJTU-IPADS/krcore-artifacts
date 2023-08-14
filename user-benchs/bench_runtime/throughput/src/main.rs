@@ -1,22 +1,20 @@
 #![feature(thread_id_value)]
+#![allow(unused_parens)]
 
 pub mod random;
 
-use std::borrow::Borrow;
-use std::cell::RefCell;
-use std::collections::BTreeMap;
 use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
 use std::num::NonZeroU8;
-use std::sync::Arc;
 use std::thread;
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 use KRdmaKit::runtime::waitable::{wait_on, WaitStatus, Waitable};
-use KRdmaKit::runtime::worker_group::WorkerGroup;
-use KRdmaKit::{MemoryRegion, QueuePair, QueuePairBuilder, QueuePairStatus, UDriver};
+use KRdmaKit::{MemoryRegion, QueuePairBuilder, QueuePairStatus, UDriver};
 
 use clap::Parser;
+
+static mut RUNNING: bool = true;
 
 #[derive(Parser, Debug)]
 #[command(name = "Throughput Benchmark")]
@@ -25,19 +23,19 @@ use clap::Parser;
 #[command(about = "Set throughput bench arguments", long_about = None)]
 struct Args {
     /// Lasting time of the reporter thread (second)
-    #[arg(long, default_value_t = 15)]
+    #[arg(long, default_value_t = 7)]
     lasting_time: u64,
 
     /// Number of worker threads you want to start
-    #[arg(long, default_value_t = 10)]
+    #[arg(long, default_value_t = 1)]
     thread_num: usize,
 
     /// Number of tasks you commit to each worker
-    #[arg(long, default_value_t = 10)]
+    #[arg(long, default_value_t = 3)]
     task_per_thread: usize,
 
     /// RDMA read/write payload length (byte)
-    #[arg(long, default_value_t = 8)]
+    #[arg(long, default_value_t = 1024)]
     payload: u64,
 
     /// Server address to connect to
@@ -62,12 +60,24 @@ impl Counter {
     }
 }
 
-static mut WORKER_GROUP: WorkerGroup = WorkerGroup::new();
-static mut RUNNING: bool = true;
+use std::borrow::Borrow;
+use std::{cell::RefCell, collections::BTreeMap, sync::Arc};
+use KRdmaKit::QueuePair;
+
+pub use KRdmaKit::runtime::worker_group::WorkerGroup;
+pub static mut WORKER_GROUP: WorkerGroup = WorkerGroup::new();
+
+/// Wait for a RDMA operation with a specific wr_id to complete in async code
+pub(crate) async fn async_wait(qp: &Arc<QueuePair>, wr_id: u64) -> Result<(), ()> {
+    let waitable = RDMAWaitable {
+        qp: qp.borrow() as *const QueuePair,
+        wr_id,
+    };
+    wait_on(waitable).await
+}
 
 thread_local! {
     static POLLED: RefCell<BTreeMap<u64, bool>> = RefCell::new(BTreeMap::new());
-    // static POLLED: RefCell<BTreeSet<u64>> = RefCell::new(BTreeSet::new());
 }
 
 struct RDMAWaitable {
@@ -94,22 +104,32 @@ impl Waitable for RDMAWaitable {
             }
 
             let mut completions = [Default::default(); 16];
-            let completions = unsafe {
-                (*(self.qp))
-                    .poll_send_cq(&mut completions)
-                    .expect("Poll CQ error")
+            let completions = unsafe { (&*(self.qp)).poll_send_cq(&mut completions) };
+
+            let completions = match completions {
+                Ok(c) => c,
+                Err(_) => {
+                    println!("{}:{} poll_send_cq failed", file!(), line!());
+                    return WaitStatus::Error;
+                }
             };
 
             let mut status = WaitStatus::Waiting;
+
             for wc in completions {
-                if wc.wr_id == self.wr_id {
-                    if wc.status == 0 {
-                        status = WaitStatus::Ready
+                if wc.status == 0 {
+                    if wc.wr_id == self.wr_id {
+                        status = WaitStatus::Ready;
                     } else {
-                        status = WaitStatus::Error
+                        polled.insert(wc.wr_id, true);
                     }
                 } else {
-                    polled.insert(wc.wr_id, wc.status == 0);
+                    println!("wr_id: 0x{:016x}, status: {}", wc.wr_id, wc.status);
+                    if wc.wr_id == self.wr_id {
+                        status = WaitStatus::Error;
+                    } else {
+                        polled.insert(wc.wr_id, false);
+                    }
                 }
             }
 
@@ -242,22 +262,16 @@ fn main() {
                     random::FastRandom::new(0xdeadbeaf + task_id * 64 + thread_id * 1024);
                 while RUNNING {
                     let r = rand.get_next();
-                    let start = r % 4000;
-                    let off = r % 50000;
+                    let off = r % (1024 * 1000);
                     let _ = qp.post_send_read(
                         client_mr.borrow(),
-                        start..(start + payload),
+                        0..payload,
                         true,
                         addr + off as u64,
                         rkey,
                         task_id,
                     );
-                    // TODO : implement Waitable
-                    let waitable = RDMAWaitable {
-                        qp: Arc::as_ptr(&qp),
-                        wr_id: task_id,
-                    };
-                    wait_on(waitable).await.unwrap();
+                    async_wait(&qp, task_id).await.unwrap();
                     (*(counter_addr as *mut Counter)).inner += 1;
                 }
             });
@@ -274,6 +288,6 @@ fn main() {
 
     let _ = handle.join();
     for i in counters.into_iter() {
-        unsafe { Box::from_raw(i as *mut Counter) };
+        let _ = unsafe { Box::from_raw(i as *mut Counter) };
     }
 }

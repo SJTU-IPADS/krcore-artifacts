@@ -1,6 +1,9 @@
 #[allow(non_snake_case)]
+#[cfg(not(feature = "user"))]
+compile_error!("This example must run with feature `user` on");
+
 extern crate KRdmaKit;
-use KRdmaKit::{queue_pairs::RcDoorbellHelper, *};
+use KRdmaKit::{queue_pairs::RcDoorbellHelper, MemoryRegion, QueuePairBuilder, UDriver};
 
 fn main() {
     let mut doorbell_helper = RcDoorbellHelper::create(32);
@@ -36,7 +39,6 @@ fn main() {
 
     let qpn = client_qp.inner_qp_num();
     let connected_qp = client_qp
-        // FIXME : the rq_psn is a magic number
         .bring_up_rc(port_attr.lid as _, gid, qpn, qpn)
         .expect("failed to bring up RC");
 

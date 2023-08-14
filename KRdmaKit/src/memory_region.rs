@@ -317,7 +317,7 @@ impl Drop for MemoryRegion {
             }
 
             // will just free it
-            unsafe { Box::from_raw(self.data) };
+            let _ = unsafe { Box::from_raw(self.data) };
         }
     }
 }

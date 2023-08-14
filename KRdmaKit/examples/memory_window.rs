@@ -1,3 +1,6 @@
+#[cfg(not(feature = "user"))]
+compile_error!("This example must run with feature `user` on");
+
 use std::net::SocketAddr;
 use std::str::from_utf8;
 use std::sync::Arc;
@@ -32,7 +35,7 @@ fn main() {
     unsafe { *running = false };
     let _ = handle_1.join();
     let _ = handle_2.join();
-    unsafe { Box::from_raw(running) };
+    let _ = unsafe { Box::from_raw(running) };
 }
 
 pub fn server_mw(
@@ -42,7 +45,8 @@ pub fn server_mw(
     spawn(move || {
         let handler = server.handler();
         let ctx = handler.ctx();
-        let mr = MemoryRegion::new(ctx.clone(), 1024 * 1024 * 1024 * 2).expect("Failed to allocate MR");
+        let mr =
+            MemoryRegion::new(ctx.clone(), 1024 * 1024 * 1024 * 2).expect("Failed to allocate MR");
         let buf = mr.get_virt_addr() as *mut [u8; 11];
         unsafe { (*buf).clone_from_slice("Hello world".as_bytes()) };
 
