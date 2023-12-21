@@ -19,7 +19,7 @@ KRdmaKit = { path = "../../rust-kernel-rdma/KRdmaKit", optional = true, features
 rust-kernel-linux-util = {path = "../../rust-kernel-rdma/rust-kernel-linux-util",optional = true, features=["static_log_check","max_level_info"]}
 krdma-test = {path = "../../rust-kernel-rdma/krdma-test",optional = true}
 krdmakit-macros = {path = "../../krdmakit-macros", optional = true}
-hashbrown = "0.9"
+hashbrown = { git = "https://github.com/ProjectMitosisOS/hashbrown.git", branch = "main" }
 thiserror-no-std = "2.0.2"
 
 ## lazy static

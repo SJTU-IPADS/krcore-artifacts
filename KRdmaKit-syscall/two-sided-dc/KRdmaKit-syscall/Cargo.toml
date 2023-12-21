@@ -22,7 +22,7 @@ dct_qp = []
 
 [dependencies]
 KRdmaKit = { path = "../KRdmaKit", optional = true, features = ["dct"] }
-hashbrown = "0.9"
+hashbrown = { git = "https://github.com/ProjectMitosisOS/hashbrown.git", branch = "main" }
 no-std-net = { path = "../deps/no-std-net" }
 
 [build-dependencies]

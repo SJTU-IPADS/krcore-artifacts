@@ -5,17 +5,17 @@ authors = ["Xingda Wei <wxdwfc@gmail.com>", "Fangming Lu", "Haotian Wang"]
 edition = "2018"
 
 [dependencies]
-rdma-shim = {path = "../rdma-shim"}
+rdma-shim = { path = "../rdma-shim" }
 no-std-net = { path = "../rust-kernel-rdma/deps/no-std-net" }
 libc = "0.2.58"
 nostd_async = "0.3.1"
 futures-micro = "0.4"
 ## spinlock
-spin = "0.9.2"           ## spin lock
-hashbrown = "0.9"
+spin = "0.9.2"                                                                             ## spin lock
+hashbrown = { git = "https://github.com/ProjectMitosisOS/hashbrown.git", branch = "main" }
 thiserror-no-std = "2.0.2"
 delegate = "*"
-tokio = { version = "1.20.1", optional = true, features = ["full"]}
+tokio = { version = "1.20.1", optional = true, features = ["full"] }
 serde = { version = "1.0.144", optional = true }
 serde_derive = { version = "1.0.144", optional = true }
 serde_json = { version = "1.0.85", optional = true }
@@ -33,7 +33,15 @@ core_affinity = "0.7.2"
 [features]
 dct = ["rdma-shim/dct"]
 kernel = ["rdma-shim/kernel"]
-user = ["rdma-shim/user", "tokio", "serde", "serde_derive", "serde_json", "bytes", "async-trait"]
+user = [
+    "rdma-shim/user",
+    "tokio",
+    "serde",
+    "serde_derive",
+    "serde_json",
+    "bytes",
+    "async-trait",
+]
 OFED_5_4 = ["rdma-shim/OFED_5_4"]
 exp = ["rdma-shim/exp"]
 rdma-runtime = []
