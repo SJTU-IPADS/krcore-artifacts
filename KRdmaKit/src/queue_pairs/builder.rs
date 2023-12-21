@@ -380,7 +380,10 @@ impl QueuePairBuilder {
             sq_sig_type: ib_sig_type::IB_SIGNAL_REQ_WR,
 
             qp_type: ib_qp_type::IB_QPT_RC as _,
+
+            #[cfg(feature = "user")]            
             sq_sig_all : 0,
+            
             send_cq: send.raw_ptr().as_ptr(),
             recv_cq: recv.raw_ptr().as_ptr(),            
             ..Default::default()
