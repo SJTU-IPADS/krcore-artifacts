@@ -17,7 +17,7 @@ default = ["KRdmaKit"]
 
 [dependencies]
 KRdmaKit = { path = "../../KRdmaKit", optional = true }
-hashbrown = "0.9"
+hashbrown = { git = "https://github.com/ProjectMitosisOS/hashbrown.git", branch = "main" }
 
 ## lazy static
 [dependencies.lazy_static]

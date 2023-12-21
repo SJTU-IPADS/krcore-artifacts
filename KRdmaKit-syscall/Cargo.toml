@@ -51,7 +51,7 @@ KRdmaKit = { path = "../rust-kernel-rdma/KRdmaKit", optional = true, features = 
 #KRdmaKit = { path = "../rust-kernel-rdma/KRdmaKit", optional = true, features = ["dct", "profile"] }
 no-std-net = { path = "../rust-kernel-rdma/deps/no-std-net" }
 krdmakit-macros = {path = "../krdmakit-macros"}
-hashbrown = "0.9"
+hashbrown = { git = "https://github.com/ProjectMitosisOS/hashbrown.git", branch = "main" }
 #nostd_async = "0.3.1"
 nostd_async = "0.6.0" # TODO: Check if work ?
 futures-micro = "0.4"
